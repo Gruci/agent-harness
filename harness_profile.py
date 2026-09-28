@@ -15,8 +15,6 @@ STAGE 가 greenfield 인 이유: 이 레포가 싣고 다니는 문서(`dev/DEVG
 
 from __future__ import annotations
 
-import sys
-
 # 이 프로파일은 하네스 레포 자신의 것이지 어떤 프로젝트의 설정도 아니다. clone 해 간
 # 프로젝트가 이걸 그대로 물려받으면 레이어가 전부 None 이라 게이트가 통째로 꺼진 채
 # 초록불이 뜬다. 설치 스크립트가 이 표식을 보고 "아직 설정 안 된 상태"로 취급해 덮어쓴다.
@@ -25,13 +23,9 @@ HARNESS_SELF = True
 STAGE = "greenfield"
 PROFILE_SCHEMA = 1
 LANG = "python"
-# Pin the tool scope and ignore machine-global Ruff configuration.
-# Deliberately invalid fixtures are exercised by regression tests, not linted as product code.
-LINTERS = ({"slug": "ruff", "cmd": [sys.executable, "-m", "ruff", "check", "--isolated",
-            "--select", "E9,F63,F7,F82",
-            "--output-format=concise", "--exclude", "tests/fixtures", "kernel", "harness_gates",
-            "tests", "harness_install.py", "harness_profile.py", "setup_global_permissions.py"],
-            "parse": "gcc", "install": "python -m pip install ruff"},)
+# 하네스 본체 개발은 외부 린터 설치를 요구하지 않는다 — 파이썬 팩 기본값(ruff)을 명시적으로 끈다.
+# 제품 프로젝트의 린터는 초기 설정에서 고른 언어팩이 정한다.
+LINTERS: tuple = ()
 
 # 하네스는 웹도 화면도 없는 CLI 도구다 — 화면·웹 검사 9종은 설정 누락이 아니라 해당 없음.
 ARCH = "headless"
