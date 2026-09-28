@@ -6,7 +6,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "ad61e9be3b844a788420dc50ca48c9b2df853068"
+      "revision": "3e8f6e6e7bb944993bf96aa8f7b84fd0400b8e82"
     },
     "views": [
       {
@@ -20,7 +20,7 @@
           "subagentstop-agent_return",
           "stop-editing_lock"
         ],
-        "note": "세션 시작에서 종료까지, 훅이 발화하는 이벤트 순서다."
+        "note": "세션 시작에서 종료까지, 훅이 실행되는 이벤트 순서다."
       },
       {
         "id": "blocking",
@@ -49,7 +49,7 @@
           "stop-task_residue",
           "stop-ui_copy"
         ],
-        "note": "종료 시점 전량 검사. 통과 전까지 세션이 끝나지 않는다."
+        "note": "세션 종료 시점에 전체를 검사한다. 통과하기 전에는 세션이 끝나지 않는다."
       }
     ]
   },
@@ -654,13 +654,14 @@
         "dup_block — 블록 중복(선언 안 복붙)",
         "local:edit_surface — 편집 표면 래칫(면제·제외 목록)",
         "local:archive_not_shipped — 작업 archive 배포 금지",
-        "md_style — MD 작성 규칙"
+        "local:stack_words — 스택 단어 래칫(문서·에이전트)"
       ]
     },
     {
       "dot": "slate",
-      "title": "러너 게이트 37~43",
+      "title": "러너 게이트 37~44",
       "items": [
+        "md_style — MD 작성 규칙",
         "md_path_refs — MD 경로 참조 실존",
         "md_orphans — 고아 MD(허브 도달 불가)",
         "md_harness_map — 하네스 지도 대조",

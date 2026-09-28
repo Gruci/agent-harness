@@ -123,7 +123,7 @@ svg[data-preset="blueprint"] .c-security-group,
         <path data-edge-from="runner" data-edge-to="gates" data-edge-label="판정" data-edge-key="4" data-edge-id="runner-gates" data-composition-points="710,362;800,362" d="M 710 362 L 800 362" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="runner" data-edge-to="local" data-edge-label="LOCAL_GATES" data-edge-key="5" data-edge-id="runner-local" data-composition-points="625,394;625,418;776,418;776,542;800,542" d="M 625 394 L 625 410 Q 625 418 633 418 L 768 418 Q 776 418 776 426 L 776 534 Q 776 542 784 542 L 800 542" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="profile" data-edge-to="runner" data-edge-label="레이어·어휘" data-edge-key="6" data-edge-id="profile-runner" data-composition-points="625,214;625,330" d="M 625 214 L 625 330" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="profile" data-edge-to="packs" data-edge-label="LANG · ARCH" data-edge-key="7" data-edge-id="profile-packs" data-composition-points="710,182;800,182" d="M 710 182 L 800 182" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="profile" data-edge-to="packs" data-edge-label="LANG · ARCH · FRAMEWORK" data-edge-key="7" data-edge-id="profile-packs" data-composition-points="710,182;800,182" d="M 710 182 L 800 182" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="hooks" data-edge-to="trace" data-edge-label="차단 1줄" data-edge-key="8" data-edge-id="hooks-trace" data-composition-points="360,394;360,418;516,418;516,542;540,542" d="M 360 394 L 360 410 Q 360 418 368 418 L 508 418 Q 516 418 516 426 L 516 534 Q 516 542 524 542 L 540 542" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="gates" data-edge-to="facts" data-edge-label="사실 읽기" data-edge-key="9" data-edge-id="gates-facts" data-composition-points="970,355;994,355;994,238;1145,238;1145,214" d="M 970 355 L 986 355 Q 994 355 994 347 L 994 246 Q 994 238 1002 238 L 1137 238 Q 1145 238 1145 230 L 1145 214" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="facts" data-edge-to="packs" data-edge-label="QUERIES · 규칙" data-edge-key="10" data-edge-id="facts-packs" data-composition-points="1060,182;970,182" d="M 1060 182 L 970 182" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
@@ -220,15 +220,15 @@ svg[data-preset="blueprint"] .c-security-group,
         <text data-detail="context" x="625" y="556" class="t-muted" font-size="9" text-anchor="middle">harness_trace.jsonl</text>
         </g>
 
-        <g id="node-packs" data-node-id="packs" data-node-label="언어·아키텍처팩" tabindex="0" role="button" aria-label="Focus 언어·아키텍처팩, kernel/langs/, 커널 — 프로젝트를 모른다" aria-pressed="false" data-node-kind="database" data-node-sublabel="kernel/langs/" data-node-context="커널 — 프로젝트를 모른다">
-          <title>언어·아키텍처팩 · kernel/langs/ · 커널 — 프로젝트를 모른다</title>
+        <g id="node-packs" data-node-id="packs" data-node-label="팩 3축" tabindex="0" role="button" aria-label="Focus 팩 3축, kernel/langs/, 커널 — 프로젝트를 모른다" aria-pressed="false" data-node-kind="database" data-node-sublabel="kernel/langs/" data-node-context="커널 — 프로젝트를 모른다">
+          <title>팩 3축 · kernel/langs/ · 커널 — 프로젝트를 모른다</title>
           <rect x="800" y="150" width="170" height="64" rx="6" class="c-mask"/>
           <rect x="800" y="150" width="170" height="64" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(806 156) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="885" y="180" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">언어·아키텍처팩</text>
+          <text data-node-label="" data-detail-anchor="" x="885" y="180" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">팩 3축</text>
         <text data-detail="context" x="885" y="196" class="t-muted" font-size="9" text-anchor="middle">kernel/langs/</text>
         </g>
 
@@ -317,9 +317,9 @@ svg[data-preset="blueprint"] .c-security-group,
           <rect x="593.6" y="262" width="62.8" height="14" rx="3" class="c-mask"/>
           <text x="625" y="272" class="t-muted" font-size="8" text-anchor="middle">레이어·어휘</text>
         </g>
-        <g data-detail="context" data-edge-from="profile" data-edge-to="packs" data-edge-label="LANG · ARCH" data-edge-key="7" data-edge-id="profile-packs">
-          <rect x="723.6" y="162" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="755" y="172" class="t-muted" font-size="8" text-anchor="middle">LANG · ARCH</text>
+        <g data-detail="context" data-edge-from="profile" data-edge-to="packs" data-edge-label="LANG · ARCH · FRAMEWORK" data-edge-key="7" data-edge-id="profile-packs">
+          <rect x="694.8" y="136" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="755" y="146" class="t-muted" font-size="8" text-anchor="middle">LANG · ARCH · FRAMEWORK</text>
         </g>
         <g data-detail="context" data-edge-from="hooks" data-edge-to="trace" data-edge-label="차단 1줄" data-edge-key="8" data-edge-id="hooks-trace">
           <rect x="413.8" y="398" width="48.4" height="14" rx="3" class="c-mask"/>

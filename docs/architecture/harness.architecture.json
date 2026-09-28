@@ -7,7 +7,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "ad61e9be3b844a788420dc50ca48c9b2df853068"
+      "revision": "3e8f6e6e7bb944993bf96aa8f7b84fd0400b8e82"
     },
     "views": [
       {
@@ -45,7 +45,7 @@
           "local",
           "runner"
         ],
-        "note": "커널은 프로젝트를 모른다. 프로파일 한 파일과 언어팩과 레포 전용 게이트만 바뀐다. 게이트는 언어를 모르고 사실만 읽는다."
+        "note": "커널은 프로젝트를 모른다. 프로파일 한 파일과 언어·아키텍처·프레임워크팩과 레포 전용 게이트만 바뀐다. 게이트는 언어를 모르고 사실과 선언만 읽는다."
       },
       {
         "id": "diagram",
@@ -243,7 +243,7 @@
     {
       "id": "packs",
       "type": "database",
-      "label": "언어·아키텍처팩",
+      "label": "팩 3축",
       "sublabel": "kernel/langs/",
       "pos": [
         800,
@@ -256,19 +256,21 @@
       "sources": [
         {
           "path": "kernel/lang.py",
-          "line": 45,
-          "end_line": 92,
+          "line": 172,
+          "end_line": 207,
           "label": "언어팩 로더"
-        },
-        {
-          "path": "kernel/langs/python.py",
-          "label": "python 팩"
         },
         {
           "path": "kernel/arch.py",
           "line": 27,
           "end_line": 42,
           "label": "아키텍처팩 로더"
+        },
+        {
+          "path": "kernel/framework.py",
+          "line": 103,
+          "end_line": 134,
+          "label": "프레임워크팩 로더"
         }
       ]
     },
@@ -288,15 +290,15 @@
       "sources": [
         {
           "path": "kernel/facts.py",
-          "line": 145,
-          "end_line": 164,
+          "line": 154,
+          "end_line": 175,
           "label": "facts_for"
         },
         {
-          "path": "kernel/analyzers/python.py",
-          "line": 109,
-          "end_line": 130,
-          "label": "Python 어댑터"
+          "path": "kernel/analyzers/command.py",
+          "line": 140,
+          "end_line": 196,
+          "label": "외부 분석기"
         },
         {
           "path": "kernel/analyzers/treesitter.py",
@@ -357,6 +359,10 @@
         {
           "path": "harness_gates/archive_not_shipped.py",
           "label": "archive 배포 금지"
+        },
+        {
+          "path": "harness_gates/stack_words.py",
+          "label": "스택 단어 래칫"
         }
       ]
     },
@@ -500,7 +506,8 @@
       "id": "profile-packs",
       "from": "profile",
       "to": "packs",
-      "label": "LANG · ARCH"
+      "label": "LANG · ARCH · FRAMEWORK",
+      "labelDy": -26
     },
     {
       "id": "hooks-trace",
