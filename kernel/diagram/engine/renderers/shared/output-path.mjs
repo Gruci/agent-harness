@@ -119,8 +119,9 @@ function probeNamesAlias(directoryPath, authoredName, lookupName) {
     let authored;
     let lookup;
     try {
-      authored = fs.statSync(authoredPath);
-      lookup = fs.statSync(lookupPath);
+      // bigint: NTFS file IDs exceed 2^53 and collide once rounded to Number.
+      authored = fs.statSync(authoredPath, { bigint: true });
+      lookup = fs.statSync(lookupPath, { bigint: true });
     } catch (error) {
       if (error.code === 'ENOENT') result = false;
     }
@@ -220,8 +221,10 @@ function futurePathsAlias(leftPath, rightPath) {
 export function pathsAlias(leftPath, rightPath) {
   if (futurePathsAlias(leftPath, rightPath)) return true;
   try {
-    const left = fs.statSync(leftPath);
-    const right = fs.statSync(rightPath);
+    // bigint: NTFS file IDs exceed 2^53 — two sibling files rounded to the same Number
+    // were reported as one file, blocking a delivery whose output sat next to its input.
+    const left = fs.statSync(leftPath, { bigint: true });
+    const right = fs.statSync(rightPath, { bigint: true });
     return sameFileIdentity(left, right);
   } catch {
     return false;
