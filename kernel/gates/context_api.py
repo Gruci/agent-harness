@@ -1,4 +1,4 @@
-"""Component boundaries over syntax facts; Python-only semantics ride in `extra`, dynamic access stays unverified.
+"""Checks component boundaries from syntax facts. Python-only details arrive in `extra`; dynamic access is always reported as unverified.
 
 The graph names its syntax. The analyzer for that syntax comes from `kernel/facts.py` — Python is always
 there (stdlib `ast`), any other language needs the profile's language pack plus tree-sitter. Without an
@@ -65,7 +65,7 @@ def check(graph: dict, root: Path, sources: list[Path]) -> tuple[list[str], list
             name = None if imported != target else item.symbol
             _boundary(graph, components, modules, contracts, owner, role, imported, name, item.external,
                       f"{relative}:{item.line}", violations, unverified, observed)
-        # Python 전용 절 — 속성 경유 참조와 호출 이름은 Python 분석기만 낸다. 없는 언어는 건너뛴다.
+        # Python 전용 구간 — 속성을 거친 참조와 호출 이름은 Python 분석기만 만든다. 이 정보가 없는 언어는 건너뛴다.
         for qualified, line in file_facts.extra.get("attributes", ()):
             matches = [key for key in modules if qualified.startswith(key + ".")]
             if matches:

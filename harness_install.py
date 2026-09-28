@@ -1,9 +1,9 @@
 """harness_install.py — 프로파일 설치와 검사 진단.
 
-새 프로젝트는 스택 미정 서식 하나에서 시작한다.
-첫 코드 전에 사용자와 분류 그래프와 언어별 검사 도구를 구성한다.
-설치는 기존 위반을 자동 동결하지 않으며 프로젝트 정본을 삭제하지 않는다.
-기존 파일 단위 baseline은 --prune으로 줄일 수 있다.
+새 프로젝트는 스택이 정해지지 않은 템플릿 프로파일 하나에서 시작한다.
+첫 코드를 쓰기 전에 사용자와 함께 분류 그래프와 언어별 검사 도구를 구성한다.
+설치는 기존 위반을 자동으로 동결(baseline 등록)하지 않고, 프로젝트 정본 파일도 지우지 않는다.
+이미 있는 파일 단위 baseline은 --prune으로 줄일 수 있다.
 """
 
 from __future__ import annotations
@@ -36,13 +36,14 @@ BASELINE_HEADER = """# harness_baseline.txt — 하네스 설치 시점에 이�
 """
 
 # 존재해야 게이트가 켜지는 동결 파일. 없으면 그 게이트가 [SKIP] 이다.
-API_BASELINE_HEADER = "# 설치 시점 동결분 없음 — 필수 배열 필드가 새로 늘면 걸린다\n"
+API_BASELINE_HEADER = "# 설치 시점에 동결한 항목 없음 — 필수 배열 필드가 새로 생기면 걸린다\n"
 
 # ── 하네스 자체 업데이트 ────────────────────────────────────────────────────────
 #
-# clone 해 간 프로젝트는 원류와 git 이 끊겨 있다. 그래서 커널 개선을 받을 길이 "역이식"뿐이었다.
-# `--check-update` 는 원류 기본 브랜치의 KERNEL_VERSION 만 읽어 고지하고, `--upgrade` 는 하네스가
-# 소유한 것만 갈아끼운다 — 프로파일·MD·harness_gates/·docs/ 는 프로젝트 것이라 절대 안 건드린다.
+# clone 해 간 프로젝트는 원류(하네스 원본 레포)와 git 연결이 끊겨 있다. 그래서 커널 개선을 받으려면
+# 손으로 옮겨 오는 "역이식"밖에 없었다. `--check-update` 는 원류 기본 브랜치의 KERNEL_VERSION 만 읽어
+# 알려 주고, `--upgrade` 는 하네스가 소유한 파일만 갈아끼운다. 프로파일·MD·harness_gates/·docs/ 는
+# 프로젝트 소유라 절대 건드리지 않는다.
 UPGRADE_DIRS = ("kernel", ".claude/hooks")           # 원류 파일 갱신, 프로젝트 추가 파일 보존
 UPGRADE_PRESET_DIR = "profiles"                      # 최상위 프리셋 *.py 만 덮어쓴다 — lang/·arch/ 오버라이드는 남긴다
 _VERSION_RE = re.compile(r'^KERNEL_VERSION\s*=\s*"([^"]+)"', re.M)
@@ -53,9 +54,9 @@ def _version_tuple(text: str) -> tuple[int, ...]:
 
 
 def upstream_version() -> str:
-    """원류 기본 브랜치의 KERNEL_VERSION. 파일 하나만 받는다 — clone 은 --upgrade 때만."""
+    """원류 기본 브랜치의 KERNEL_VERSION 을 돌려준다. 파일 하나만 내려받고, clone 은 --upgrade 때만 한다."""
     raw = UPSTREAM.replace("https://github.com/", "https://raw.githubusercontent.com/")
-    # 캐시 무력화 — raw CDN 이 몇 분 전 판을 돌려주면 "최신" 오판이 난다
+    # 캐시를 우회한다 — raw CDN 이 몇 분 전 버전을 돌려주면 최신이라고 잘못 판단한다
     url = f"{raw}/{UPSTREAM_BRANCH}/kernel/__init__.py?t={int(time.time())}"
     with urllib.request.urlopen(url, timeout=10) as response:
         body = response.read().decode("utf-8", "replace")
@@ -66,11 +67,11 @@ def upstream_version() -> str:
 def check_update() -> int:
     try:
         latest = upstream_version()
-    except Exception as exc:                                  # 네트워크·404 — 고지만 하고 끝
+    except Exception as exc:                                  # 네트워크 오류·404 — 알리기만 하고 끝낸다
         print(f"[UPDATE] 원류 확인 실패 — {exc.__class__.__name__}: {exc}")
         return 2
     if not latest:
-        print("[UPDATE] 원류에서 KERNEL_VERSION 을 못 읽음 — 원류가 아직 버전 상수를 안 실은 판이다")
+        print("[UPDATE] 원류에서 KERNEL_VERSION 을 못 읽었다 — 원류가 아직 버전 상수를 넣기 전의 버전이다")
         return 2
     if _version_tuple(latest) > _version_tuple(KERNEL_VERSION):
         print(f"[UPDATE] 하네스 {KERNEL_VERSION} → {latest} 있음.")
@@ -82,11 +83,11 @@ def check_update() -> int:
 
 
 def upgrade() -> int:
-    """하네스 소유분만 교체. 되돌리기는 git 이 한다 — 그래서 트리가 깨끗해야 시작한다."""
+    """하네스가 소유한 파일만 교체한다. 되돌리기는 git 에 맡기므로 작업 트리가 깨끗해야 시작한다."""
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
                            text=True, encoding="utf-8").stdout.strip()
     if dirty:
-        print("[UPGRADE] 작업 트리가 깨끗하지 않다 — 커밋하거나 되돌린 뒤 돌려라. 교체는 git 으로 되돌릴 수 있어야 한다.")
+        print("[UPGRADE] 작업 트리가 깨끗하지 않다 — 커밋하거나 되돌린 뒤 다시 실행하라. 교체는 git 으로 되돌릴 수 있어야 한다.")
         return 2
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "upstream"
@@ -105,15 +106,15 @@ def upgrade() -> int:
             shutil.copy2(preset, ROOT / UPGRADE_PRESET_DIR / preset.name)
         print(f"[UPGRADE] {UPGRADE_PRESET_DIR}/*.py 덮어씀 (lang/·arch/ 오버라이드는 그대로)")
     print(f"\n[UPGRADE] {KERNEL_VERSION} → {latest}. 다음 순서:")
-    print("   python -X utf8 -m kernel.profile     새 프로파일 항목 고지")
-    print("   python -X utf8 -m kernel.runner      전 게이트 재검증")
+    print("   python -X utf8 -m kernel.profile     새로 생긴 프로파일 항목 확인")
+    print("   python -X utf8 -m kernel.runner      모든 게이트 다시 검증")
     print("   git diff 로 변경을 검토하라. 설정·스킬·공통 절차는 필요한 항목만 병합한다.")
     # 새 프로세스에서 교체된 커널을 읽는다. 현재 프로세스는 이전 모듈을 캐시하고 있다.
     return subprocess.run([sys.executable, "-X", "utf8", "-m", "kernel.harness_setup"],
                           cwd=ROOT).returncode
 
 def profile_modules() -> list[str]:
-    """`--preset` 으로 지정 가능한 전부. 남의 프로젝트 프로파일도 포함된다."""
+    """`--preset` 으로 지정할 수 있는 모든 프로파일. 다른 프로젝트의 프로파일도 포함된다."""
     return sorted(p.stem for p in PRESET_DIR.glob("*.py") if p.stem != "__init__")
 
 
@@ -121,11 +122,11 @@ def check_install_location() -> str:
     """하네스가 세션 루트에 있는가. 어긋나면 그 사유를 돌려준다(정상이면 빈 문자열).
 
     훅 command 는 `$(git rev-parse --show-toplevel)/.claude/hooks/...` 다. 하네스가 git 최상위가
-    아닌 하위 폴더에 있으면 그 경로에 훅이 없어 통째로 안 걸리는데, **그 상태는 화면에 아무것도 안 뜬다.** [SKIP] 조차
-    없다 — 검사기가 아예 안 불리기 때문이다. 하네스가 죽는 방식 중 제일 조용한 경로다.
+    아닌 하위 폴더에 있으면 그 경로에 훅이 없어 훅이 하나도 실행되지 않는다. **이 상태는 화면에 아무것도 나타나지 않는다.**
+    검사기가 아예 불리지 않으니 [SKIP] 조차 없다. 하네스가 작동을 멈추는 경우 중 가장 알아채기 어려운 경우다.
 
     판정은 git 최상위와 대조한다. 레포 루트가 곧 세션 루트라는 보장은 없지만, 하네스가
-    레포 안쪽 하위 폴더에 들어앉은 경우는 확실히 잘못이고 그게 실제로 나온 사고다.
+    레포 안쪽 하위 폴더에 들어가 있는 경우는 확실히 잘못이고, 실제로 그런 사고가 났다.
     """
     done = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=ROOT,
                           capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -164,7 +165,7 @@ def report_install_location() -> bool:
 
 
 def print_language_report() -> None:
-    """이 프로젝트의 언어 설정과, 그 언어팩이 요구하는 도구의 설치 여부.
+    """이 프로젝트의 언어 설정과, 그 언어팩에 필요한 도구가 설치됐는지 출력한다.
 
     도구가 없으면 그 검사는 안 도는데, 설치 전에는 그 사실이 설치 화면에 안 나온다.
     온보딩이 이걸 보고 "무엇이 지금 안 지켜지는지"를 사용자에게 말해줘야 한다.
@@ -192,17 +193,17 @@ def print_language_report() -> None:
         name = str(entry.get("slug") or "?")
         absent = linters.missing_tool(entry)
         if absent:
-            print(f"   [없음] {name:<14} {absent} 미설치 — {entry.get('install', '설치 방법 미기재')}")
+            print(f"   [없음] {name:<14} {absent} 설치 안 됨 — {entry.get('install', '설치 방법이 적혀 있지 않다')}")
         else:
             print(f"   [있음] {name:<14} {' '.join(entry.get('cmd', []))}")
     print("\n없는 도구는 해당 검사가 [TOOL] 로 꺼진 채 돈다. 통과로 처리되지는 않는다.")
 
 
 def presets() -> list[str]:
-    """새 프로젝트에 권할 수 있는 것만. `PRESET_SUMMARY` 선언이 곧 프리셋 선언이다.
+    """새 프로젝트에 권할 수 있는 프로파일만 돌려준다. `PRESET_SUMMARY` 를 선언한 프로파일이 곧 프리셋이다.
 
-    선언을 요구하는 이유: `profiles/` 에는 특정 프로젝트의 실물 프로파일도 섞여 산다.
-    그걸 새 프로젝트에 권하면 남의 레이어 이름과 어휘를 물려받는다.
+    선언을 요구하는 이유: `profiles/` 에는 특정 프로젝트의 실제 프로파일도 섞여 있다.
+    그걸 새 프로젝트에 권하면 다른 프로젝트의 레이어 이름과 어휘를 물려받게 된다.
     """
     return [name for name in profile_modules() if _preset_meta(name)[0]]
 
@@ -238,11 +239,11 @@ def print_presets() -> None:
 
 
 def install_profile(preset: str) -> bool:
-    """프로파일 실물이 없으면 프리셋에서 만든다. 반환은 '새로 만들었는가'.
+    """프로파일 파일이 없으면 프리셋에서 만든다. 반환값은 새로 만들었는지 여부다.
 
     하네스 레포를 clone 해 온 경우 하네스 **자신의** 프로파일이 딸려 온다. 그건 이 프로젝트의
     설정이 아니라 하네스가 자기를 검사하려고 둔 파일이고, 레이어가 전부 비어 있어 그대로 두면
-    게이트가 통째로 꺼진 채 초록불이 뜬다. 그래서 자기 프로파일은 '없음'으로 취급해 덮어쓴다.
+    게이트가 전부 꺼진 채로 통과 표시가 뜬다. 그래서 하네스 자신의 프로파일은 없는 것으로 취급해 덮어쓴다.
     """
     if preset not in profile_modules():
         raise ValueError(f"사용할 수 없는 프리셋: {preset}")
@@ -251,7 +252,7 @@ def install_profile(preset: str) -> bool:
         print(f"[프로파일] {profile.PROFILE_FILE} 이미 있음 — 건드리지 않는다")
         return False
     if target.exists():
-        print("[프로파일] 딸려온 하네스 자기 프로파일을 이 프로젝트의 것으로 교체한다")
+        print("[프로파일] clone 과 함께 딸려 온 하네스 자신의 프로파일을 이 프로젝트의 것으로 교체한다")
         reset_shipped_state()
     shutil.copy2(PRESET_DIR / f"{preset}.py", target)
     print(f"[프로파일] {profile.PROFILE_FILE} 생성 (프리셋 {preset})")
@@ -259,14 +260,14 @@ def install_profile(preset: str) -> bool:
     return True
 
 
-# 하네스 레포 자신의 상태 파일. 프로파일과 같이 딸려오지만 이 프로젝트의 것이 아니다 —
-# 관찰 기록은 남의 세션 것이라 첫 회고가 거짓 패턴을 읽고, 표면 동결본은 남의 면제 목록이다.
+# 하네스 레포 자신의 상태 파일이다. 프로파일과 함께 딸려 오지만 이 프로젝트의 것이 아니다.
+# 관찰 기록은 하네스 레포 세션의 기록이라 첫 회고가 엉뚱한 패턴을 읽게 되고, 표면 동결본은 하네스 레포의 면제 목록이다.
 SHIPPED_TRACE = "harness_trace.jsonl"
 SHIPPED_SURFACE = "harness_surface.txt"
 
 
 def reset_shipped_state() -> None:
-    """자기 프로파일을 교체하는 그 시점에만 부른다 — 이후 쌓이는 것은 이 프로젝트의 기록이다."""
+    """하네스 자신의 프로파일을 교체하는 시점에만 부른다. 그 뒤에 쌓이는 것은 이 프로젝트의 기록이다."""
     trace = ROOT / SHIPPED_TRACE
     if trace.exists():
         trace.write_text("", encoding="utf-8")
@@ -287,7 +288,7 @@ def install_gate_baselines() -> None:
 
 
 def report_unlisted_layers() -> None:
-    """분류 정본 구성 상태를 알린다. 기술 검사 경로는 분류를 대신하지 않는다."""
+    """컴포넌트 분류 정본(그래프)이 있는지 알린다. 검사 경로를 채웠다고 분류가 된 것은 아니다."""
     graph = ROOT / profile.COMPONENT_GRAPH
     if not graph.is_file():
         print(f"\n[분류 필요] {profile.COMPONENT_GRAPH} 없음 — 첫 코드 전에 사용자와 분류를 승인하라.")
@@ -310,14 +311,14 @@ def _prune() -> int:
     still_broken = set(runner.collect_all_violations()) & frozen
     removed = sorted(frozen - still_broken)
     _write_baseline(sorted(still_broken))
-    _report(removed, "[PRUNE] 고쳐져서 해제된 동결")
+    _report(removed, "[PRUNE] 고쳐져서 동결 목록에서 뺀 항목")
     print(f"남은 동결 {len(still_broken)}건.")
     return 0
 
 
 def _parse(argv: list[str]) -> argparse.Namespace:
-    # 모르는 옵션은 무시하지 않고 거절한다(argparse 기본 exit 2). `--dryrun` 오타가 실제 설치로 돌아
-    # 동결 파일을 덮어쓰는 것이 실사고 경로다. `allow_abbrev=False` — 줄임 옵션도 오타와 같이 거절한다.
+    # 모르는 옵션은 무시하지 않고 거절한다(argparse 기본 exit 2). `--dryrun` 오타가 실제 설치로 실행돼
+    # 동결 파일을 덮어쓰는 것이 실제로 사고가 나는 경로다. `allow_abbrev=False` — 줄임 옵션도 오타와 같이 거절한다.
     parser = argparse.ArgumentParser(prog="harness_install.py", allow_abbrev=False)
     for flag in ("--list", "--doctor", "--prune", "--dry-run", "--check-update", "--upgrade",
                  "--check-agents"):
@@ -357,7 +358,7 @@ def main(argv: list[str]) -> int:
         print_language_report()
         return check_agents(ROOT)
 
-    # 무엇보다 먼저. 위치가 틀리면 나머지를 다 해도 훅이 하나도 안 걸린다.
+    # 설치 위치를 가장 먼저 확인한다. 위치가 틀리면 나머지를 다 해도 훅이 하나도 실행되지 않는다.
     if not report_install_location():
         return 2
 
@@ -395,7 +396,7 @@ def main(argv: list[str]) -> int:
         print("\n설치 검증 완료 — 위반을 자동 동결하지 않았다.")
 
     else:
-        print("\n검증 미완료 — 보고된 분류·검사 설정 또는 코드 위반을 해결하라.")
+        print("\n검증을 통과하지 못했다 — 위에 보고된 분류 문제, 검사 설정 문제, 코드 위반을 해결하라.")
 
     return code
 

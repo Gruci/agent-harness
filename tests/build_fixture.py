@@ -1,8 +1,8 @@
 """tests/build_fixture.py — 시험용 미니 프로젝트를 만든다.
 
-게이트마다 위반을 **정확히 1건씩** 심은 가짜 프로젝트다. 이걸 검사기에 물려 나온 출력을
-정답지(`tests/golden/full.txt`)로 동결해두면, 리팩터 후 결과가 달라진 그 줄이 곧 망가진
-게이트다. 파일 내용의 정본은 `tests/fixture_files.py` 이고 여기는 쓰는 일만 한다.
+게이트마다 위반을 **정확히 1건씩** 심은 가짜 프로젝트다. 이 프로젝트를 검사기로 돌린 출력을
+정답지(`tests/golden/full.txt`)로 고정해 두면, 리팩터 뒤 결과가 달라진 줄이 곧 망가진
+게이트를 가리킨다. 파일 내용의 정본은 `tests/fixture_files.py` 이고, 이 파일은 디스크에 쓰는 일만 한다.
 
 재생성: python -X utf8 tests/build_fixture.py
 """
@@ -21,8 +21,8 @@ from fixture_go import FILES as GO_FILES  # noqa: E402
 HERE = Path(__file__).resolve().parent
 DEST = HERE / "fixtures" / "miniproj"
 DEST_GO = HERE / "fixtures" / "goproj"
-# 화면 린터 검출 테스트의 npm 프로젝트. 위반 파일은 miniproj 의 frontend/src 와 같은 정본에서 나온다 —
-# package.json·package-lock.json 은 여기서 안 만든다(손으로 둔 정본).
+# 화면 린터가 위반을 잡는지 확인하는 테스트용 npm 프로젝트. 위반 파일은 miniproj 의 frontend/src 와 같은 정본에서 만들어진다.
+# package.json 과 package-lock.json 은 손으로 관리하는 정본이라 여기서 만들지 않는다.
 DEST_UILINT = HERE / "fixtures" / "uilint"
 UI_PREFIX = "frontend/src/"
 

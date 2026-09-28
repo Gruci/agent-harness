@@ -8,14 +8,14 @@
   [OK]     검사했고 위반 0건
   [SKIP]   **검사할 대상이 없었다.** 프로파일에 레이어·어휘 선언이 없으면 여기로 온다
   [FAIL]   강제 위반 — 총계에 합산되고 exit 1 을 만든다
-  [REPORT] 연성 신호 — 오탐 여지가 있어 합산하지 않는다. 전역 신호(경로 참조·stale 노드)는
-           전량 모드에서만 찍는다 — 작성 시점엔 편집한 파일과 무관한 소음이라 모델이 출력을 안 읽게 된다
+  [REPORT] 참고용 신호 — 오탐 여지가 있어 합산하지 않는다. 레포 전체에 걸친 신호(경로 참조·stale 노드)는
+           전체 검사 모드에서만 찍는다. 작성 시점에 찍으면 편집한 파일과 무관한 소음이라 모델이 출력을 안 읽게 된다
 
 [OK] 와 [SKIP] 을 가르는 것이 이 러너의 핵심이다. 이전 하네스는 레이어 이름이 안 맞아 대상이
-0개인데도 [OK] 로 찍어, 지켜주지 않는 게이트를 지켜준다고 믿게 만들었다.
+0개인데도 [OK] 로 찍었고, 그래서 실제로는 아무것도 검사하지 않는 게이트를 믿게 만들었다.
 
-각 섹션은 slug 를 갖는다. slug 는 `harness_baseline.txt` 의 동결 키를 겸한다 — 설치 시점에
-이미 있던 위반을 (slug, 파일) 단위로 얼려서 초록불에서 출발하게 하는 것이 그 목적이다.
+각 섹션은 slug 를 갖는다. slug 는 `harness_baseline.txt` 의 동결 키로도 쓰인다. 설치 시점에
+이미 있던 위반을 (slug, 파일) 단위로 기록해 예외 처리하고, 모든 게이트가 통과한 상태에서 출발하게 하려는 것이다.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from kernel import diagram, facts, graph_checks, linters, profile
-# 재수출 — trace(violation_path)·설치 스크립트(BASELINE_FILE·load_baseline)가 러너 경유로 쓴다.
+# 러너를 거쳐 쓰도록 다시 내보낸다. trace 는 violation_path 를, 설치 스크립트는 BASELINE_FILE·load_baseline 을 쓴다.
 from kernel.baseline import (BASELINE_FILE, apply_baseline as _apply_baseline,  # noqa: F401
                              load_baseline, violation_path)
 from kernel.context import ROOT, _rel, app_code, is_harness_own, tracked
@@ -58,9 +58,9 @@ def _print_style_reports(reports: list[str]) -> None:
 def _print_sections(sections: list[Section]) -> int:
     """[FAIL] 머리에 slug 를 함께 찍는다.
 
-    slug 는 이 하네스에서 게이트의 정체성이다 — 동결 키도 로컬 섹션 이름도 slug 다. 그런데
-    화면에만 없어서, `[FAIL]` 을 보고도 `harness_baseline.txt` 에 무엇을 적어야 하는지 알 수
-    없었다. 관찰 기록(`kernel/trace.py`)이 파싱하는 형식 계약도 여기가 정본이다.
+    slug 는 이 하네스에서 게이트를 식별하는 이름이다. 동결 키도 로컬 섹션 이름도 slug 다. 그런데
+    출력에만 없어서, `[FAIL]` 을 보고도 `harness_baseline.txt` 에 무엇을 적어야 하는지 알 수
+    없었다. 관찰 기록(`kernel/trace.py`)이 파싱하는 출력 형식도 이 함수가 정본이다.
     """
     total = 0
     for slug, title, violations, skipped in sections:
@@ -92,21 +92,21 @@ def _entry(slug: str, title: str, violations: list[str], ok: object, need: str) 
     """
     unneeded = profile.not_applicable(slug)
     if unneeded:
-        return (slug, title, [], ("N/A", unneeded))   # 출처 접두는 profile 병합 시점에 베이킹됨
+        return (slug, title, [], ("N/A", unneeded))   # 출처 이름은 profile 에서 병합할 때 이미 붙어 있다
     return (slug, title, violations, None) if ok else (slug, title, [], ("SKIP", need))
 
 
 def _syntax_section(slug: str, title: str, check: object, args: tuple,
                     ok: object, need: str, kind: str) -> Section:
-    """구문 사실에 의존하는 검사. `kind` 는 그 게이트가 읽는 사실 종류(`kernel/facts.py` 헤더)다.
+    """구문 분석 결과(구문 사실)에 기대는 검사. `kind` 는 그 게이트가 읽는 사실의 종류다(`kernel/facts.py` 헤더 참고).
 
-    선택한 언어의 분석기가 그 종류를 못 내면 **실행하지 않는다.** 파서 없이 돌리면 전 파일이
-    '파싱 실패' 위반이 되기 때문이다. 관용구 정규식 계열은 언어팩의 `PATTERNS` 로
-    갈아끼우므로 여기 오지 않는다 — 여기 남은 것은 진짜 파서가 필요한 것들뿐이다.
+    선택한 언어의 분석기가 그 종류를 내지 못하면 **실행하지 않는다.** 파서 없이 돌리면 모든 파일이
+    '파싱 실패' 위반이 되기 때문이다. 관용구 정규식 계열 검사는 언어팩의 `PATTERNS` 로
+    바꿔 끼우므로 여기 오지 않는다. 여기 남은 것은 실제 파서가 필요한 검사뿐이다.
     """
     unneeded = profile.not_applicable(slug)
     if unneeded:
-        return (slug, title, [], ("N/A", unneeded))   # 출처 접두는 profile 병합 시점에 베이킹됨
+        return (slug, title, [], ("N/A", unneeded))   # 출처 이름은 profile 에서 병합할 때 이미 붙어 있다
     reason = facts.unavailable(kind)
     if reason:
         return (slug, title, [], ("TOOL", reason))
@@ -114,7 +114,7 @@ def _syntax_section(slug: str, title: str, check: object, args: tuple,
 
 
 def _ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str) -> Section:
-    """화면 린터(ESLint 위임) 결과의 한 slug. 순서는 N/A → SKIP(대상·설정 없음) → TOOL(eslint 없음) → 판정이다."""
+    """ESLint 에 맡긴 화면 린터 결과에서 slug 하나의 섹션을 만든다. 확인 순서는 N/A, SKIP(대상·설정 없음), TOOL(eslint 없음), 판정이다."""
     unneeded = profile.not_applicable(slug)
     if unneeded:
         return (slug, title, [], ("N/A", unneeded))
@@ -126,7 +126,7 @@ def _ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str
 
 
 def _linter_sections() -> list[Section]:
-    """언어팩이 선언한 표준 도구에 위임한 결과."""
+    """언어팩이 선언한 표준 린터에 검사를 맡긴 결과."""
     found: list[Section] = []
     for slug, title, violations, skipped in linters.sections():
         found.append((slug, title, violations, ("TOOL", skipped) if skipped else None))
@@ -146,11 +146,11 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
     web = _under(files, "routes")
     vocab = profile.VOCAB
     settings = profile.FILES.get("settings")
-    # 화면 6종(10·17~20·42)은 ESLint 한 번에서 나온다 — 정본은 kernel/eslint.harness.mjs
+    # 화면 검사 6종(10·17~20·42)은 ESLint 한 번 실행으로 나온다. 규칙 정본은 kernel/eslint.harness.mjs 다.
     lint = linters.run_ui_lint(ui_files) if ui_files else linters.UiLint({}, "")
 
     return [
-        # 맨 앞이다 — 프로파일 모양이 틀리면 아래 전부가 대상 0건으로 조용히 초록불이 된다.
+        # 맨 앞에 둔다. 프로파일 형식이 틀리면 아래 검사 전부가 대상 0건으로 조용히 통과하기 때문이다.
         _entry("profile_shape", "프로파일 형식", profile.PROFILE_ERRORS, profile.LOADED,
                "프로파일 없음"),
         _entry("line_limit", "파일 길이 상한", core.check_line_limit(files), files, NO_PY),
@@ -217,7 +217,7 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
 
 
 def _doc_sections(full: bool = True) -> list[Section]:
-    """문서 게이트. full 이 거짓이면(`--file`) 전역 REPORT 와 검사 48 을 뺀다 — 편집한 파일과 무관하다."""
+    """문서 게이트. full 이 거짓이면(`--file`) 레포 전체 REPORT 와 아키텍처 그림 대조(검사 48)를 뺀다. 둘 다 편집한 파일과 무관하다."""
     greenfield = profile.STAGE == "greenfield"
 
     # 새 프로젝트는 MD 가 코드보다 먼저 나온다 — plan 문서가 아직 없는 경로를 가리키는 게 정상
@@ -243,9 +243,9 @@ def _doc_sections(full: bool = True) -> list[Section]:
         _entry("md_fn_refs", "MD 함수 참조 실존", md_graph.check_md_fn_refs(),
                not greenfield, "greenfield — 문서가 코드보다 먼저다"),
     ]
-    if not full:                        # 검사 48 은 그림·소스 전량 대조라 --file 에 비교 상대가 없다(34·35 와 같다)
+    if not full:                        # 아키텍처 그림 대조(검사 48)는 그림과 소스 전체를 맞대는 검사라 --file 모드에는 비교 상대가 없다(중복 검사 34·35 와 같다)
         return sections
-    # 그림 ↔ 실물 1:1. 그림이 없는 greenfield 는 "아직 없음", 있으면 노드마다 소스를 증명한다.
+    # 그림과 실제 코드를 1:1 로 대조한다. 그림이 없는 greenfield 는 "아직 없음"으로 두고, 있으면 노드마다 소스 근거를 확인한다.
     hard, soft = arch_diagram.check_arch_diagram()
     _print_style_reports(soft)
     has_diagrams = bool(arch_diagram.diagrams())
@@ -312,7 +312,7 @@ def _in_scope(f: Path) -> bool:
 
 
 def source_files() -> tuple[list[Path], list[Path]]:
-    """전 게이트가 볼 (서버, 화면) 목록. 하네스 자기 발자국과 스코프 제외를 뺀 것이다.
+    """모든 게이트가 볼 (서버, 화면) 파일 목록. 하네스 자체 파일과 SCOPE 로 제외한 경로는 뺀다.
 
     확장자는 프로파일이 정한다. 커널에 `*.py` 를 박아두면 다른 언어 프로젝트에서 대상이
     0건이 되고, 그 상태가 화면에는 초록불로 보인다.
@@ -326,10 +326,10 @@ def source_files() -> tuple[list[Path], list[Path]]:
 
 
 def collect_all_violations() -> list[tuple[str, str]]:
-    """동결 대상 — 현재 전 게이트 위반의 (slug, 파일) 쌍. 설치 스크립트가 쓴다.
+    """동결할 대상, 즉 현재 모든 게이트 위반의 (slug, 파일) 쌍. 설치 스크립트가 쓴다.
 
-    baseline 을 적용하지 않은 날것이다. 파일에 귀속되지 않는 전역 위반은 얼릴 키가 없어
-    빠지고, 그래서 설치 후에도 남는다 — 사람이 직접 봐야 하는 것들이다.
+    baseline 을 적용하지 않은 원본이다. 특정 파일에 속하지 않는 레포 전체 위반은 동결할 키가 없어
+    빠지고, 그래서 설치 후에도 남는다. 사람이 직접 봐야 하는 것들이다.
     """
     files, ui_files = source_files()
     sections = _build_sections(files, ui_files, True, tracked_md_files())
@@ -343,11 +343,11 @@ def tracked_md_files() -> list[Path]:
 
 
 def _single_file_lists(raw_path: str) -> tuple[list[Path], list[Path], bool, list[Path]]:
-    """--file 모드: 대상 파일 하나를 (py, ui, 전역검사 여부, 스타일 대상)으로 분류."""
+    """--file 모드: 대상 파일 하나를 (py, ui, 레포 전체 문서 검사 여부, MD 스타일 대상)으로 분류한다."""
     p = Path(raw_path).resolve()
     try:
-        rel = _rel(p)                    # worktree 접두를 벗긴다 — 안 벗기면 `.claude/` 로 시작해
-    except ValueError:                   # is_harness_own 에 걸려 작성 시점 검사가 무음 통과한다
+        rel = _rel(p)                    # worktree 경로 접두를 뗀다. 안 떼면 `.claude/` 로 시작하는 경로가 되어
+    except ValueError:                   # is_harness_own 에 걸리고, 작성 시점 검사가 경고 없이 통과한다
         return [], [], False, []
     exclude = profile.SCOPE["exclude_all"]
     if not p.exists() or (exclude and rel.startswith(exclude)):
@@ -360,7 +360,7 @@ def _single_file_lists(raw_path: str) -> tuple[list[Path], list[Path], bool, lis
     if any(fnmatch.fnmatchcase(rel, pat) for pat in profile.SOURCE_EXT):
         return [p], [], False, []
     if p.suffix == ".md":
-        # 전역 교차검사는 정본 MD 편집일 때만 재실행. 스타일은 그 파일만.
+        # 레포 전체 교차 검사는 정본 MD 를 편집했을 때만 다시 돌린다. 스타일 검사는 그 파일만 본다.
         style = [p] if md_style.style_target(rel) else []
         doc_exclude = tuple(profile.MD["doc_exclude"])
         canonical = not (doc_exclude and (rel.startswith(doc_exclude) or rel in doc_exclude))

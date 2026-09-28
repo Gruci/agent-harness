@@ -271,7 +271,7 @@ function formatDiagnostics(error, diagnostics = []) {
 }
 
 function assertEvidenceType(type, repoRoot) {
-  // 하네스 재조립: 소스 증거는 다섯 종 전부에서 검증한다 (renderers/shared/repository-evidence.mjs).
+  // 하네스용 수정: 소스 증거는 다이어그램 다섯 종류 전부에서 검증한다 (renderers/shared/repository-evidence.mjs).
   void type;
   void repoRoot;
 }

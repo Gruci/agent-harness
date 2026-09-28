@@ -1,13 +1,13 @@
 """python -X utf8 -m kernel.diagram <명령> — 다이어그램 엔진 CLI.
 
-  validate <타입> <정본.json>                 진단만. 수정 루프에서 반복한다
+  validate <타입> <정본.json>                 진단만 한다. 고칠 때마다 다시 돌린다
   deliver  <타입> <정본.json> [출력.html]     최종 렌더 + 영수증
   compare  <base.json> <head.json> <출력.html>  architecture 델타
-  rules                                        훅 배선·게이트 목록에서 규칙 지도 생성 + deliver
+  rules                                        훅 배선과 게이트 목록으로 규칙 지도를 만들고 deliver 한다
   svg      <정본.json>                          렌더된 HTML 에서 독립 SVG 만 다시 뽑기
   doctor                                       node·엔진 상태
 
-exit 는 엔진 결과를 따른다 — 0 통과, 1 진단, 2 인자 오류·도구 없음.
+exit 코드는 엔진 결과를 따른다. 0 은 통과, 1 은 진단 있음, 2 는 인자 오류나 도구 없음이다.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ USAGE = __doc__ or ""
 
 def _report(receipt: dict[str, object]) -> int:
     if receipt.get("tool_missing"):
-        print(f"[TOOL] {receipt['tool_missing']} 없음 — 렌더·진단 불가. node 를 설치하고 다시 돌려라.")
+        print(f"[TOOL] {receipt['tool_missing']} 없음 — 렌더도 진단도 할 수 없다. node 를 설치하고 다시 돌려라.")
         return 2
     validation = receipt.get("validation")
     if isinstance(validation, dict):
@@ -35,7 +35,7 @@ def _report(receipt: dict[str, object]) -> int:
     if receipt.get("ok"):
         print("[OK] 엔진 통과")
         return 0
-    print("[FAIL] 엔진 진단 — subject · evidence · supportedFixes 만 고치고 다시 돌려라")
+    print("[FAIL] 엔진 진단 — 각 진단의 subject · evidence · supportedFixes 만 보고 고친 뒤 다시 돌려라")
     return 1
 
 

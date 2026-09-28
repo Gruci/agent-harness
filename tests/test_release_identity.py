@@ -1,8 +1,8 @@
-"""tests/test_release_identity.py — 배포 정체가 한 벌인가 (release-identity).
+"""tests/test_release_identity.py — 배포 정체(버전 표기)가 모든 곳에서 같은가 (release-identity).
 
-`KERNEL_VERSION` 은 clone 해 간 프로젝트가 `--check-update` 로 원류와 대조하는 상수다.
-그 숫자를 사람이 읽는 곳이 README 두 벌이고, 둘은 서로의 번역이라 같은 것을 말해야 한다.
-한 곳만 고치면 배포 정체가 둘로 갈라지는데 **코드는 멀쩡히 돈다** — 그래서 검사로 잠근다.
+`KERNEL_VERSION` 은 clone 해 간 프로젝트가 `--check-update` 로 원본 레포와 대조하는 상수다.
+사람은 그 숫자를 README 두 개에서 읽는다. 두 README 는 서로의 번역이라 같은 내용이어야 한다.
+한 곳만 고치면 버전 표기가 둘로 갈라지는데도 **코드는 멀쩡히 돈다**. 그래서 테스트로 고정한다.
 
   머리 버전    두 README 머리와 KERNEL_VERSION 이 같은 숫자인가
   변경 이력    두 README 의 버전 행 목록이 같고, 맨 위가 현재 버전인가
@@ -24,7 +24,7 @@ _CHANGELOG_ROW = re.compile(r"^\|\s*\*\*v(\d+\.\d+\.\d+)\*\*\s*\|", re.M)
 
 
 def test_readme_versions_agree() -> None:
-    """머리 버전이 두 README 와 커널 상수 셋 다 같다."""
+    """두 README 머리의 버전과 커널 상수, 셋이 모두 같다."""
     sys.path.insert(0, str(REPO))
     from kernel import KERNEL_VERSION       # noqa: E402  (경로 삽입 후에만 import 가능)
 

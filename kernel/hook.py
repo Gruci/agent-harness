@@ -301,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
             if result.returncode not in (0, 1, 2):
-                raise RuntimeError("대상 체크아웃의 훅 검사 불능")
+                raise RuntimeError("대상 체크아웃의 훅이 예상 밖의 종료 코드로 끝났다")
             return result.returncode          # 1 is a notice ([WIP], overlap) — pass it through
         sys.path.insert(0, str(root))  # Direct script launch starts with kernel/ on sys.path.
         if args.event == "PreToolUse":
@@ -324,8 +324,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.event == "PostToolUse":
             warned = board_overlaps(root, paths, sid)
             if warned:
-                print("[WORKBOARD] 다른 과업이 잡은 곳이다 — 같은 범위면 합류하거나 그 브랜치 위에"
-                      " 쌓는다. 겹치는 줄이 아니면 그대로 진행해도 된다 (경고이지 차단이 아니다):",
+                print("[WORKBOARD] 다른 과업이 잡은 곳이다 — 같은 범위면 그 과업 파일의 항목에 줄을 추가해"
+                      " 그 세션에 맡기거나(합류), 그 과업 브랜치에서 worktree 를 따서 이어 작업한다(쌓기)."
+                      " 겹치는 줄이 아니면 그대로 진행해도 된다 (경고이지 차단이 아니다):",
                       file=sys.stderr)
                 for line in warned:
                     print(f"  {line}", file=sys.stderr)

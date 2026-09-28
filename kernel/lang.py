@@ -18,8 +18,8 @@
 게이트가 안 도는 건 손실이 아니라 언어가 이미 보장하기 때문이고, 커넥션 블록 게이트가
 안 도는 건 진짜 손실이다. 둘을 같은 `[SKIP]` 으로 뭉뚱그리면 무엇을 잃었는지 알 수 없다.
 
-선언만으로 1급을 주장할 수 없다. `python -X utf8 -m kernel.pack_check <이름>` 이 FIXTURES 로
-사실 기반 게이트가 실제로 잡는지 판정한다.
+선언을 적었다는 것만으로 1급 팩(사실 기반 게이트가 실제로 동작함이 확인된 팩)이 되지는 않는다.
+`python -X utf8 -m kernel.pack_check <이름>` 이 FIXTURES 예제로 사실 기반 게이트가 위반을 실제로 잡는지 판정한다.
 
 실물은 `profiles/lang/<이름>.py` 이고, 프로파일의 `LANG` 이 어느 것을 쓸지 정한다.
 """
@@ -61,13 +61,13 @@ PUBLIC_RULES = ("capitalized", "underscore")
 
 
 def unselected() -> dict[str, Any]:
-    """LANG 미선언 상태 — 확장자도 구문도 없다. 하네스가 파이썬이라고 제품 언어를 짐작하지 않는다."""
+    """LANG 을 선언하지 않은 상태 — 확장자도 구문도 비어 있다. 하네스가 파이썬으로 쓰였다고 제품 언어도 파이썬이라 짐작하지 않는다."""
     return {"EXT": (), "SYNTAX": None, "PATTERNS": {}, "NOT_APPLICABLE": {}, "LINTERS": (),
             "QUERIES": {}, "MODULE_RULE": None, "PUBLIC_RULE": None, "FIXTURES": {}}
 
 
 def find_pack(kind: str, shipped: Path, project_dir: Path, name: str) -> Path | None:
-    """팩의 실물. 프로젝트 것(`project_dir`)이 커널 것(`shipped`)을 이긴다. 아키텍처팩 로더도 쓴다."""
+    """팩 파일 경로. 같은 이름이면 프로젝트 쪽(`project_dir`)이 커널 쪽(`shipped`)보다 우선한다. 아키텍처팩 로더도 이 함수를 쓴다."""
     if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]*", name):
         raise ValueError(f"잘못된 {kind} 이름: {name!r}")
     for candidate in (project_dir / f"{name}.py", shipped / f"{name}.py"):
@@ -105,7 +105,7 @@ def available() -> list[str]:
 
 
 def load(name: str | None) -> dict[str, Any]:
-    """선언한 팩은 반드시 읽고 검증한다. 미선언만 기본값을 사용한다."""
+    """선언한 팩은 반드시 읽고 검증한다. 선언하지 않았을 때만 기본값을 쓴다."""
     pack = dict(DEFAULTS)
     pack["PATTERNS"] = dict(DEFAULTS["PATTERNS"])
     if name is None:

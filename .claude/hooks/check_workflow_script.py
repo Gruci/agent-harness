@@ -1,33 +1,33 @@
 """PreToolUse(Workflow) 훅 — 워크플로우 스크립트의 `agent()` 에 model 미지정을 차단.
 
 `agent()` 에 model 을 안 주면 **메인 루프 모델을 상속한다.** 툴 문서는 그게 기본이라고 하는데,
-그 말이 맞는 것은 메인이 Opus 일 때뿐이다. 메인이 Fable 이면 워커 전원이 Fable 단가에 더해
+그 기본값이 문제없는 것은 메인이 Opus 일 때뿐이다. 메인이 Fable 이면 워커 전원이 Fable 단가에 더해
 **Fable 전용 거부 정책까지 함께 상속한다.**
 
-원류 실사고(2026-08-21): 15트랙 감사에서 1차 실행 28개가 전부 Fable 로 떴고, 재실행분 20개 중
-11개가 safeguards 거부로 죽었다. 같은 재실행의 Opus 3개는 0건이다. 거부는 result 행을 안 남겨
-`pipeline()` 이 영원히 기다렸고, 그 사이 cache_read 248M 이 나갔다.
+원본 프로젝트 사고(2026-08-21): 15트랙 감사에서 1차 실행 28개가 전부 Fable 로 실행됐고, 재실행한 20개 중
+11개가 safeguards 거부로 중단됐다. 같은 재실행에서 Opus 로 돈 3개는 거부가 0건이었다. 거부된 실행은 result 행을 남기지 않아
+`pipeline()` 이 끝없이 기다렸고, 그 사이 cache_read 248M 이 과금됐다.
 
 ## 왜 산문이 아니라 게이트인가
 
-이 규칙은 이미 `CLAUDE.md` 모델 라우팅에 산문으로 있었다. 있는데도 사고가 났다 — 검사 가능한
-규칙을 산문으로 단속하는 것 자체가 실패 메커니즘이라는 일관성 게이트 ①의 실증이다.
-게다가 산문 문구는 「팬아웃 스테이지」로 좁았고, 사고는 그 밖(구현·검수)에서 났다. 여기는
+이 규칙은 이미 `CLAUDE.md` 모델 라우팅에 문장으로 적혀 있었는데도 사고가 났다. 검사할 수 있는
+규칙을 문서 문장으로만 단속하면 실패한다는 CLAUDE.md 「일관성 게이트」 1번이 실제로 확인된 사례다.
+게다가 그 문장은 적용 범위를 「팬아웃 스테이지」로 좁게 잡았고, 사고는 그 밖(구현·검수)에서 났다. 이 훅은
 **모든 `agent()` 호출**을 본다.
 
-## 판정 — 자리로 가른다
+## 판정 — 코드 안의 위치로 구분한다
 
 `agent(` 를 찾을 때 **주석과 문자열 안은 세지 않는다.** 워크플로우 스크립트는 프롬프트를
-문자열로 들고 다니고 거기 "agent(" 가 들어가는 것이 정상이다. 그걸 호출로 세면 정상 스크립트가
-막힌다 — 이 하네스가 `outbound_link` 와 `worktree_add_path` 에서 두 번 겪은 부류라 처음부터
-자리로 가른다.
+문자열로 담고 있고, 거기에 "agent(" 가 들어가는 것은 정상이다. 그걸 호출로 세면 정상 스크립트가
+막힌다. 이 하네스가 `outbound_link` 와 `worktree_add_path` 에서 이미 두 번 겪은 문제라 처음부터
+코드 안의 위치로 구분한다.
 
 호출 범위는 괄호 깊이로 잡는다. 정규식으로 같은 줄만 보면 여러 줄로 쓴 호출을 통째로 놓친다.
 
 ## 단계
 
-위반은 **차단**(exit 2)이다 — 스크립트 본문에 `model:` 이 실제로 없다는 직접 관측이다.
-판정 불능(본문 없음·파일 못 읽음·괄호 안 닫힘)은 **비차단 경고**(exit 1)다. 스크립트를 못 읽는
+위반은 **차단**(exit 2)한다. 스크립트 본문에 `model:` 이 실제로 없다는 것을 직접 확인한 결과이기 때문이다.
+판정할 수 없는 경우(본문 없음, 파일을 못 읽음, 괄호가 안 닫힘)는 **차단하지 않는 경고**(exit 1)다. 스크립트를 못 읽는
 것은 규칙 위반이 아니라 훅 오작동이고, 그것으로 Workflow 를 막으면 고칠 수단이 사라진다.
 정본은 `dev/HARNESS.md` 「단계」다.
 """
@@ -160,8 +160,8 @@ def _identifier_defines_model(code: str, ident: str) -> bool | None:
 def classify_calls(source: str) -> tuple[list[int], list[int]]:
     """(model 없는 호출의 줄번호, 판정 불능 호출의 줄번호).
 
-    opts 가 객체 리터럴이면 본문 검색, 식별자면 정의부에서 같은 키를 찾는다. 전개·미발견
-    정의·비정형 opts 는 판정 불능이다 — 틀릴 수 있는 판정에는 차단 권한을 주지 않는다.
+    opts 가 객체 리터럴이면 그 본문에서, 식별자면 그 정의부에서 같은 키를 찾는다. 전개 문법, 정의를 찾지 못한
+    식별자, 그 밖의 형태의 opts 는 판정 불능으로 분류한다. 틀릴 수 있는 판정에는 차단 권한을 주지 않는다.
     """
     code = strip_noncode(source)
     missing: list[int] = []
@@ -209,7 +209,7 @@ def main() -> None:
         payload = read_hook_payload()
     except Exception as exc:
         print(f"[WORKFLOW GATE] 훅 페이로드 파싱 실패({exc.__class__.__name__}) — "
-              f"model 검사가 쉬고 있다. 훅을 점검하라.", file=sys.stderr)
+              f"model 검사가 동작하지 않는다. 훅을 점검하라.", file=sys.stderr)
         sys.exit(1)
 
     source = script_source(payload.get("tool_input") or {})
@@ -224,8 +224,8 @@ def main() -> None:
         print(
             f"[WORKFLOW GATE] model 을 안 준 `agent()` 호출 {len(lines)}건 — "
             f"줄 {', '.join(str(n) for n in lines)}.\n"
-            "미지정은 메인 루프 모델을 상속한다. 메인이 Fable 이면 워커 전원이 Fable 단가에\n"
-            "Fable 전용 거부 정책까지 함께 상속하고, 거부는 result 행을 안 남겨 pipeline 이 영원히 기다린다.\n"
+            "model 을 지정하지 않으면 메인 루프 모델을 상속한다. 메인이 Fable 이면 모든 워커가 Fable 단가와\n"
+            "Fable 전용 거부 정책까지 상속하고, 거부된 워커는 result 행을 남기지 않아 pipeline 이 끝없이 기다린다.\n"
             "구현·검수는 `model: 'opus'`, 기계적 팬아웃은 `model: 'sonnet'` 을 명시하라.\n"
             "`agentType:` 지정도 통과다 — 에이전트 정의 frontmatter 가 모델의 정본이다.\n"
             "(정본: .claude/agents/orchestrator.md §4-1 Workflow 스폰 계약)",

@@ -7,16 +7,16 @@
   중첩 def         테스트할 수 없는 숨은 로직
   축약 이름·접두   내부 코드가 이름으로 새는 것
   UI 라벨 금칙어   사용자에게 노출되는 조어
-  Any              타입으로 게이트 때우기 (TS any 는 화면 린터 — kernel/eslint.harness.mjs)
+  Any              Any 로 타입 검사를 피해 가는 것 (TS any 는 화면 린터 담당 — kernel/eslint.harness.mjs)
   타입힌트 누락    공개 함수의 경계면이 문서화되지 않는 것
-  시크릿 토큰      실키 하드코딩 — 커밋되면 회전까지가 수습이다
+  시크릿 토큰      실제 키 하드코딩 — 커밋되면 키를 교체(회전)해야 수습된다
   헤더 경로 주석   파일 이사 후 남은 잘못된 경로 주석
-  미정의 모듈 상수 import 는 통과하고 호출 시점에 터지는 이름
+  미정의 모듈 상수 import 는 통과하고 호출할 때 NameError 가 나는 이름
 
-중첩 def·함수 길이·타입힌트는 `ast` 가 아니라 구문 사실(`kernel/facts.py`)을 읽는다. 사실을 만드는
-분석기가 언어를 안다 — 판정 헬퍼(`nested_pairs`·`long_functions`·`untyped_functions`)는 사실만 받고,
-`kernel/pack_check.py` 가 같은 헬퍼로 언어팩의 1급 여부를 판정한다. 미정의 모듈 상수는 Python 고유
-함정이라 아직 `ast` 다.
+중첩 def·함수 길이·타입힌트는 `ast` 가 아니라 구문 사실(`kernel/facts.py`)을 읽는다. 언어별 차이는
+사실을 만드는 분석기가 처리한다. 판정 헬퍼(`nested_pairs`·`long_functions`·`untyped_functions`)는
+사실만 받고, `kernel/pack_check.py` 가 같은 헬퍼로 언어팩의 1급 여부를 판정한다. 미정의 모듈 상수는
+Python 에만 있는 함정이라 아직 `ast` 로 검사한다.
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from kernel import facts, profile
 from kernel.context import READ_ENC, _rel
 
 MAX_LINES = 400
-MAX_FUNC_LINES = 80   # 파일 400줄 상한이 못 보는 축 — "한 파일에 400줄 함수 하나"를 막는다
+MAX_FUNC_LINES = 80   # 파일 400줄 상한으로는 못 잡는 경우("한 파일에 400줄 함수 하나")를 막는다
 
-# 공급자별 실키 형태. 문자열이 이 모양이면 그건 예시가 아니라 진짜다.
+# 공급자별 실제 키 형식. 문자열이 이 형식이면 예시가 아니라 진짜 키다.
 SECRET_TOKEN = re.compile(
     r"\b(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}"
     r"|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9\-]{10,}|AIza[0-9A-Za-z_\-]{30,})"
@@ -75,7 +75,7 @@ def check_line_limit(files: list[Path]) -> list[str]:
 
 
 def check_header_path_comment(files: list[Path]) -> list[str]:
-    """1행 `# <경로>.py` 헤더 주석이 실경로와 다르면 위반 (디렉토리 이사 잔재 방지)."""
+    """1행 `# <경로>.py` 헤더 주석이 실제 경로와 다르면 위반 (디렉토리를 옮긴 뒤 남은 옛 경로 주석을 잡는다)."""
     bad: list[str] = []
     for f in files:
         rel = _rel(f)
@@ -116,11 +116,12 @@ def untyped_functions(found: facts.FileFacts) -> list[tuple[facts.Function, list
 
 
 def check_closures(files: list[Path]) -> list[str]:
-    """중첩 def(클로저) 금지. 일회성 스크립트와 줄 단위 탈출 주석만 제외.
+    """중첩 def(클로저) 금지. 일회성 스크립트와, 해당 줄에 예외 주석(탈출 주석)을 단 경우만 제외.
 
-    탈출구를 둔 이유: 전면 금지는 데코레이터처럼 클로저가 유일한 형태인 경우에 고칠 수단을
-    안 준다. 실제로 테스트의 가짜 git 클로저가 막혀 모듈 레벨로 밀려난 적이 있다. 사유를
-    적게 하는 것이 본체다 — `# any-ok: 사유` 와 같은 계약이고, 통과가 아니라 기록을 받는다.
+    예외 주석을 허용하는 이유: 전면 금지하면 데코레이터처럼 클로저로만 쓸 수 있는 경우에 고칠
+    방법이 없다. 실제로 테스트의 가짜 git 클로저가 막혀 모듈 레벨로 밀려난 적이 있다. 핵심은
+    사유를 적게 하는 것이다. `# any-ok: 사유` 와 같은 방식이고, 예외 주석은 통과 허가가 아니라
+    사유를 남기는 기록이다.
     """
     escape = profile.pattern("closure_escape") or "closure-ok"
     comment = profile.pattern("comment") or "#"
@@ -165,7 +166,7 @@ def check_type_checking_future(files: list[Path]) -> list[str]:
     """`if TYPE_CHECKING:` 은 `from __future__ import annotations` 와 함께여야 한다.
 
     3.11 은 어노테이션을 즉시 평가해 NameError 를 내는데 3.12+ 로컬에서는 통과한다 —
-    로컬 초록·CI 파열형 함정이라 검사만이 발견 수단이다.
+    로컬에서는 초록불이고 CI 에서만 깨지는 함정이라 검사로만 발견할 수 있다.
     """
     bad: list[str] = []
     for f in files:
@@ -212,7 +213,7 @@ def check_abbrev_prefixes(files: list[Path]) -> list[str]:
 
 
 def check_ui_jargon(files: list[Path]) -> list[str]:
-    """프론트 사용자노출 텍스트에 금칙어 등장 — 주석 줄은 제외(메타 언급 허용)."""
+    """프론트에서 사용자에게 보이는 텍스트에 금칙어가 나오면 위반. 주석 줄은 제외한다(금칙어를 언급하는 설명은 허용)."""
     denylist = profile.VOCAB["ui_denylist"]
     if not denylist:
         return []
@@ -233,7 +234,7 @@ def check_ui_jargon(files: list[Path]) -> list[str]:
 
 
 def check_py_any(files: list[Path]) -> list[str]:
-    """임의 타입으로 때우기 금지 — 타입 게이트 게이밍 방지.
+    """임의 타입으로 타입 검사를 피해 가는 것을 금지한다.
 
     무엇이 '임의 타입'인지는 언어마다 다르다(파이썬 `Any`·Go `interface{}`·TS `any`).
     판정 형태만 여기 있고 패턴은 언어팩이 준다.
@@ -285,7 +286,7 @@ def check_type_hints(files: list[Path]) -> list[str]:
 
 
 def check_secrets(files: list[Path]) -> list[str]:
-    """실키 하드코딩. 커밋되면 지우는 것으로 끝나지 않고 키 회전까지가 수습이다."""
+    """실제 키 하드코딩. 커밋되면 지우는 것으로 끝나지 않고 키를 교체(회전)해야 수습된다."""
     bad: list[str] = []
     for f in files:
         rel = _rel(f)

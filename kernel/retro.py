@@ -1,4 +1,4 @@
-"""kernel/retro.py — 관찰 기록을 패턴으로 채굴한다. 판정은 하지 않는다.
+"""kernel/retro.py — 관찰 기록에서 반복되는 패턴을 뽑아낸다. 판정은 하지 않는다.
 
   python -X utf8 -m kernel.retro                전 기간
   python -X utf8 -m kernel.retro --since 2026-08-10
@@ -6,9 +6,9 @@
 "게이트 X 가 파일 Y 에서 6번 걸렸다"까지가 여기 몫이다. 그게 규칙 위반인지 게이트 오탐인지
 규칙 자체가 이 프로젝트에 안 맞는 건지는 사람이 정한다.
 
-**왜 판정을 자동화하지 않나.** 이 하네스엔 "더 좋아졌다"를 재는 적합도 함수가 없다. 골든
-대조는 회귀만 잡지 개선을 못 잰다. 적합도 없이 제안과 수용을 자동화하면 가장 싼 통과 경로 —
-면제 목록 늘리기 — 로 수렴한다. 그 문은 `harness_gates/edit_surface.py` 가 닫는다.
+**왜 판정을 자동화하지 않나.** 이 하네스에는 "더 좋아졌다"를 재는 기준(적합도 함수)이 없다. 골든
+대조는 회귀만 잡을 뿐 개선은 재지 못한다. 그런 기준 없이 수정 제안과 채택을 자동화하면 결국 가장 쉬운
+통과 방법인 면제 목록 늘리기로 흘러간다. 그 길은 `harness_gates/edit_surface.py` 가 막아 둔다.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def since(stamped: str) -> list[dict[str, str]]:
 
 
 def count_since(stamped: str) -> int:
-    """정비 판정이 쓰는 수. 마지막 회고 후 훅이 몇 번 막았는가."""
+    """정비 알림 판정에 쓰는 값. 마지막 회고 뒤에 훅이 막은 횟수다."""
     return len(since(stamped))
 
 
@@ -51,7 +51,7 @@ def by_gate(items: list[dict[str, str]]) -> list[tuple[str, int, int, str, str]]
 
 
 def hot_spots(items: list[dict[str, str]]) -> list[tuple[str, str, int]]:
-    """같은 게이트가 같은 파일에서 반복된 지점 — 관례가 안 정해졌거나 게이트가 오탐이다."""
+    """같은 게이트가 같은 파일에서 반복해서 걸린 지점. 그 파일의 관례가 아직 없거나 게이트가 오탐을 내는 경우다."""
     counts = Counter((item.get("gate") or "?", item["file"]) for item in items
                      if item.get("kind") == "gate" and item.get("file"))
     return sorted(((gate, path, n) for (gate, path), n in counts.items() if n >= HOT_SPOT_HITS),
@@ -59,7 +59,7 @@ def hot_spots(items: list[dict[str, str]]) -> list[tuple[str, str, int]]:
 
 
 def by_kind(items: list[dict[str, str]]) -> list[tuple[str, int]]:
-    """게이트 밖 마찰 — 통읽기·반환 비만·잠금 잔존·원격 미설정·검사 불능."""
+    """게이트 판정이 아닌 차단(게이트 밖 마찰)의 종류별 건수. 파일 통째 읽기, 너무 긴 에이전트 반환, 남은 과업 파일, 원격 미설정, 검사 실행 실패 등이다."""
     counts = Counter(item.get("kind") or "?" for item in items if item.get("kind") != "gate")
     return sorted(counts.items(), key=lambda row: (-row[1], row[0]))
 
@@ -108,7 +108,7 @@ def main(argv: list[str]) -> int:
     _print_report(items)
     print("판정은 여기서 하지 않는다. 각 패턴이 규칙 위반인지, 게이트 오탐인지, "
           "규칙 자체가 이 프로젝트에 안 맞는지는 사람이 정한다.")
-    print("면제 목록을 늘리는 것은 조치가 아니다 — 그 문은 편집 표면 래칫이 닫아뒀다.")
+    print("면제 목록을 늘리는 것은 해결책이 아니다 — 면제 목록이 줄어들기만 하게 막는 게이트(편집 표면 래칫)가 그 길을 닫아 두었다.")
     return 0
 
 

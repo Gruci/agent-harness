@@ -3,7 +3,7 @@
 프론트가 TS 인 경우는 이 팩이 아니라 프로파일의 `UI_EXT` 가 담당한다. 여기는 **서버까지
 TS 인 프로젝트**용이다.
 
-타입 검사는 `tsc --noEmit` 이 하고 나머지는 `eslint` 가 한다. 우리가 다시 만들지 않는다.
+타입 검사는 `tsc --noEmit` 이 하고 나머지는 `eslint` 가 한다. 하네스가 다시 구현하지 않는다.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ PATTERNS = {
 }
 
 NOT_APPLICABLE = {
-    "type_hints": "tsc 가 담당 — 검사 중복",
+    "type_hints": "tsc 가 이미 검사하므로 중복이다",
     "py_any":     "TS any 게이트가 이미 같은 것을 본다",
 }
 

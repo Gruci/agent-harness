@@ -1,15 +1,15 @@
 """tests/test_hooks.py — `.claude/hooks/` 훅 판정 함수의 행동 테스트.
 
-훅은 러너 밖에서 돌아 골든 대조가 안 닿는다. 그런데 훅의 오판은 게이트 오탐보다 비싸다 —
-세션을 잠그거나 작업 중인 worktree 를 지우라고 요구한다. 실제로 그 둘이 연달아 났다
-(`dev/LESSONS.md` §19). 그래서 판정 함수만 따로 잡아둔다.
+훅은 러너 밖에서 돌기 때문에 골든 대조로는 검사되지 않는다. 그런데 훅의 오판은 게이트 오탐보다 비용이 크다.
+세션을 잠그거나 작업 중인 worktree 를 지우라고 요구하기 때문이다. 실제로 이 두 사고가 연달아 났다
+(`dev/LESSONS.md` §19). 그래서 판정 함수만 따로 떼어 테스트한다.
 
-  격리 밖 링크    실사고 경로를 잡고 산문·정상 링크는 통과시키는가
-  보드 데이터     파일=행 계약과 브랜치 필드, 겹침 판정
-  UI 카피·워크플로 추출기와 `agent()` model 판정
+  격리 밖 링크    실제 사고가 난 경로를 잡고, 산문과 정상 링크는 통과시키는가
+  보드 데이터     파일 하나가 보드 행 하나라는 계약, 브랜치 필드, 겹침 판정
+  UI 카피·워크플로 UI 문구 추출기와 워크플로 스크립트의 `agent()` model 판정
 
-worktree·작업공간 판정은 커널로 옮겨졌다 — `tests/test_workspace.py` 가 그 모듈을 직접 잡는다.
-여기는 아직 `.claude/hooks/` 가 정본인 훅만 파일로 읽는다.
+worktree 와 작업공간 판정은 커널로 옮겼다. 그 모듈은 `tests/test_workspace.py` 가 직접 테스트한다.
+이 파일은 아직 `.claude/hooks/` 가 정본인 훅만 파일로 읽어 테스트한다.
 
 실행: `python -X utf8 tests/test_hooks.py`
 """
@@ -38,11 +38,11 @@ def _load(name: str):
 
 
 def test_outbound_link() -> None:
-    """격리 밖 링크만 잡고 산문·트리 안 링크는 통과시킨다."""
+    """worktree 격리 밖을 가리키는 링크만 잡고, 산문과 트리 안 링크는 통과시킨다."""
     gate = _load("check_bash_write")
     blocked = [
         ("cmd /c mklink /J worktrees/f--1234/frontend/node_modules "
-         "D:/proj/frontend/node_modules", "의존성 링크(실사고 경로)"),
+         "D:/proj/frontend/node_modules", "의존성 링크(실제 사고 경로)"),
         ("ln -s /etc/hosts worktrees/f--1234/hosts", "트리 밖"),
         ("New-Item -ItemType Junction -Path worktrees/a/nm -Target ../../node_modules",
          "PowerShell junction"),
@@ -59,9 +59,9 @@ def test_outbound_link() -> None:
 
 
 def test_workboard_file_is_one_row() -> None:
-    """파일 하나가 행 하나 — README 는 서식 설명이지 과업이 아니고, 디렉토리가 없으면 빈 보드다.
+    """보드에서 파일 하나가 행 하나다. README 는 서식 설명이라 과업이 아니고, 디렉토리가 없으면 빈 보드다.
 
-    이 계약이 깨지면 잔존 검사가 영영 안 돌거나(영구 busy) 훅이 예외로 죽는다(fail-open 위반).
+    이 계약이 깨지면 잔여물 검사가 영영 돌지 않거나(항상 busy 상태) 훅이 예외로 죽는다(fail-open 위반).
     """
     from kernel.workboard import active_rows
     with tempfile.TemporaryDirectory() as tmp:
@@ -75,7 +75,7 @@ def test_workboard_file_is_one_row() -> None:
 
 
 def test_branch_comes_from_task_field() -> None:
-    """브랜치는 `과업:` 필드에서 — `손대는 곳` 의 `docs/tasks/*` 는 브랜치 접두와 형태가 같다."""
+    """브랜치는 `과업:` 필드에서 읽는다. `손대는 곳` 에 적힌 `docs/tasks/*` 도 브랜치 접두와 형태가 같아서 헷갈리기 쉽다."""
     from kernel.workboard import active_rows, branch_of
     with tempfile.TemporaryDirectory() as tmp:
         (row,) = active_rows(fake_board(Path(tmp)))
@@ -84,12 +84,12 @@ def test_branch_comes_from_task_field() -> None:
 
 
 def test_workboard_overlap() -> None:
-    """겹침 판정 — 내 과업 무경고(소음화 방지) · 남의 과업 경고(방어 사멸 방지) · 무관 파일 무경고."""
+    """겹침 판정. 내 과업에는 경고하지 않고(경고가 소음이 되는 것을 막는다), 남의 과업에는 경고하며(방어가 사라지는 것을 막는다), 관련 없는 파일에는 경고하지 않는다."""
     overlap = _load("check_workboard_overlap")
     from kernel.workboard import touch_globs
     globs = touch_globs(TASK_TEXT)
     assert globs == ["frontend/src/components/admin/salesStatus/*", "docs/tasks/plan_x.md"], \
-        f"다음 필드(- 상태:)를 글로브로 먹었다: {globs}"
+        f"다음 필드(- 상태:)까지 글로브로 읽었다: {globs}"
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         overlap.BOARD_DIR = fake_board(root)
@@ -111,27 +111,27 @@ def test_auto_merge() -> None:
 
 
 def test_ui_copy_extract() -> None:
-    """추출기 단위 — JSX 텍스트 추출·JSDoc 이어짐 줄 제외·`${}` 마스킹 후 조각 탈락 (LLM 무호출)."""
+    """문구 추출기 단위 테스트. JSX 텍스트는 추출하고, JSDoc 이어짐 줄은 제외하고, `${}` 를 가린 뒤 남는 조각은 버린다. LLM 은 호출하지 않는다."""
     gate = _load("check_ui_copy")
     lines = [
         "  <span>수탁고 추이</span>",                      # JSX 텍스트 → 추출
         "  const label = '기간 선택';",                    # 리터럴 → 추출
         " * '주석 속 인용'은 화면에 안 나간다",             # JSDoc 이어짐 줄 → 제외
-        "  const t = `${y}년 ${m}월`;",                    # 치환 잔여 조각 → 제외
-        "  const u = `${name} 님의 보유 현황`;",           # 치환 + 실문구 → 마스킹 추출
+        "  const t = `${y}년 ${m}월`;",                    # 치환 후 남는 조각 → 제외
+        "  const u = `${name} 님의 보유 현황`;",           # 치환 + 실제 문구 → 치환을 가리고 추출
     ]
     found = gate.extract_strings(lines)
     assert "수탁고 추이" in found and "기간 선택" in found
     assert all("주석" not in s for s in found), "주석 이어짐 줄을 추출했다"
     assert "{값}년 {값}월" not in found, "조사·단위 조각을 문구로 추출했다"
-    assert "{값} 님의 보유 현황" in found, "치환 마스킹 실문구를 놓쳤다"
+    assert "{값} 님의 보유 현황" in found, "치환을 가린 실제 문구를 놓쳤다"
 
 
 def test_workflow_model_required() -> None:
-    """`agent()` 의 model 미지정만 잡고, 주석·문자열 안의 `agent(` 는 호출로 세지 않는다.
+    """`agent()` 에 model 을 지정하지 않은 호출만 잡고, 주석이나 문자열 안의 `agent(` 는 호출로 세지 않는다.
 
-    워크플로우 스크립트는 프롬프트를 문자열로 들고 다닌다. 거기 "agent(" 가 들어가는 것이
-    정상이라, 자리를 안 가르면 정상 스크립트가 막힌다.
+    워크플로우 스크립트는 프롬프트를 문자열로 들고 다닌다. 그 안에 "agent(" 가 들어가는 것은
+    정상이라, 코드인지 문자열인지 가르지 않으면 정상 스크립트가 막힌다.
     """
     gate = _load("check_workflow_script")
     violating = [
@@ -144,7 +144,7 @@ def test_workflow_model_required() -> None:
         ("await agent(\n  'p',\n  {label: 'x',\n   model: 'sonnet'}\n)", "여러 줄 · model 있음"),
         ("// await agent('x')\nawait agent('y', {model:'opus'})", "주석 안 호출"),
         ("await agent(`설명: agent( 를 쓰는 법`, {model:'opus'})", "템플릿 문자열 안"),
-        ("await agent('a', {...opts})", "전개 — 런타임 값이라 판정 불능"),
+        ("await agent('a', {...opts})", "전개 — 런타임 값이라 판정할 수 없음"),
         ("await agent('a', {agentType: 'code-reviewer'})", "agentType — frontmatter 가 모델 정본"),
         ("const O = {model:'opus'}\nawait agent('a', O)", "식별자 opts — 정의부에 model"),
         ("foo.agent('x')", "남의 객체 메서드 — 호출로 세지 않는다"),
@@ -154,9 +154,9 @@ def test_workflow_model_required() -> None:
     for source, label in passing:
         assert gate.classify_calls(source)[0] == [], f"통과해야 하는데 막음: {label}"
 
-    # 판정 불능은 차단(missing)이 아니라 경고(unknown)로 갈린다.
+    # 판정할 수 없는 호출은 차단(missing)이 아니라 경고(unknown)로 분류한다.
     missing, unknown = gate.classify_calls("await agent('a', mysteryOpts)")
-    assert missing == [] and unknown == [1], "미정의 식별자 opts 는 판정 불능(경고)여야 한다"
+    assert missing == [] and unknown == [1], "정의를 찾을 수 없는 식별자 opts 는 판정할 수 없음(경고)으로 나와야 한다"
     missing, unknown = gate.classify_calls("const O = {label:'x'}\nawait agent('a', O)")
     assert missing == [2] and unknown == [], "정의부에 model 없는 식별자 opts 는 위반이어야 한다"
 
@@ -176,7 +176,7 @@ def test_record_never_raises() -> None:
 
 
 def test_trace_paths_are_portable() -> None:
-    """커밋되는 관찰 기록에 체크아웃 위치·사용자 홈이 남지 않는다 — clone 을 옮기면 키가 갈린다."""
+    """커밋되는 관찰 기록에 체크아웃 위치와 사용자 홈 경로가 남지 않아야 한다. 남으면 clone 위치를 옮길 때 기록의 키가 달라진다."""
     sys.path.insert(0, str(ROOT))
     from kernel.context import ROOT as KROOT
     from kernel.trace import portable
@@ -195,7 +195,7 @@ def demo() -> None:
                   test_trace_paths_are_portable):
         check()
         print(f"  [OK] {check.__name__}")
-    print("훅 행동 테스트 전건 통과")
+    print("훅 행동 테스트 모두 통과")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""tests/run_golden.py — 픽스처를 검사기에 물려 정답지와 대조한다.
+"""tests/run_golden.py — 픽스처를 검사기로 돌려 정답지와 대조한다.
 
 검사기는 `git ls-files` 로 대상을 모으므로 픽스처가 git 레포여야 한다. 중첩 레포를 만들지
 않으려고 매번 임시 디렉토리에 복사해 거기서 돌린다.
@@ -23,9 +23,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 FIXTURE = HERE / "fixtures" / "miniproj"
 GOLDEN = HERE / "golden" / "full.txt"
-# 스택과 그래프가 아직 정해지지 않은 schema 3 첫날의 결정 요청.
+# 스택과 그래프가 아직 정해지지 않은 첫날 상태(schema 3)에서 나오는 결정 요청의 정답지.
 GOLDEN_BARE = HERE / "golden" / "bare.txt"
-# Go 구문 검사 미지원은 [TOOL]이며 완료 검증에서 성공할 수 없다.
+# Go 구문 검사는 지원하지 않아 [TOOL]로 나오고, 완료 검증을 통과할 수 없다.
 FIXTURE_GO = HERE / "fixtures" / "goproj"
 GOLDEN_GO = HERE / "golden" / "go.txt"
 
@@ -33,11 +33,11 @@ GOLDEN_GO = HERE / "golden" / "go.txt"
 def _ensure_fixtures() -> None:
     """픽스처 프로파일이 없거나 정본과 다르면 다시 짓는다.
 
-    픽스처 `.gitignore` 가 `harness_profile.py` 를 빼고 그 파일은 바깥 레포에도 적용된다 —
-    즉 픽스처 프로파일은 한 번도 커밋된 적이 없고 clone 직후엔 존재하지 않는다. 없으면
-    전 게이트 대조가 프로파일 없는 상태로 돌아 `--bare` 와 같은 출력을 낸다. 정답지와 다르니
-    실패는 하지만, 사람이 보는 것은 "게이트 수십 건이 사라졌다"는 diff 라 원인을 게이트에서
-    찾게 된다. **평가기가 조용히 반쪽이 되는 경로다.**
+    픽스처 `.gitignore` 가 `harness_profile.py` 를 제외하는데, 이 규칙이 바깥 레포에도 적용된다.
+    그래서 픽스처 프로파일은 한 번도 커밋된 적이 없고 clone 직후에는 없다. 프로파일이 없으면
+    전 게이트 대조가 프로파일 없는 상태로 돌아 `--bare` 와 같은 출력을 낸다. 정답지와 달라서
+    실패는 하지만, 사람 눈에는 "게이트 수십 건이 사라졌다"는 diff 로 보여 원인을 게이트에서
+    찾게 된다. **평가기의 절반이 아무 경고 없이 꺼지는 경로다.**
 
     내용의 정본은 `tests/fixture_files.py` 와 `tests/fixture_go.py` 이므로 다시 지으면 된다.
     """
@@ -80,9 +80,9 @@ def _git(cwd: Path, *args: str) -> None:
 
 
 def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None) -> str:
-    """픽스처+검사기를 임시 레포에 세우고 전체 검사 출력을 받는다.
+    """픽스처와 검사기를 임시 레포에 준비하고 전체 검사 출력을 받는다.
 
-    bare=True는 스택 미선택 상태이며 첫 코드가 분류 결정 없이 통과하지 않아야 한다.
+    bare=True는 스택을 아직 고르지 않은 상태다. 이때 첫 코드는 분류 결정 없이 통과하면 안 된다.
     """
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "proj"
@@ -105,8 +105,8 @@ def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None) 
         if not bare:
             prepare_graph(work, "go" if fixture == FIXTURE_GO else "python")
 
-        # 그림 엔진 위임은 [TOOL] 로 고정한다 — 정답지가 머신의 node 유무에 따라 갈리면 안 된다.
-        # 엔진 실물은 tests/test_harness_self.py 가 돈다.
+        # 그림 엔진 호출 결과는 [TOOL] 로 고정한다. 머신에 node 가 있는지에 따라 정답지가 달라지면 안 된다.
+        # 실제 엔진 실행은 tests/test_harness_self.py 가 확인한다.
         done = subprocess.run(
             command, cwd=work, capture_output=True, text=True,
             encoding="utf-8", errors="replace",
@@ -157,7 +157,7 @@ def main(argv: list[str]) -> int:
         return 0
 
     if not golden.exists():
-        print("정답지가 없다 — --update 로 먼저 떠라", file=sys.stderr)
+        print("정답지가 없다 — --update 로 먼저 만들어라", file=sys.stderr)
         return 2
 
     expected = golden.read_text(encoding="utf-8")

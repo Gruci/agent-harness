@@ -111,7 +111,8 @@ class CodexPermissionsTests(TemporaryRootTestCase):
         original = '{"custom": "keep", "permissions": {"allow": ["MyTool(*)"]}}'
         claude.write_text(original)
         with patch.object(Path, "home", return_value=self.root), \
-                patch.dict(os.environ, {"CODEX_HOME": str(self.root / "codex")}), \
+                patch.dict(os.environ, {"CODEX_HOME": str(self.root / "codex"),
+                                        "CLAUDE_CONFIG_DIR": str(claude.parent)}), \
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(setup_global_permissions.main([]), 0)
             self.assertFalse((self.root / "codex").exists())

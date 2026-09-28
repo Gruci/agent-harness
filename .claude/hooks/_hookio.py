@@ -1,20 +1,20 @@
 """훅 stdin 리더와 git 조회 — EOF에 의존하지 않는다.
 
-git 헬퍼가 여기 있는 이유는 커널 없이도 살아야 하는 훅(`check_ui_copy`·`git_staleness`)이
-기본 브랜치를 같은 판정으로 감지하기 위해서다. 커널 쪽 한 벌은 `kernel/context.py` 다.
+git 헬퍼를 여기 두는 이유는 커널 없이도 동작해야 하는 훅(`check_ui_copy`·`git_staleness`)이
+기본 브랜치를 같은 방식으로 감지하게 하기 위해서다. 커널이 쓰는 같은 기능은 `kernel/context.py` 에 있다.
 
 
-json.load(sys.stdin)은 stdin을 EOF까지 읽는다: CC가 페이로드를 준 뒤 파이프를 닫아준다는
-가정이다. macOS/Linux와 EOF를 보내는 이벤트(Stop·PreToolUse·PostToolUse·SubagentStop)에선
-문제없지만, Windows CC의 UserPromptSubmit stdin엔 EOF가 안 온다 — 그 읽기가 매달리다 훅
-타임아웃으로 강제종료된다(output discarded). read1은 데이터가 있으면 즉시 반환하므로, 완결된
-JSON 객체가 파싱되는 즉시 멈춰 EOF를 기다리지 않는다. EOF를 보내는 이벤트에서도 동일 동작.
+json.load(sys.stdin)은 stdin을 EOF까지 읽는다. Claude Code(CC)가 페이로드를 보낸 뒤 파이프를
+닫아 준다고 가정하는 방식이다. macOS/Linux와, EOF를 보내는 이벤트(Stop·PreToolUse·PostToolUse·SubagentStop)에서는
+문제가 없다. 하지만 Windows CC의 UserPromptSubmit stdin에는 EOF가 오지 않아서, 읽기가 멈춘 채 기다리다
+훅 타임아웃으로 강제 종료되고 출력도 버려진다(output discarded). read1은 데이터가 있으면 바로 반환하므로,
+완결된 JSON 객체가 파싱되는 즉시 읽기를 멈추고 EOF를 기다리지 않는다. EOF를 보내는 이벤트에서도 똑같이 동작한다.
 
 바이트를 utf-8로 명시 디코드한다 — json.load(sys.stdin)은 Windows에서 stdin을 cp949로 읽어
 한글 페이로드(프롬프트·경로)를 깨뜨릴 수 있었다.
 
-파싱 실패 시 예외를 던진다. 훅마다 fail-open(exit 0)과 fail-closed(exit 2) 정책이 달라
-정책 판단은 호출자 몫이다 — 헬퍼가 실패를 삼키면 fail-closed 훅이 무력화된다.
+파싱에 실패하면 예외를 던진다. 훅마다 fail-open(exit 0)과 fail-closed(exit 2) 정책이 달라서
+어느 쪽으로 처리할지는 호출자가 정한다. 헬퍼가 실패를 삼키면 fail-closed 훅이 제 역할을 못 한다.
 """
 import json
 import subprocess
@@ -28,7 +28,7 @@ _GIT_TIMEOUT_SEC = 10
 
 
 def record(*args: object, **kwargs: object) -> None:
-    """`kernel.trace.record` 위임. 관찰은 차단보다 덜 중요하다 — 커널이 없거나 기록이 실패해도 판정은 계속된다."""
+    """`kernel.trace.record` 에 위임한다. 기록은 차단보다 덜 중요하므로 커널이 없거나 기록이 실패해도 판정은 계속된다."""
     try:
         if str(_ROOT) not in sys.path:
             sys.path.insert(0, str(_ROOT))
@@ -39,8 +39,8 @@ def record(*args: object, **kwargs: object) -> None:
 
 
 def emit(finding: object, sid: str = "") -> None:
-    """커널 판정(`kernel.workspace.Finding`)을 stderr 와 trace 로 옮긴다. exit 는 래퍼가 낸다 —
-    단계(차단 2·경고 1)가 훅 파일에 글자로 남아야 규칙 지도(`kernel/diagram/rules.py`)가 읽는다."""
+    """커널 판정 결과(`kernel.workspace.Finding`)를 stderr 와 trace 로 내보낸다. exit 는 이 함수가 아니라 훅 파일이 직접 낸다.
+    차단(2)인지 경고(1)인지가 훅 파일 본문에 글자로 남아 있어야 규칙 지도(`kernel/diagram/rules.py`)가 읽을 수 있다."""
     for msg in getattr(finding, "trace", ()):
         record(finding.hook, finding.kind, sid=sid, msg=msg)
     # Stop·PreToolUse 훅의 사유는 stderr 로 내보내야 모델에게 전달된다(stdout 은 무시된다).
@@ -51,8 +51,8 @@ SEPARATORS = (";", "|", "||", "&&", "&")
 
 
 def segments(tokens: list[str]) -> list[list[str]]:
-    """셸 구분자로 끊은 명령 조각들. 조각의 머리만 봐야 `echo "git commit"` 처럼 인자로 들어간
-    문자열을 명령으로 오독하지 않는다. 셸 훅 둘이 같은 판정을 쓴다.
+    """셸 구분자로 끊은 명령 조각 목록. 각 조각의 앞부분만 봐야 `echo "git commit"` 처럼 인자로 들어간
+    문자열을 명령으로 잘못 읽지 않는다. 셸 명령을 검사하는 훅 두 개가 이 판정을 같이 쓴다.
     """
     found: list[list[str]] = [[]]
     for token in tokens:
@@ -75,9 +75,9 @@ def git_output(*args: str) -> str | None:
 
 
 def default_branch() -> str | None:
-    """원격 기본 브랜치 이름. `origin/HEAD` → 실패 시 main·master 실물 순 폴백.
+    """원격 기본 브랜치 이름. `origin/HEAD` 를 먼저 보고, 실패하면 원격에 실제로 있는 main, master 순으로 찾는다.
 
-    main 하드코딩은 이식성을 깬다 — master 레포에서 판정이 통째로 조용히 꺼진다.
+    main 을 하드코딩하면 다른 레포로 옮길 때 깨진다. master 를 쓰는 레포에서는 판정 전체가 아무 알림 없이 꺼진다.
     """
     head = git_output("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
     if head and head.strip():
@@ -110,7 +110,7 @@ def read_hook_payload() -> dict[str, Any]:
 
 
 def payload_sid() -> str:
-    """페이로드의 session_id. 판정에 페이로드가 필요 없는 훅이 관찰 기록용으로만 읽는다 — 실패하면 빈 문자열."""
+    """페이로드의 session_id. 판정에는 페이로드가 필요 없는 훅이 trace 기록용으로만 읽는다. 실패하면 빈 문자열을 돌려준다."""
     try:
         return str(read_hook_payload().get("session_id") or "")
     except Exception:

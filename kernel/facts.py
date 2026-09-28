@@ -6,7 +6,7 @@
   Python   kernel/analyzers/python.py     표준 `ast`. 설치 의존 0
   그 외    kernel/analyzers/treesitter.py 언어팩의 QUERIES 를 실행한다. `tree_sitter` 가 없으면 [TOOL]
 
-사실 종류(kind)와 소비 게이트. 러너는 게이트마다 필요한 종류를 `unavailable()` 로 묻는다.
+사실 종류(kind)와 그 사실을 쓰는 게이트. 러너는 게이트마다 필요한 종류를 `unavailable()` 로 묻는다.
 
   functions    함수 범위            func_limit
   nesting      감싸는 함수          closures
@@ -15,8 +15,8 @@
   top_symbols  모듈 최상위 이름     component_dependencies (공개 계약)
   python       Python ast 자체      web_async · routes_error · undefined_const — 프레임워크·Python 고유 판정
 
-판정 불능의 방향은 기존 그대로다. 분석기 없음·종류 미제공은 [TOOL](통과 아님)이고, 언어가
-보장하는 것은 팩의 NOT_APPLICABLE 이다.
+판정할 수 없을 때의 처리는 기존과 같다. 분석기가 없거나 분석기가 그 사실 종류를 내지 않으면
+[TOOL](통과 아님)이고, 언어가 이미 보장해 검사할 필요가 없는 것은 팩의 NOT_APPLICABLE 이다.
 """
 
 from __future__ import annotations

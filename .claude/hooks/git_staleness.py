@@ -2,20 +2,20 @@
 
 ## 열린 과업 주입
 
-겹침 확인이 비싸면 착수 전에 건너뛰게 되고, 그 순간 보드는 있으나 마나다. `workboard/`
-를 세션이 직접 열지 않아도 되도록 시작 시점에 한 줄씩 싣는다. **브랜치와 무관하게 돈다** —
-착수하는 쪽은 오히려 worktree 세션이다.
+겹침 확인에 손이 많이 가면 작업을 시작하기 전에 건너뛰게 되고, 그러면 보드는 있으나 마나다. `workboard/`
+를 세션이 직접 열지 않아도 되도록 세션 시작 시점에 과업마다 한 줄씩 보여 준다. **브랜치와 무관하게 실행한다.**
+새 작업을 시작하는 쪽은 오히려 worktree 세션이기 때문이다.
 
 ## stale 감시
 
 아무도 pull하지 않은 체크아웃은 origin보다 뒤처진다. 그 상태로 백로그를 읽으면
 **이미 끝난 일을 다시 계획하게 된다** — 원본 프로젝트 실사고(2026-07-29).
 
-기본 브랜치 + 뒤처짐이면 ff-only로 자동 정렬하고, 거부되면 격차만 알린다.
-worktree 세션(다른 브랜치)은 이 절만 조용히 통과한다.
+기본 브랜치에 있고 origin보다 뒤처졌으면 ff-only로 자동 fast-forward 하고, 거부되면 몇 커밋 뒤졌는지만 알린다.
+worktree 세션(다른 브랜치)에서는 이 검사만 조용히 건너뛴다.
 
-SessionStart(startup 한정 — /clear·compact마다 pull이 도는 것을 막는다). 작업 트리를
-바꾸는 유일한 훅이라 발화 범위를 최소로 둔다.
+SessionStart 중 startup 에서만 실행한다(/clear·compact마다 pull이 도는 것을 막는다). 작업 트리를
+바꾸는 유일한 훅이라 실행 범위를 최소로 둔다.
 
 기본 브랜치는 origin/HEAD에서 자동 감지한다 — main/master 하드코딩은 이식성을 깬다.
 """
@@ -28,8 +28,8 @@ from _hookio import default_branch  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-# 보드는 공유 체크아웃 한 곳이다 — 자기 트리로 잡으면 세션 수만큼 갈라진다
-# (`kernel.workboard.board_dir`). 커널을 못 읽으면 보드 주입만 접고 stale 감시는 계속한다.
+# 보드는 공유 체크아웃 한 곳에만 있다 — 자기 트리 기준으로 잡으면 세션 수만큼 따로 생긴다
+# (`kernel.workboard.board_dir`). 커널을 못 읽으면 열린 과업 출력만 생략하고 stale 감시는 계속한다.
 try:
     from kernel.workboard import board_dir, task_files  # noqa: E402
     BOARD_DIR: Path | None = board_dir()
@@ -60,7 +60,7 @@ def _field(text: str, name: str) -> str:
 
 
 def print_open_tasks() -> None:
-    """열린 과업 한 줄 요약 — 착수 전 확인을 세션 기억에 안 맡긴다."""
+    """열린 과업을 한 줄씩 요약해 출력한다. 작업 시작 전 확인을 세션의 기억에 맡기지 않기 위해서다."""
     if BOARD_DIR is None:
         return
     rows = []
@@ -70,10 +70,10 @@ def print_open_tasks() -> None:
         rows.append(f"  {path.stem} [{state}] {task}")
     if not rows:
         return
-    print(f"[WORKBOARD] 열린 과업 {len(rows)}건 — 같은 범위면 새로 파지 말고 합류하거나 쌓는다.")
+    print(f"[WORKBOARD] 열린 과업 {len(rows)}건 — 같은 범위면 새 과업을 만들지 말고, 그 과업 파일에 항목을 추가해 같이 처리하거나 그 브랜치 위에서 이어 작업한다.")
     for row in rows:
         print(row)
-    print("  서식·착수 라우팅: workboard/README.md")
+    print("  서식과 작업 시작 절차: workboard/README.md")
 
 
 def main() -> None:
@@ -87,17 +87,17 @@ def main() -> None:
     if not behind or behind == "0":
         return
 
-    # 자동 정렬은 ff-only라 커밋을 잃을 수 없다. 로컬 변경과 부딪히는지는 git이 판정한다 —
-    # 자체 dirty 검사는 상시 변경되는 tracked 파일 하나에 막혀 영영 안 타는 실패 사례가 있었다.
+    # 자동 fast-forward 는 ff-only라 커밋을 잃을 수 없다. 로컬 변경과 충돌하는지는 git이 판정한다.
+    # 직접 dirty 검사를 했을 때는 늘 바뀌어 있는 tracked 파일 하나 때문에 동기화가 한 번도 실행되지 않은 적이 있다.
     if _git("pull", "--ff-only", "origin", branch, timeout=_FETCH_TIMEOUT_SEC) is not None:
-        print(f"[GIT SYNC] 체크아웃이 {behind}커밋 뒤여서 origin/{branch}로 정렬했다. "
+        print(f"[GIT SYNC] 체크아웃이 {behind}커밋 뒤여서 origin/{branch}로 fast-forward 했다. "
               f"docs/BACKLOG.md 는 최신이다.")
         return
 
-    print(f"[GIT STALE] 체크아웃이 origin/{branch}보다 {behind}커밋 뒤고 자동 정렬(ff-only)이 거부됐다. "
-          f"로컬 변경이 유입분과 겹친다.\n"
+    print(f"[GIT STALE] 체크아웃이 origin/{branch}보다 {behind}커밋 뒤고 자동 fast-forward(ff-only)가 거부됐다. "
+          f"로컬 변경이 새로 들어온 커밋과 겹친다.\n"
           f"  docs/BACKLOG.md·소스를 그대로 믿지 마라 — 이미 머지된 과업을 다시 계획하게 된다.\n"
-          f"  착수 전 `git log --oneline HEAD..origin/{branch}`로 그 사이 뭐가 들어왔는지 먼저 봐라.")
+          f"  작업을 시작하기 전에 `git log --oneline HEAD..origin/{branch}`로 그 사이 무엇이 들어왔는지 먼저 확인하라.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Save, full and completion checks must agree on project source files."""
+"""The on-save check, the full run and the completion check must select the same project source files."""
 
 from __future__ import annotations
 

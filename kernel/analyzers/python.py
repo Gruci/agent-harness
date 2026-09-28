@@ -1,10 +1,10 @@
 """kernel/analyzers/python.py — 표준 `ast` → FileFacts.
 
-게이트 셋(closures·func_limit·type_hints)과 컴포넌트 의존 검사가 각자 `ast` 를 걷던 것을 여기
-한 곳으로 모았다. 판정은 옮기지 않았다 — 그쪽은 여전히 게이트다. 여기 있는 것은 "무엇이 있나"뿐이다.
+게이트 세 개(closures·func_limit·type_hints)와 컴포넌트 의존 검사가 각자 `ast` 를 순회하던 코드를 여기
+한 곳으로 모았다. 위반 판정은 옮기지 않았고 여전히 게이트가 한다. 이 모듈은 코드에 "무엇이 있나"만 뽑는다.
 
-Python 의미론에만 있는 것(속성 경유 참조·동적 import·호출 이름·ast 자체)은 `extra` 로 나간다.
-다른 언어의 분석기는 그 절을 내지 않고, 소비하는 게이트는 없으면 건너뛴다.
+Python 의미론에만 있는 것(속성 경유 참조·동적 import·호출 이름·ast 자체)은 `extra` 에 담아 내보낸다.
+다른 언어의 분석기는 이 항목을 채우지 않으며, 이를 쓰는 게이트는 값이 없으면 그 검사를 건너뛴다.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _function(node: ast.FunctionDef | ast.AsyncFunctionDef, parent: str | None) 
 
 
 def _functions(tree: ast.AST) -> tuple[facts.Function, ...]:
-    """`ast.walk` 와 같은 너비 우선 순서 — 게이트 출력 순서가 그 순서에 묶여 있다. 감싸는 함수를 함께 나른다."""
+    """`ast.walk` 와 같은 너비 우선 순서로 모은다. 게이트 출력 순서가 이 순서에 의존한다. 각 함수를 감싸는 바깥 함수 이름도 함께 담는다."""
     found: list[facts.Function] = []
     queue: deque[tuple[ast.AST, str | None]] = deque([(tree, None)])
     while queue:
@@ -81,7 +81,7 @@ def _attribute(node: ast.AST, aliases: dict[str, str]) -> str:
 
 
 def _top_symbols(tree: ast.Module) -> frozenset[str]:
-    """모듈 최상위에서 이름이 되는 것 — 정의·import 별칭·대입. 공개 계약의 심볼 실존 근거다."""
+    """모듈 최상위에서 이름을 만드는 것(정의·import 별칭·대입). 공개 계약에 적힌 심볼이 실제로 있는지 확인하는 근거다."""
     symbols: set[str] = set()
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):

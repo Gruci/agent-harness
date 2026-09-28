@@ -1,17 +1,17 @@
-"""kernel/diagram — 다이어그램 엔진 호출부. 엔진은 `engine/`(MIT 재조립본 — 원류는 그 안의 THIRD_PARTY_NOTICES), 노출은 여기다.
+"""kernel/diagram — 다이어그램 엔진을 호출하는 모듈. 엔진은 `engine/` 에 있고(MIT 코드를 하네스용으로 다시 조립, 출처는 그 안의 THIRD_PARTY_NOTICES), 하네스가 쓰는 함수는 여기서 노출한다.
 
 정본은 `docs/architecture/<이름>.<타입>.json` 이고 노드마다 `sources` 로 실제 파일·행 범위를
-가리킨다. 엔진이 그 증거를 커밋 기준으로 검증하고 뷰어에 SRC 마커로 박는다 — 검증 없는 그림은
-그림이 아니라 산문이다. 이 모듈은 엔진을 부르고 영수증을 하네스 형식으로 포장할 뿐 판정은
-안 한다. 판정은 `kernel/gates/arch_diagram.py` 다.
+가리킨다. 엔진은 그 증거를 커밋 기준으로 검증하고 뷰어에 SRC 마커로 표시한다. 증거를 검증하지 않은
+그림은 산문과 다를 바 없다. 이 모듈은 엔진을 호출하고 결과 기록(영수증)을 하네스 형식으로 감쌀 뿐
+통과 여부는 판정하지 않는다. 판정은 `kernel/gates/arch_diagram.py` 가 한다.
 
   validate(kind, source)          스키마·배치·증거 진단 — 수정 루프에서 반복
   deliver(kind, source, output)   최종 렌더 + `<정본>.receipt.json`
   compare(base, head, output)     architecture 두 정본의 before·delta·after
   doctor()                        node·엔진 파일 상태
 
-node 가 없으면 예외 대신 `{"ok": False, "tool_missing": "node"}` 를 돌려준다 — 게이트가 [TOOL] 로
-찍는다. 통과로 처리하지 않는 것이 위임의 조건이다.
+node 가 없으면 예외 대신 `{"ok": False, "tool_missing": "node"}` 를 돌려주고, 게이트는 이를 [TOOL] 로
+표시한다. 검증을 엔진에 맡기는 조건은 엔진을 못 돌린 경우를 통과로 처리하지 않는 것이다.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ _REVISION = re.compile(r'("revision"\s*:\s*")[0-9a-fA-F]{40}(")')
 
 
 def node_path() -> str | None:
-    """`HARNESS_DIAGRAM_ENGINE=off` 면 node 가 없는 것으로 본다 — 골든 대조가 머신의 node 유무와
-    무관하게 같은 출력을 내기 위한 스위치다. 엔진 실물은 tests/test_harness_self.py 가 따로 돈다."""
+    """`HARNESS_DIAGRAM_ENGINE=off` 면 node 가 없는 것으로 본다. 골든 출력 대조가 머신에 node 가 있든 없든
+    같은 출력을 내게 하는 스위치다. 실제 엔진을 돌리는 테스트는 tests/test_harness_self.py 에 따로 있다."""
     if os.environ.get("HARNESS_DIAGRAM_ENGINE") == "off":
         return None
     return shutil.which("node")
@@ -64,7 +64,7 @@ def output_path(source: Path) -> Path:
 
 
 def spec_sha256_lf(source: Path) -> str:
-    """CRLF 체크아웃과 LF 체크아웃에서 같은 값 — 영수증 대조 키."""
+    """CRLF 체크아웃과 LF 체크아웃에서 같은 값을 낸다. 영수증과 정본을 대조하는 키다."""
     return hashlib.sha256(source.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
@@ -78,13 +78,13 @@ def _run(args: list[str]) -> dict[str, object]:
         done = subprocess.run([node, str(CLI), *args, "--json"], cwd=str(ROOT), capture_output=True,
                               text=True, encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
-        return {"ok": False, "error": f"엔진 {ENGINE_TIMEOUT_SEC}초 무응답"}
+        return {"ok": False, "error": f"엔진이 {ENGINE_TIMEOUT_SEC}초 안에 응답하지 않았다"}
     try:
         receipt = json.loads(done.stdout)
     except ValueError:
         return {"ok": False, "error": (done.stderr or done.stdout).strip()[:2000], "exit": done.returncode}
     if not isinstance(receipt, dict):
-        return {"ok": False, "error": "엔진 영수증이 객체가 아님"}
+        return {"ok": False, "error": "엔진 영수증이 JSON 객체가 아니다"}
     receipt.setdefault("ok", done.returncode == 0)
     return receipt
 
@@ -96,17 +96,17 @@ def _head_revision() -> str:
 
 
 def pin_revision(source: Path) -> str:
-    """`meta.repository.revision` 을 HEAD 로 찍어 정본에 되쓴다. 사람이 40자 해시를 옮겨 적지 않는다.
+    """`meta.repository.revision` 에 HEAD 를 적어 정본 파일에 다시 쓴다. 40자 해시를 사람이 손으로 옮겨 적지 않게 한다.
 
-    엔진은 이 커밋의 blob 으로 증거를 검증하므로 아직 커밋 안 된 파일은 가리킬 수 없다 —
-    순서는 코드 커밋 → deliver → 그림 커밋이다. 반환은 찍은 revision(없으면 빈 문자열).
+    엔진은 이 커밋의 blob 으로 증거를 검증하므로 아직 커밋하지 않은 파일은 가리킬 수 없다.
+    그래서 순서는 코드 커밋 → deliver → 그림 커밋이다. 반환값은 적은 revision 이고, 없으면 빈 문자열이다.
     """
     doc = load(source)
     repository = doc.get("meta", {}).get("repository") if isinstance(doc.get("meta"), dict) else None
     head = _head_revision()
     if not isinstance(repository, dict) or not head or repository.get("revision") == head:
         return head if isinstance(repository, dict) else ""
-    # 값만 바꾼다 — json.dumps 로 되쓰면 사람이 잡은 줄 배치가 통째로 풀린다.
+    # 값만 바꾼다. json.dumps 로 다시 쓰면 사람이 맞춰 둔 줄 배치가 전부 풀린다.
     text = source.read_text(encoding="utf-8")
     rewritten, count = _REVISION.subn(lambda m: f"{m.group(1)}{head}{m.group(2)}", text, count=1)
     if count != 1:
@@ -117,13 +117,13 @@ def pin_revision(source: Path) -> str:
 
 
 def validate(kind: str, source: Path) -> dict[str, object]:
-    """판정만 한다. 정본을 되쓰지 않는다 — 게이트가 Stop 훅에서 이걸 부르므로, 여기서 revision 을
-    찍으면 커밋된 정본이 세션 종료 때마다 더럽혀진다(실제로 났던 사고, `dev/LESSONS.md` §23)."""
+    """판정만 하고 정본 파일은 다시 쓰지 않는다. 게이트가 Stop 훅에서 이 함수를 부르므로, 여기서 revision 을
+    적으면 세션이 끝날 때마다 커밋된 정본에 변경이 생긴다. 실제로 났던 사고다(`dev/LESSONS.md` §23)."""
     return _run(["validate", kind, str(source), "--repo-root", str(ROOT)])
 
 
 def _portable(engine: dict[str, object]) -> dict[str, object]:
-    """엔진이 돌려준 입력·출력 경로를 레포 상대로. 영수증은 커밋되므로 체크아웃 위치가 새면 안 된다."""
+    """엔진이 돌려준 입력·출력 경로를 레포 기준 상대 경로로 바꾼다. 영수증은 커밋되므로 로컬 체크아웃 위치가 드러나면 안 된다."""
     fixed = dict(engine)
     for key in ("input", "output"):
         value = fixed.get(key)
@@ -136,7 +136,7 @@ def _portable(engine: dict[str, object]) -> dict[str, object]:
 
 
 def deliver(kind: str, source: Path, output: Path | None = None) -> dict[str, object]:
-    """렌더 + 하네스 영수증. 엔진이 실패하면 영수증을 쓰지 않는다 — 이전 것이 남는다."""
+    """렌더하고 하네스 영수증을 쓴다. 엔진이 실패하면 영수증을 쓰지 않으므로 이전 영수증이 그대로 남는다."""
     target = output or output_path(source)
     pin_revision(source)
     receipt = _run(["deliver", kind, str(source), str(target), "--repo-root", str(ROOT)])
@@ -181,7 +181,7 @@ def doctor() -> dict[str, object]:
 
 
 def load(source: Path) -> dict[str, object]:
-    """정본 JSON. 깨졌으면 빈 dict — 호출자가 '파싱 실패' 로 말한다."""
+    """정본 JSON 을 읽는다. 파싱할 수 없으면 빈 dict 를 돌려주고, '파싱 실패' 라고 알리는 것은 호출자 몫이다."""
     try:
         doc = json.loads(source.read_text(encoding="utf-8"))
     except ValueError:

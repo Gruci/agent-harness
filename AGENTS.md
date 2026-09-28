@@ -7,7 +7,7 @@ This is the Codex-only entry point for this project. Claude Code uses `CLAUDE.md
 ## Dual-agent boundary
 
 - Ordinary Codex work must not load `CLAUDE.md` or scan `.claude/`.
-- Shared skill procedures live in [dev/workflows/README.md](dev/workflows/README.md); adapters read the relevant procedure directly.
+- Shared skill procedures live in [dev/workflows/README.md](dev/workflows/README.md); each Codex skill reads the relevant procedure directly.
 - `impeccable-cdx` alone may read the unchanged vendor `.claude/skills/impeccable/SKILL.md` and the task-specific references and scripts it requires. Do not preload or modify vendor assets.
 - Worktree operations may use the shared location specified in `workboard/README.md`; that is not permission to load Claude instructions.
 - Shared project truth lives in `README.md`, `dev/DEVGUIDE.md`, `design/DESIGN_GUIDE.md`, `dev/`, `design/`, and `kernel/runner.py`.
@@ -19,8 +19,8 @@ This is the Codex-only entry point for this project. Claude Code uses `CLAUDE.md
 This harness uses autonomous execution after scope and plan approval.
 At initial setup, run `python -X utf8 setup_global_permissions.py --agent codex --check`.
 If the global setup is missing, install it with `python -X utf8 setup_global_permissions.py --agent codex`.
-The installer preserves unrelated user settings and installs the two-question rule globally.
-Runtime-enforced restrictions may require one installation approval and remain fixed for the current session.
+The installer preserves unrelated user settings and globally installs the rule that the user is asked only to clarify ambiguous requirements or to approve a plan.
+If the runtime enforces its own restrictions, installation may need one approval, and those restrictions stay in effect for the current session.
 Do not repeat setup when the check passes.
 
 ## Editing prerequisites
@@ -29,7 +29,7 @@ Before starting implementation, list `workboard/` for open tasks (one untracked 
 
 | Target | Required shared documentation |
 |---|---|
-| Any Markdown you write or edit | `dev/MD_STANDARD.md` — three rules, component test |
+| Any Markdown you write or edit | `dev/MD_STANDARD.md` — three rules and the content test (what belongs in Markdown) |
 | Any new file or function | `dev/CONVENTIONS.md` — decided conventions and helper registry |
 | Product code in any language | `dev/DEVGUIDE.md`, `dev/ARCHITECTURE.md`, and `dev/COMPONENTS.md` |
 | `frontend/` React and TypeScript | `design/DESIGN_GUIDE.md`, then the relevant `design/` sub-document |
@@ -47,7 +47,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - The shared [change procedure](dev/workflows/feature-workflow.md) owns research, scope approval, implementation, verification, and archive requirements.
 - Existing approval of a concrete proposal remains valid; record it and continue without repeating the same approval request.
 - Runtime filesystem or sandbox approvals are separate from task approval. Request only access actually required by a failed operation; never weaken global permissions as an implementation shortcut.
-- At implementation start, check `workboard/` and create a task file named after the change scope, tagged `#sid:<session id first 8>`. If the scope already has a file, join it (add items) or stack on its branch instead of opening a duplicate.
+- At implementation start, check `workboard/` and create a task file named after the change scope, tagged `#sid:<session id first 8>`. If the scope already has a file, add your items to it (join) or branch your worktree from its branch (stack) instead of opening a duplicate.
 - Implement in your own worktree (`worktrees/<scope>--<sid8>`, protocol in `workboard/README.md`). The shared PreToolUse hook blocks edits in the main checkout and any edit before your `#sid` task file exists; the exemptions are `workboard/**`, `docs/tasks/**`, and edits that change at most one line.
 - Inside a worktree the save and stop gates only notify with a `[WIP]` message. Before `git push`, `gh pr create`, `gh pr merge`, or `git merge` the hook runs `python -X utf8 -m kernel.runner --verify` in that checkout and blocks unless it exits 0.
 - Preserve unrelated edits. Never commit, revert, clean, reset, or delete them.
@@ -58,7 +58,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 
 - Preserve component responsibilities and allowed dependencies in the approved graph; see [dev/COMPONENTS.md](dev/COMPONENTS.md).
 - Before the first product code, select the stack with the user and run [the assembly workflow](dev/workflows/harness-assembly.md).
-- New classifications or boundaries require a concrete user proposal and a recorded actual response. Routine edits within approved boundaries do not repeat approval.
+- New classifications or boundaries require a concrete proposal to the user and a record of the user's actual response. Routine edits within approved boundaries do not repeat approval.
 - UI uses the selected project stack and approved delivery component. Verify the consuming screen when a feature includes one.
 - Before changing a signature or response shape, trace callers and consumers across DB, API, and React.
 - Prefer existing helpers, the standard library, native platform features, and installed dependencies. Make surgical changes. Report unrelated dead code without removing it.
@@ -67,7 +67,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 ## Evidence and debugging
 
 - Verify paths with search, database state with queries, and behavior by reading or running code. Never state an assumption as fact.
-- Reproduce and trace the root cause, compare a working pattern, test one hypothesis with the smallest change, then add a regression test and fix it.
+- Reproduce and trace the root cause, compare against a working pattern, test one hypothesis with the smallest change, then add a regression test and fix it.
 - After three failed fix attempts, stop editing and report the evidence and the likely architectural issue.
 - Re-read targets that may be stale after compaction or concurrent edits.
 

@@ -86,12 +86,12 @@ def check_web_async_no_await(py_files: list[Path]) -> list[str]:
                 continue
             if _async_has_await(node) or _is_async_generator(node) or _returns_stream(node):
                 continue
-            bad.append(f"{rel}:{node.lineno}: await 없는 async def '{node.name}' — 동기 def 로")
+            bad.append(f"{rel}:{node.lineno}: await 없는 async def '{node.name}' — 동기 def 로 바꿔라")
     return bad
 
 
 def check_ssl_bypass_location(py_files: list[Path]) -> list[str]:
-    """전역 SSL 패치는 명시한 스크립트 진입점에서만. 상시 import 되는 모듈에서 켜면 전역 전파된다."""
+    """전역 SSL 패치는 명시한 스크립트 진입점에서만 호출한다. 항상 import 되는 모듈에서 켜면 프로세스 전체로 퍼진다."""
     bypass = profile.symbol("ssl_bypass")
     if not bypass:
         return []

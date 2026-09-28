@@ -1,8 +1,8 @@
 """tests/test_harness_self.py — 하네스 자체의 설치·저하·체크아웃·메타데이터 테스트.
 
-`test_hooks.py` 는 사고 뒤에 심은 회귀 방어다. 여기는 **사고를 기다리지 않는** 쪽이다 —
-다른 에이전트 도구가 이미 막아둔 실패 경로 중 하네스에도 성립하는 것을 사고 전에 이식했다.
-괄호는 그쪽 원본 테스트 이름이다.
+`test_hooks.py` 는 사고가 난 뒤에 추가한 회귀 테스트다. 이 파일은 **사고가 나기 전에** 미리 막는 테스트다.
+다른 에이전트 도구가 이미 막아 둔 실패 경로 가운데 이 하네스에도 해당하는 것을 사고 전에 옮겨 왔다.
+괄호 안은 그 도구의 원본 테스트 이름이다.
 
   fresh 설치     clone 직후 install 두 번이 초록불로 끝나고 남의 상태 파일이 안 남는가
                  (package smoke rejects repository-only artifacts)
@@ -15,11 +15,11 @@
                  writing a file named after it)
   CRLF           LF·CRLF 체크아웃에서 러너 출력이 같은가 (checkout-line-endings)
   frontmatter    스킬·에이전트 name 이 실물과 같고 description 이 1024자 안인가 (skill-metadata)
-  화면 린터      ESLint 설정이 픽스처 위반 6종을 각각 잡고 면제·깨끗한 파일은 안 잡는가 — 골든이
-                 [TOOL] 로 고정돼 잃는 검출 증명의 대체
+  화면 린터      ESLint 설정이 픽스처 위반 6종을 각각 잡고 면제 파일과 깨끗한 파일은 안 잡는가.
+                 골든은 이 검사를 [TOOL] 로 고정해 검출을 증명하지 못하므로 여기서 대신 확인한다
   영수증 캐시    영수증 해시가 정본과 같으면 node 없이도 엔진 진단이 OK 인가
-  ⑱ 단계         LLM 판정 훅이 규칙 지도에서 차단(security) 노드가 아닌가
-  --file 무REPORT 정본 MD 하나의 작성 시점 검사에 전역 REPORT 가 섞이지 않는가
+  ⑱ 문구 훅      LLM 으로 UI 문구를 판정하는 훅(check_ui_copy)이 규칙 지도에서 차단(security) 노드가 아닌가
+  --file 모드     정본 MD 하나의 작성 시점 검사에 전역 REPORT 가 섞이지 않는가
 
 실행: `python -X utf8 tests/test_harness_self.py`
 """
@@ -101,7 +101,7 @@ def test_fresh_install_is_green() -> None:
 
 
 def test_runner_reports_profile_shape() -> None:
-    """튜플 자리의 문자열과 이름 오타가 [FAIL] 프로파일 형식으로 뜬다 — 조용한 스코프 증발 방지."""
+    """튜플 자리에 들어간 문자열과 설정 이름 오타가 [FAIL] 프로파일 형식으로 뜬다. 검사 범위가 경고 없이 사라지는 것을 막는다."""
     sys.path.insert(0, str(HERE))
     import run_golden                       # noqa: E402  (경로 삽입 후에만 import 가능)
 
@@ -119,10 +119,10 @@ def test_runner_reports_profile_shape() -> None:
 
 
 def test_diagram_engine_delivers_harness_architecture() -> None:
-    """엔진 실물 — 하네스 자신의 architecture 정본을 스크래치로 deliver 해 9/9 showcase 를 본다.
+    """실제 엔진으로 하네스 자신의 architecture 정본을 임시 디렉토리에 deliver 하고 showcase 검사가 9/9 인지 본다.
 
-    골든은 엔진 위임을 [TOOL] 로 고정하므로 엔진이 실제로 도는지는 여기서만 확인한다.
-    node 가 없으면 skipped 로 찍고 통과 처리하지 않는다 — 건너뛴 것은 건너뛴 것이다.
+    골든은 엔진 호출 결과를 [TOOL] 로 고정하므로 엔진이 실제로 도는지는 여기서만 확인한다.
+    node 가 없으면 skipped 로 출력하고 통과로 처리하지 않는다. 건너뛴 테스트는 통과가 아니다.
     """
     sys.path.insert(0, str(REPO))
     from kernel import diagram                # noqa: E402  (경로 삽입 후에만 import 가능)
@@ -144,7 +144,7 @@ def test_diagram_engine_delivers_harness_architecture() -> None:
 
 
 def test_rules_map_matches_wiring() -> None:
-    """규칙 지도는 배선에서 나온다 — settings.json 의 훅 항목 수와 노드 수가 같고, 노드마다 소스가 있다."""
+    """규칙 지도는 settings.json 의 훅 연결에서 만들어진다. 훅 항목 수와 노드 수가 같고, 노드마다 소스가 있어야 한다."""
     sys.path.insert(0, str(REPO))
     from kernel.diagram import rules          # noqa: E402  (경로 삽입 후에만 import 가능)
 
@@ -159,7 +159,7 @@ def test_rules_map_matches_wiring() -> None:
 
 
 def test_harness_map_catches_ghost_rows() -> None:
-    """지도에만 남은 유령 항목을 잡고, 안내로 섞인 실존 파일명은 안 잡는다(역방향)."""
+    """실물은 없어지고 지도에만 남은 항목(유령 행)을 잡는다. 안내 문구에 섞인 실제 파일명은 잡지 않는다(역방향)."""
     sys.path.insert(0, str(REPO))
     from kernel.gates import md_graph            # noqa: E402  (경로 삽입 후에만 import 가능)
 
@@ -177,14 +177,15 @@ def test_harness_map_catches_ghost_rows() -> None:
     assert any("check_gone.py" in g for g in ghosts), "지워진 훅을 못 잡았다"
     assert any("ghosty" in g for g in ghosts), "지워진 에이전트를 못 잡았다"
     assert not any("harness_profile.py" in g for g in ghosts), "실존 파일 안내를 유령으로 오인"
-    assert not any("backend" in g for g in ghosts), "표 설명 칸의 이름을 claim 으로 오인"
+    assert not any("backend" in g for g in ghosts), "표 설명 칸의 이름을 지도 항목으로 오인"
     assert len(ghosts) == 2, f"유령 2건이어야 하는데 {ghosts}"
 
 
 def test_runner_leaves_tree_clean() -> None:
-    """전 게이트를 돌려도 추적 파일이 하나도 안 바뀐다 — 게이트는 판정만 한다(§23).
+    """전 게이트를 돌려도 git 이 추적하는 파일은 하나도 바뀌지 않는다. 게이트는 판정만 한다(`dev/LESSONS.md` §23).
 
-    검사 48 의 엔진 위임이 정본의 revision 을 되써서 Stop 훅이 커밋된 그림을 더럽힌 적이 있다.
+    검사 48(아키텍처 그림 1:1 대조)이 엔진을 호출하면서 정본의 revision 을 다시 써서,
+    Stop 훅이 커밋된 그림 파일을 바꿔 놓은 적이 있다.
     """
     before = subprocess.run(["git", "status", "--porcelain"], cwd=str(REPO), capture_output=True,
                             text=True, encoding="utf-8").stdout
@@ -202,10 +203,10 @@ def test_hook_reports_kernel_crash_as_gate_error() -> None:
 
 
 def test_hooks_do_not_block_on_broken_payload() -> None:
-    """깨진 stdin 에 exit 2 를 내는 훅이 없어야 한다 — 복구 수단이 차단된 그 툴이다.
+    """깨진 stdin 에 exit 2 를 내는 훅이 없어야 한다. 훅이 막아 버리면 복구에 써야 할 바로 그 도구가 차단된다.
 
-    훅은 막을 때 `harness_trace.jsonl` 에 관찰을 남긴다. 테스트가 만든 실패는 관찰이 아니라
-    되돌린다 — 안 그러면 회고가 테스트 실행 횟수를 마찰 빈도로 읽는다.
+    훅은 막을 때 `harness_trace.jsonl` 에 관찰 기록을 남긴다. 테스트가 일부러 만든 실패는 관찰이 아니므로
+    기록을 되돌린다. 그러지 않으면 회고가 테스트 실행 횟수를 실제 마찰 빈도로 잘못 읽는다.
     """
     trace = REPO / "harness_trace.jsonl"
     before = trace.read_bytes() if trace.exists() else None
@@ -243,7 +244,7 @@ def test_runner_output_same_for_lf_and_crlf() -> None:
             _copy_with_eol(run_golden.FIXTURE, fixture, eol)
             outputs[label] = run_golden.capture(REPO / "kernel", fixture=fixture)
     assert outputs["lf"] == outputs["crlf"], (
-        "LF 와 CRLF 에서 러너 출력이 다르다 — Windows 에서 초록·CI 에서 파열의 경로다\n"
+        "LF 와 CRLF 에서 러너 출력이 다르다. Windows 에서는 통과하고 CI 에서는 깨지는 경로다\n"
         + "\n".join(
             line for line in outputs["crlf"].splitlines()
             if line not in outputs["lf"].splitlines()))
@@ -281,9 +282,10 @@ def _description(path: Path) -> str:
 
 
 def test_skill_and_agent_frontmatter() -> None:
-    """name 은 디렉토리(스킬)·파일명(에이전트)과 같고 description 은 비어 있지 않고 상한 안이다.
+    """name 은 스킬이면 디렉토리 이름, 에이전트면 파일명과 같아야 한다. description 은 비어 있지 않고 길이 상한 안이어야 한다.
 
-    검사 28·29 는 지도 등재와 모델 정책만 본다. 이름이 어긋나면 스킬이 조용히 안 뜬다.
+    검사 28(하네스 지도 대조)과 검사 29(모델 정책 대조)는 지도 등록과 모델 정책만 본다.
+    이름이 어긋나면 스킬이 아무 경고 없이 뜨지 않는다.
     """
     for skill in sorted((REPO / ".claude" / "skills").glob("*/SKILL.md")):
         fields = _frontmatter(skill)
@@ -309,7 +311,7 @@ EXPECTED_UI = {                       # slug → (파일, 행) — fixture_files
 
 
 def _ensure_uilint() -> None:
-    """`node_modules` 가 없으면 `npm ci` — 픽스처 프로파일 자가복구(§18)와 같은 방향. npm 이 없으면 그 사실을 말하고 실패한다."""
+    """`node_modules` 가 없으면 `npm ci` 를 돌린다. 픽스처 프로파일을 스스로 다시 만드는 것(`dev/LESSONS.md` §18)과 같은 방식이다. npm 이 없으면 그 사실을 알리고 실패한다."""
     sys.path.insert(0, str(REPO))
     from kernel import linters                # noqa: E402  (경로 삽입 후에만 import 가능)
 
@@ -335,7 +337,7 @@ def test_ui_lint_detects_fixture_violations() -> None:
 
 
 def test_engine_skipped_when_receipt_fresh() -> None:
-    """영수증 해시가 정본과 같으면 node 없이도 엔진 진단이 OK 다 — 재호출이 없다는 증명."""
+    """영수증 해시가 정본과 같으면 node 없이도 엔진 진단이 OK 다. 엔진을 다시 호출하지 않는다는 증명이다."""
     sys.path.insert(0, str(REPO))
     from kernel.gates import arch_diagram     # noqa: E402  (경로 삽입 후에만 import 가능)
 
@@ -371,7 +373,7 @@ def demo() -> None:
                   test_runner_output_same_for_lf_and_crlf, test_fresh_install_is_green):
         check()
         print(f"  [OK] {check.__name__}")
-    print("하네스 자체 테스트 전건 통과")
+    print("하네스 자체 테스트 모두 통과")
 
 
 if __name__ == "__main__":

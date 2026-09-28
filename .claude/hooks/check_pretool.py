@@ -2,7 +2,7 @@
 
 매처는 `Edit|Write|MultiEdit|NotebookEdit|EnterWorktree|Bash|PowerShell` 다. 셸 툴을 전부 담아야
 같은 명령이 PowerShell 로 빠져나가지 않는다. 판정은 `kernel/isolation.py`·`kernel/worktree.py` 이고
-Codex 도 같은 진입점을 부른다. 차단은 커널 판정 그대로 `sys.exit(2)`, 판정 불능은 exit 1 이다.
+Codex 도 같은 진입점을 부른다. 커널이 차단으로 판정하면 `sys.exit(2)`, 판정하지 못하면 exit 1 이다.
 """
 
 import sys

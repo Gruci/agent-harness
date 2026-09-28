@@ -1,8 +1,8 @@
 """Stop hook — `workboard/` 에 '끝난' 과업 파일이 남아있으면 알린다.
 
-판정과 설계 근거(파일=과업·`#sid` 소유 판정·진행 중 통과·경고 단계)는 `kernel/workspace.py`
-다 — Codex Stop(`kernel/hook.py`)이 같은 판정을 돈다. 여기는 sid 파싱과 stderr·trace·exit 만
-맡는다. 커널을 못 읽으면 통과한다 — 경고 계열은 조용히 통과하는 쪽이 안전 방향이다.
+판정 로직과 설계 근거는 `kernel/workspace.py` 에 있다(과업 하나가 파일 하나, `#sid` 로 소유자 판정,
+진행 중 과업은 통과, 경고 단계). Codex Stop(`kernel/hook.py`)도 같은 판정을 쓴다. 이 훅은 sid 파싱과 stderr·trace·exit 만
+맡는다. 커널을 못 읽으면 통과한다. 경고용 훅은 조용히 통과하는 쪽이 안전하다.
 """
 import sys
 from pathlib import Path
@@ -35,7 +35,7 @@ def main() -> None:
         sys.exit(0)
     # 경고(exit 1)의 stderr 는 사용자 화면에만 뜬다 — 모델 컨텍스트에는 들어가지 않는다(훅 문서).
     emit(found, sid8 or "")
-    # 경고(1)지 차단(2)이 아니다 — 판정 근거가 git 상태 추론이라서다. dev/HARNESS.md 「단계」 참조.
+    # 차단(2)이 아니라 경고(1)다. 판정이 git 상태에서 추론한 결과라서다. dev/HARNESS.md 「단계」 참조.
     sys.exit(1)
 
 

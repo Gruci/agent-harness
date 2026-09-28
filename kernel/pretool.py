@@ -65,8 +65,8 @@ def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> int:
     """PreToolUse(shell): block a `git worktree add` outside the naming contract.
 
     Shared by both runtimes; EnterWorktree(name) is handled in `pretool_gate` because only
-    Claude has that tool. Unknown session id degrades to a warning (exit 1): a harness that
-    cannot identify itself must not stop isolation.
+    Claude has that tool. An unknown session id degrades to a warning (exit 1): if the harness
+    cannot identify the session, it must not block worktree creation.
     """
     from kernel import trace, workboard, worktree
 

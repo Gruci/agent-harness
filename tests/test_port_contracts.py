@@ -1,4 +1,4 @@
-"""Declared ports require real fake contracts and executed contract tests."""
+"""Each declared port needs a fake that really implements it and a contract test that actually runs it."""
 import importlib
 import unittest
 from tests.harness_test_support import TemporaryRootTestCase

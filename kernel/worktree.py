@@ -1,23 +1,23 @@
 """kernel/worktree.py — worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정.
 
 Claude 훅(`.claude/hooks/check_pretool.py`·`check_worktree_residue.py`)과 Codex 진입점
-(`kernel/hook.py` → `kernel/pretool.py`)이 같은 판정을 쓴다. 페이로드 파싱·exit·출력 JSON 은 어댑터 몫이고 여기는
-판정과 문구만 둔다 — 결과는 `kernel.workspace.Finding` 한 가지 모양이다.
+(`kernel/hook.py` → `kernel/pretool.py`)이 같은 판정을 쓴다. 페이로드 파싱, exit 코드, 출력 JSON 은 어댑터가
+맡고 이 모듈에는 판정과 문구만 둔다. 결과는 항상 `kernel.workspace.Finding` 으로 돌려준다.
 
 ## 이름·자리 규약 — 왜 생성 시점에 막나
 
-`git worktree list` 로 누가 무엇을 잡고 있는지 알 수 없었다. 이름이 브랜치와 갈리기까지 한다.
-보드에는 `#sid:` 가 있는데 worktree 쪽에 연결고리가 없어 둘을 조인할 수 없다 — 그래서
-"다들 쓰고 있나 보다"로 추측하게 된다.
+`git worktree list` 로는 어느 세션이 어떤 worktree 를 쓰는지 알 수 없었다. worktree 이름이 브랜치
+이름과 다르기까지 했다. 보드에는 `#sid:` 가 있는데 worktree 쪽에는 대응하는 값이 없어 둘을 맞춰 볼 수 없다.
+그래서 "다들 쓰고 있나 보다"로 추측하게 된다.
 
 서식은 `worktrees/<범위>--<sid8>` 다. 범위를 앞에 두는 이유는 사람이 목록에서 먼저 읽는 것이
-"무엇"이고 "누구"는 조인 키이기 때문이다. 자리가 레포 루트 `worktrees/` 인 이유는 에이전트
-중립이다 — 보드(`workboard/`)와 같은 원칙이고, `.claude/` 밑이면 Codex 가 남의 전용 폴더에
-체크아웃을 만들게 된다.
+"무엇"이고 "누구"는 보드와 맞춰 보는 키이기 때문이다. 위치를 레포 루트 `worktrees/` 로 둔 이유는
+특정 에이전트에 묶이지 않게 하기 위해서다. 보드(`workboard/`)와 같은 원칙이고, `.claude/` 밑에 두면
+Codex 가 Claude 전용 폴더에 체크아웃을 만들게 된다.
 
-이미 만들어진 것을 뒤늦게 지적하면 개명해야 하는데, 세션이 그 안에 서 있으면 디렉토리 이동이
-실패한다. 남의 worktree 까지 잡으면 종료 데드락이다. 만들기 **전에** 막으면 개명 상황 자체가
-없고, 내 호출에만 발화하므로 다른 세션에 영향이 없다. 기존 worktree 는 건드리지 않는다.
+이미 만들어진 것을 뒤늦게 지적하면 이름을 바꿔야 하는데, 세션이 그 안에서 작업 중이면 디렉토리 이동이
+실패한다. 다른 세션의 worktree 까지 문제 삼으면 세션 종료가 서로 막히는 데드락이 된다. 만들기 **전에**
+막으면 이름을 바꿀 일 자체가 없고, 내 호출에서만 실행되므로 다른 세션에 영향이 없다. 기존 worktree 는 건드리지 않는다.
 
 Claude 의 `EnterWorktree(name)` 생성은 차단한다 — 그 툴은 생성 위치가 `.claude/worktrees/` 로
 고정이라(스키마 명세) 루트 규약과 항상 어긋난다. 생성은 `git worktree add` 로 하고, 진입만
@@ -28,37 +28,37 @@ Claude 의 `EnterWorktree(name)` 생성은 차단한다 — 그 툴은 생성 �
 
 ## 죽은 worktree 판정 — 세 조건을 모두 만족할 때만
 
-"머지 후 worktree remove → branch -d" 규칙이 산문으로만 있으면 흘러내린다. 원류 프로젝트
-실태: 머지가 끝난 worktree 4개(최고령 4일)가 쌓여 `git worktree list` 로 "지금 누가 뭘
-잡고 있나"를 못 읽었다 — 이름 접미 `--<sid8>` 을 강제한 이유가 그 조인인데, 죽은 것이
-섞이면 무의미해진다.
+"머지 후 worktree remove → branch -d" 규칙이 문서에만 있으면 세션이 길어지면서 지켜지지 않는다.
+이 하네스가 나온 원래 프로젝트에서는 머지가 끝난 worktree 4개(가장 오래된 것은 4일)가 쌓여
+`git worktree list` 로 "지금 누가 뭘 쓰고 있나"를 읽을 수 없었다. 이름 끝에 `--<sid8>` 을 강제한
+이유가 보드와 맞춰 보기 위해서인데, 끝난 worktree 가 섞이면 그 의미가 없어진다.
 
-갓 판 worktree 와 머지 끝난 worktree 는 둘 다 기본 브랜치의 조상이고 자기 커밋이 0개라
-그것만으로는 안 갈린다. 갈라주는 것은 **push 이력**이다.
+방금 만든 worktree 와 머지 끝난 worktree 는 둘 다 기본 브랜치의 조상이고 자기 커밋이 0개라
+그것만으로는 구별되지 않는다. 둘을 구별해 주는 것은 **push 이력**이다.
 
 1. `branch.<브랜치>.merge` 가 **자기 이름**(`refs/heads/<브랜치>`)이다 = `push -u` 로 한 번이라도
-   올렸다. **`.remote` 유무로 가르면 안 된다** — `git worktree add -b X origin/<기본>` 은 시작점을
+   올렸다. **`.remote` 유무로 판단하면 안 된다** — `git worktree add -b X origin/<기본>` 은 시작점을
    upstream 으로 자동 등록해 `remote=origin, merge=refs/heads/<기본>` 을 남긴다. 그걸 push 이력으로
-   읽으면 아래 셋이 전부 참이 되어 **갓 판 worktree 가 통째로 "머지 완료"** 가 된다. 실측으로
-   확인했다 — 만든 직후 `remote=origin`, origin ref 없음, 기본 브랜치의 조상 참. 갓 판 브랜치의
+   읽으면 세 조건이 전부 참이 되어 **방금 만든 worktree 가 통째로 "머지 완료"** 로 판정된다. 실측으로
+   확인했다. 만든 직후 `remote=origin` 이고, origin ref 는 없고, 기본 브랜치의 조상이다. 방금 만든 브랜치의
    `merge` 는 기본 브랜치를 가리키므로 여기서 걸러진다.
 2. `refs/remotes/origin/<브랜치>` 가 없다 = 머지되어 원격에서 삭제됐다.
    PR 이 열려 있는 동안은 있으므로 작업 중엔 안 걸린다.
-   **미탐 조건**: 원격 자동삭제(deleteBranchOnMerge)가 없는 레포에서는 이 조건이 영영 거짓이라
-   잔존을 못 잡는다 — 오탐(작업 중인 것을 지우라고 함)이 없음을 우선한 선택이다.
+   **놓치는 경우**: 원격 자동삭제(deleteBranchOnMerge)가 없는 레포에서는 이 조건이 늘 거짓이라
+   남은 worktree 를 잡지 못한다. 오탐(작업 중인 것을 지우라고 하는 것)을 막는 쪽을 우선한 선택이다.
 3. 브랜치가 원격 기본 브랜치의 조상이다 = 실제로 머지됐다.
-   push 후 머지 없이 버린 브랜치는 여기서 걸러진다 — 남의 미머지 작업을 지우라고 하면 안 된다.
+   push 후 머지 없이 버린 브랜치는 여기서 걸러진다 — 다른 사람이 머지하지 않은 작업을 지우라고 하면 안 된다.
 
-`git worktree list --porcelain` 의 lock 줄은 PID 를 싣는다. 그 프로세스가 살아있으면 남의
-세션이 그 안에 서 있다는 뜻이라 건너뛴다. 반대로 PID 가 죽은 lock 은 건너뛰지 않는다 —
-크래시 잔해를 살아있는 것으로 치면 이 게이트가 잡아야 할 바로 그 경우가 영구 면제된다.
+`git worktree list --porcelain` 의 lock 줄에는 PID 가 있다. 그 프로세스가 살아 있으면 다른
+세션이 그 안에서 작업 중이라는 뜻이라 건너뛴다. 반대로 PID 가 죽은 lock 은 건너뛰지 않는다.
+크래시로 남은 worktree 를 살아 있는 것으로 치면, 이 게이트가 잡아야 할 바로 그 경우가 영원히 빠진다.
 
-판정 불능이면(git 실패·기본 브랜치 미상) 통과시킨다. 하네스 오작동으로 종료를 막으면 복구
-수단이 그 세션이라 잠긴다.
+판정할 수 없으면(git 실패, 기본 브랜치를 모름) 통과시킨다. 하네스 오작동으로 종료를 막으면
+복구 수단인 그 세션까지 잠긴다.
 
-잔존 판정은 전부 **git 상태 추론**이라 경고 단계다(`Finding.block=False`). 직접 관측이 아니라
+남은 worktree 판정은 전부 **git 상태 추론**이라 경고 단계다(`Finding.block=False`). 직접 관측이 아니라
 틀릴 수 있고 실제로 틀렸다 — 차단이면 잘못된 지시를 따르거나 세션이 잠기거나 둘 중 하나다.
-검출을 끄면 잔해가 안 보이므로 끄는 대신 단계를 낮춘다. 정본은 `dev/HARNESS.md` 「단계」다.
+검출을 끄면 남은 worktree 가 안 보이므로 끄는 대신 단계를 낮춘다. 정본은 `dev/HARNESS.md` 「단계」다.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ HOOK_RESIDUE = "check_worktree_residue"
 def segments(tokens: list[str]) -> list[list[str]]:
     """셸 구분자로 끊은 명령 조각들. 조각의 머리만 봐야 `echo "git commit"` 처럼 인자로 들어간
     문자열을 명령으로 오독하지 않는다. `.claude/hooks/_hookio.segments` 와 같은 판정이다 —
-    `check_bash_write.py` 가 커널 없이도 살아야 해서 한 벌을 따로 둔다.
+    `check_bash_write.py` 가 커널 없이도 동작해야 해서 같은 구현을 따로 하나 더 둔다.
     """
     found: list[list[str]] = [[]]
     for token in tokens:
@@ -142,9 +142,9 @@ def wrong_location(token: str, cwd: Path | None = None, shared_root: Path | None
     자리는 레포 루트 `worktrees/` 하나로 **상대경로 고정**이다. 보드(`workboard/`)와 같은 원칙이다.
     - 절대경로·외부 디스크·`~`·`..` 는 받지 않는다. 경로가 체크아웃 위치를 품으면 clone 을 옮기는
       순간 규약이 깨지고, 다른 디스크의 worktree 는 `git worktree list` 와 보드의 조인에서 빠진다.
-    - `.claude/worktrees/` 도 받지 않는다(에이전트 중립).
+    - `.claude/worktrees/` 도 받지 않는다(특정 에이전트 전용 폴더다).
     - 상대 토큰은 명령의 cwd 기준으로 풀리므로, cwd 가 공유 루트가 아니면 worktree 안에 worktree 가
-      생긴다. cwd·공유 루트를 알면 둘이 같아야 통과다. 모르면(판정 불능) 토큰 모양만 본다.
+      생긴다. cwd 와 공유 루트를 둘 다 알면 둘이 같아야 통과다. 하나라도 모르면 경로 토큰의 모양만 본다.
     """
     normalized = token.replace("\\", "/")
     name = PurePosixPath(normalized).name
@@ -208,7 +208,7 @@ def enter_worktree_violation(sid8: str | None) -> Finding:
     """`EnterWorktree(name)` 생성 — 항상 규약 밖이라 조건 없이 차단 문구를 돌려준다."""
     suffix = f"--{sid8}" if sid8 else "--<sid8>"
     return Finding(HOOK_NAME, "worktree_name", True, (
-        "[WORKTREE NAME] EnterWorktree 생성은 `.claude/worktrees/` 고정이라 루트 규약과 어긋난다.\n"
+        "[WORKTREE NAME] EnterWorktree 로 만들면 위치가 `.claude/worktrees/` 로 고정되어 루트 `worktrees/` 규약과 어긋난다.\n"
         "생성과 진입을 나눠라:\n"
         f"  git worktree add worktrees/<범위>{suffix} -b <브랜치> origin/<기본브랜치>\n"
         f"  EnterWorktree(path=\"worktrees/<범위>{suffix}\")\n"
@@ -225,7 +225,7 @@ def name_violation(token: str, sid8: str, board: Path | None,
     if offending_name(name, sid8) is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
             f"[WORKTREE NAME] worktree 이름에 세션 식별자가 없다 — `{name}` → `{name}--{sid8}`.\n"
-            "`git worktree list` 만으로 누가 무엇을 잡고 있는지 보여야 하고, 그 키가 보드의 #sid 다.\n"
+            "`git worktree list` 만 보고도 누가 어떤 worktree 를 쓰는지 알 수 있어야 하고, 그 연결 키가 보드의 #sid 다.\n"
             "(정본: workboard/README.md)"), (f"sid 접미 없음 {name}",))
     expected = scope_mismatch(name, sid8, board)
     if expected is not None:
@@ -247,7 +247,7 @@ def name_violation(token: str, sid8: str, board: Path | None,
 
 
 def _alive(pid: int) -> bool:
-    """그 PID 가 살아있나. 판정 불능이면 살아있다고 본다(남의 세션을 함부로 죽은 것 취급하지 않는다)."""
+    """그 PID 가 살아 있나. 확인할 수 없으면 살아 있다고 본다(다른 세션을 함부로 죽은 것으로 취급하지 않는다)."""
     try:
         done = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                               capture_output=True, text=True, errors="replace", timeout=15)
@@ -281,7 +281,7 @@ def parse_worktrees(porcelain: str) -> list[dict]:
 
 
 def is_dead(branch: str, base: str) -> bool:
-    """머지가 끝나 존재 이유가 사라진 브랜치인가. 판정 근거는 모듈 머리 참조."""
+    """머지가 끝나 존재 이유가 사라진 브랜치인가. 판정 근거는 모듈 docstring 참조."""
     upstream = (_git("config", "--get", f"branch.{branch}.merge") or "").strip()
     if upstream != f"refs/heads/{branch}":
         return False                                    # push 이력 없음 = 작업 전이거나 작업 중
@@ -291,7 +291,7 @@ def is_dead(branch: str, base: str) -> bool:
 
 
 def dead_worktrees() -> list[dict]:
-    """일이 끝난 worktree 목록. 판정 불능(git 실패·기본 브랜치 미상)이면 빈 목록 = 통과."""
+    """일이 끝난 worktree 목록. 판정할 수 없으면(git 실패, 기본 브랜치를 모름) 빈 목록을 돌려 통과시킨다."""
     porcelain = _git("worktree", "list", "--porcelain")
     if porcelain is None:
         return []
@@ -316,5 +316,5 @@ def worktree_residue() -> Finding | None:
     for tree in residue:
         lines.append(f"  {Path(tree['path']).name}  [{tree['branch']}] — 머지 완료·원격 삭제됨")
     lines.append("`git worktree remove <경로>` → `git branch -d <브랜치>` → 보드 행 제거 순서로 정리한 후 종료하세요.")
-    lines.append("(순서가 계약이다 — worktree 가 점유 중인 브랜치는 로컬 삭제가 거부된다)")
+    lines.append("(이 순서를 지켜야 한다. worktree 가 체크아웃하고 있는 브랜치는 git 이 로컬 삭제를 거부한다)")
     return Finding(HOOK_RESIDUE, "worktree_residue", False, "\n".join(lines), (f"{len(residue)}건",))

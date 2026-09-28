@@ -1,14 +1,15 @@
 """tests/test_isolation.py — 격리 강제 판정(`kernel/isolation.py`)의 행동 테스트.
 
-편집 전 가드와 나올 때 검사는 Claude·Codex 양쪽이 같은 판정을 쓴다. 오판은 두 방향 다 비싸다 —
-넓으면 모든 편집이 막혀 세션이 잠기고, 좁으면 메인 체크아웃이 다시 작업 공간이 된다.
+편집 전 가드와 나올 때 검사(push·PR·merge 직전 검사)는 Claude 와 Codex 가 같은 판정 함수를 쓴다.
+오판은 어느 쪽으로 틀려도 비싸다. 너무 넓게 막으면 모든 편집이 막혀 세션이 멈추고,
+너무 좁게 막으면 메인 체크아웃이 다시 작업 공간이 된다.
 
-  편집 가드     메인 체크아웃 차단 · 1줄 예외 · 예외 경로 · 보드 미등록 · worktree 통과 · 판정 불능 경고
+  편집 가드     메인 체크아웃 차단 · 1줄 예외 · 예외 경로 · 보드 미등록 · worktree 통과 · 세션 식별자 없음 경고
   줄 수 판정    Edit 문맥 속 1줄 교체 = 1 · Write 전 줄 · apply_patch 교체 = 1 · replace_all 배수
-  합치는 명령   조각의 머리에서만 — echo·커밋 메시지 안 `git push` 는 명령이 아니다
-  나올 때 검사  러너 exit 로 차단·통과, 실행 불능은 차단, 러너 없는 레포는 대상 아님
+  합치는 명령   명령 조각의 맨 앞에 올 때만 명령으로 본다 — echo 인자나 커밋 메시지 안의 `git push` 는 명령이 아니다
+  나올 때 검사  러너 exit 코드로 차단과 통과를 가른다. 러너가 실행되지 못해도 차단하고, 러너 없는 레포는 대상이 아니다
 
-훅 수준(PostToolUse·Stop 의 [WIP] 강등, push 차단)은 `tests/test_shared_harness.py` 가 잡는다.
+훅 수준 동작(PostToolUse·Stop 에서 차단을 [WIP] 알림으로 낮추는 것, push 차단)은 `tests/test_shared_harness.py` 가 잡는다.
 실행: `python -X utf8 -m pytest tests/test_isolation.py -q`
 """
 
@@ -38,7 +39,7 @@ def _git(cwd: Path, *args: str) -> None:
 
 
 class IsolationTests(unittest.TestCase):
-    """공유 체크아웃 + 링크드 worktree + 보드 한 벌을 실제 git 으로 만든다."""
+    """공유 체크아웃, 거기 연결된 worktree, workboard 를 실제 git 으로 한 세트 만든다."""
 
     def setUp(self) -> None:
         temp = tempfile.TemporaryDirectory()
@@ -90,7 +91,7 @@ class IsolationTests(unittest.TestCase):
 
     def test_worktree_edit_with_board_passes(self) -> None:
         self.assertIsNone(self.guard(self.work / "kernel" / "x.py", SID, 40))
-        self.assertIsNone(self.guard(self.work / "kernel" / "new.py", SID, 40), "아직 없는 파일도 worktree 로 판정")
+        self.assertIsNone(self.guard(self.work / "kernel" / "new.py", SID, 40), "아직 없는 파일도 worktree 안 파일로 판정해야 한다")
 
     def test_locate_and_in_worktree(self) -> None:
         from kernel import isolation
@@ -105,7 +106,7 @@ class IsolationTests(unittest.TestCase):
         self.assertIsNone(self.guard(self.outside, STRANGER, 50), "레포 밖 파일은 대상이 아니다")
         found = self.guard(self.shared / "kernel" / "x.py", None, 3)
         self.assertIsNotNone(found)
-        self.assertFalse(found.block, "판정 불능은 비차단 경고다")
+        self.assertFalse(found.block, "세션 식별자를 모르면 막지 않고 경고만 한다")
         self.assertIn("세션 식별자", found.message)
 
     def test_changed_lines(self) -> None:
@@ -121,7 +122,7 @@ class IsolationTests(unittest.TestCase):
         target = self.shared / "kernel" / "x.py"
         target.write_text("foo\nfoo\nfoo\n", encoding="utf-8")
         many = {"file_path": str(target), "old_string": "foo", "new_string": "bar", "replace_all": True}
-        self.assertEqual(changed_lines("Edit", many), 3, "replace_all 은 자리 수만큼이다")
+        self.assertEqual(changed_lines("Edit", many), 3, "replace_all 은 바뀌는 자리 수만큼 센다")
         self.assertEqual(changed_lines("Bash", {"command": "ls"}), 0)
 
     def test_exit_command_only_at_segment_head(self) -> None:

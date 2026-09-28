@@ -6,7 +6,7 @@ import { parseRepositoryRemote, redactRepositoryRemote, repositorySourceHref } f
 
 const FULL_SHA_RE = /^[a-f0-9]{40}$/i;
 
-// 하네스 재조립: 소스 증거를 architecture 한 종에서 다섯 종 전부로 넓힌다.
+// 하네스용 수정: 소스 증거 검증 대상을 architecture 한 종류에서 다이어그램 다섯 종류 전부로 넓혔다.
 // 노드 컬렉션 이름만 타입마다 다르고 검증 절차는 같다.
 const SEMANTIC_COLLECTIONS = {
   architecture: 'components',

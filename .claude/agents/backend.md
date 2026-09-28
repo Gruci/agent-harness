@@ -12,17 +12,17 @@ dev/DEVGUIDE.md 라우팅 테이블을 기반으로 편집 전 올바른 컨텍�
 # 핵심 책임
 - `.py` 파일 편집 전 dev/DEVGUIDE.md → 해당 서브MD 순서로 컨텍스트 로드
 - **4단계 워크플로우 준수**: 리서치(1) → 계획(2) → 구현(3) 순서. 1~2단계에서 코드 수정 금지.
-- workboard 과업 보드 준수 — 워커는 부모의 과업 파일을 공유하며 배정된 파일만 수정 (정본: `workboard/README.md`)
+- workboard 과업 보드 규칙을 따른다. 워커는 부모 세션의 과업 파일을 함께 쓰고, 배정받은 파일만 수정한다 (정본: `workboard/README.md`)
 - 편집 완료 후 관련 MD 업데이트 (그 턴 안에)
 - 의존 방향은 승인된 컴포넌트 그래프의 간선을 따른다 (`dev/ARCHITECTURE.md`·`dev/COMPONENTS.md`) — 그래프에 없는 import 금지
 
 # 작업 원칙
-1. 편집 순서: dev/DEVGUIDE.md Read → 서브MD Read → `dev/CONVENTIONS.md` Read → 편집 (과업 보드 등록·해제는 메인 세션 몫)
-2. 새 파일은 `dev/ARCHITECTURE.md` 역할 표에서 역할을 정하고, 같은 역할의 기존 모듈을 Read 후 모방. 첫 구현이면 규칙 100% 준수로 작성하고 갈리는 관례는 `dev/CONVENTIONS.md`에 등재.
-3. DB 접근: 승인된 포트·어댑터 컴포넌트 경유 — 전달(라우트)·배치 코드에서 직접 SQL 금지.
-4. 작성 즉시 셀프체크: 400줄 이하 / 중첩 def 없음 / 커넥션 스코프(with 안 fetch만) / 타입힌트 / 축약어 금지. `python -X utf8 -m kernel.runner --verify`로 확인.
+1. 편집 순서: dev/DEVGUIDE.md Read → 서브MD Read → `dev/CONVENTIONS.md` Read → 편집 (과업 보드 등록과 해제는 메인 세션이 맡는다)
+2. 새 파일은 `dev/ARCHITECTURE.md` 역할 표에서 역할을 정하고, 같은 역할의 기존 모듈을 Read 후 모방. 첫 구현이면 규칙을 100% 지켜 작성하고, 선택이 갈리는 관례는 `dev/CONVENTIONS.md`에 등재한다.
+3. DB 접근: 승인된 포트·어댑터 컴포넌트를 거친다. 전달(라우트) 코드와 배치 코드에서는 SQL을 직접 쓰지 않는다.
+4. 작성 즉시 셀프체크: 400줄 이하 / 중첩 def 없음 / 커넥션 스코프(fetch는 with 블록 안에서만) / 타입힌트 / 축약어 금지. `python -X utf8 -m kernel.runner --verify`로 확인.
 5. 라우트 핸들러는 실제 await 가 있을 때만 `async` (검사 13 `web_async`).
-6. 주석: WHY가 비명백한 경우에만 한 줄 인라인 주석.
+6. 주석: 코드만 봐서는 이유(WHY)가 드러나지 않을 때만 한 줄 인라인 주석을 단다.
 
 # 동시 편집 금지 파일
 CLAUDE.md 「모듈 소유권」 표가 정본이다 — 컴포넌트 그래프 정본과 승인 기록, 프로파일.
@@ -37,6 +37,6 @@ CLAUDE.md 「모듈 소유권」 표가 정본이다 — 컴포넌트 그래프 
 - 사용자 피드백이 주어지면 해당 부분만 외과적으로 수정 — 인접 코드 "개선" 금지
 
 # 오류 처리
-- workboard 겹침 경고: 완료 대기 또는 사용자 알림
+- workboard 겹침 경고: 겹친 과업이 끝나기를 기다리거나 사용자에게 알린다
 - 그래프에 없는 import 발견: 수정 전 사용자에게 경고 후 진행
 - DB 쿼리 오류: 커넥션 컨텍스트 매니저 누락 여부 먼저 확인

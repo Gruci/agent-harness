@@ -1,4 +1,4 @@
-"""Syntax facts: the Python adapter keeps the old ast judgments; tree-sitter and pack_check paths."""
+"""Syntax facts: the Python adapter must reproduce the old ast-based results; also covers the tree-sitter and pack_check paths."""
 
 import importlib.util
 import io
@@ -52,7 +52,7 @@ class PythonAdapterTests(unittest.TestCase):
         api = ADAPTER.analyze("from .internal import rule\nfrom . import sibling\nimport os.path\n", "orders/api.py")
         self.assertEqual([(item.module, item.symbol, item.line) for item in api.imports],
                          [("orders.internal", "rule", 1), ("orders", "sibling", 2), ("os.path", None, 3)])
-        self.assertTrue(all(item.external is None for item in api.imports))   # 내부·외부는 게이트가 소스 목록으로 가른다
+        self.assertTrue(all(item.external is None for item in api.imports))   # 내부 import 인지 외부인지는 게이트가 소스 목록을 보고 가른다
         package = ADAPTER.analyze("from .api import place\n", "orders/__init__.py")
         self.assertEqual((package.module, package.imports[0].module), ("orders", "orders.api"))
         deep = ADAPTER.analyze("from ..top import y\n", "orders/sub/mod.py")
@@ -84,7 +84,7 @@ class FactsSelectionTests(TemporaryRootTestCase):
         self.assertEqual(facts.select(None)[1], "미선언 구문 분석기가 없어 검사 못 함")
 
     def test_profile_kinds_follow_the_selected_pack(self):
-        self.assertEqual(profile.SYNTAX, "python")     # 이 레포의 프로파일 — 사실 종류 전부를 낸다
+        self.assertEqual(profile.SYNTAX, "python")     # 이 레포의 프로파일은 모든 종류의 사실을 낸다
         for kind in ("functions", "nesting", "types", "imports", "top_symbols", "python"):
             self.assertEqual(facts.unavailable(kind), "")
         self.assertEqual(facts.unavailable("routes"), "python 구문 분석기가 없어 검사 못 함")
@@ -166,7 +166,7 @@ class TreeSitterGoTests(TemporaryRootTestCase):
         self.assertTrue(self.engine().analyze("package a\n\nfunc (\n", "a/a.go").error)
 
 
-@unittest.skipIf(HAS_TREE_SITTER, "tree-sitter 가 설치돼 있어 미설치 경로를 볼 수 없다")
+@unittest.skipIf(HAS_TREE_SITTER, "tree-sitter 가 설치돼 있어 설치되지 않았을 때의 경로를 시험할 수 없다")
 class TreeSitterMissingTests(TemporaryRootTestCase):
     def test_missing_engine_names_the_install_step(self):
         self.assertEqual(treesitter.build(lang.load("go"), self.root), (None, treesitter.MISSING))

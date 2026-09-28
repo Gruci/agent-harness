@@ -1,8 +1,8 @@
-"""kernel/diagram/svg.py — 렌더된 HTML 에서 독립 SVG 를 뽑는다. README 가 그림을 싣는 길이다.
+"""kernel/diagram/svg.py — 렌더된 HTML 에서 독립 SVG 를 뽑는다. README 는 이 SVG 로 그림을 싣는다.
 
 GitHub 은 HTML 을 그리지 않고 SVG 는 그린다. 뷰어 HTML 의 그림은 `<svg>` 하나에 CSS 클래스로
-색을 입히므로, 그 클래스 규칙과 CSS 변수와 폰트를 `<style>` 로 안에 넣어주면 혼자 선다.
-정규식 한 방으로 CSS 를 자르지 않는다 — 300KB 스타일에 중첩 괄호가 있어 되돌아가기 폭발이 났다.
+색을 입히므로, 그 클래스 규칙과 CSS 변수와 폰트를 `<style>` 로 SVG 안에 넣어 주면 HTML 없이도 그려진다.
+CSS 를 정규식 하나로 자르지 않는다. 300KB 스타일에 중첩 괄호가 있어 정규식 백트래킹이 폭증한 적이 있다.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ _VAR_DEF = re.compile(r"(--[A-Za-z0-9_-]+)\s*:")
 
 
 def _rules(css: str) -> list[tuple[str, str]]:
-    """(셀렉터, 본문) 목록. 중괄호 깊이를 세는 선형 스캔 — @media 안의 규칙도 평평하게 낸다."""
+    """(셀렉터, 본문) 목록. 중괄호 깊이를 세며 한 번 훑고, @media 안의 규칙도 바깥 규칙과 같은 층으로 꺼낸다."""
     found: list[tuple[str, str]] = []
     depth = 0
     start = 0
@@ -60,7 +60,7 @@ def _selector_targets_svg(selector: str, classes: set[str]) -> bool:
 
 
 def standalone_svg(html: str) -> tuple[str, set[str]]:
-    """(독립 SVG, 정의 안 된 변수). 정의 안 된 변수가 남으면 색이 빠진 그림이다 — 호출자가 검사한다."""
+    """(독립 SVG, 정의 안 된 변수). 정의 안 된 변수가 남으면 색이 빠진 그림이 되므로 호출자가 검사한다."""
     svg = main_svg(html)
     if not svg:
         return "", set()

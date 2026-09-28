@@ -16,7 +16,8 @@ BASELINE_FILE = ROOT / "test_pairing_baseline.txt"
 
 
 def _test_file_stems() -> list[str]:
-    """테스트 루트 아래 test_*.py 파일명(접두·확장자 제거) — 미커밋 신규 테스트도 인정(rglob)."""
+    """테스트 루트 아래 test_*.py 파일명에서 접두와 확장자를 뗀 목록. rglob 으로 파일을 직접 훑으므로
+    아직 커밋하지 않은 새 테스트도 인정한다."""
     tests = profile.layer("tests")
     tests_dir = ROOT / tests if tests else None
     if tests_dir is None or not tests_dir.exists():
@@ -49,16 +50,16 @@ def check_module_test_pairing(py_files: list[Path]) -> list[str]:
 # ── 프론트 테스트 짝 ───────────────────────────────────────────────────────────
 #
 # `tsc`·`vitest`·`vite build` 셋 다 **값이 틀린 것을 못 잡는다.** 타입이 맞고 빌드가 되는 한
-# 환산이 틀려도 초록불이다. 로직(.ts)과 컴포넌트(.tsx)는 성격도 상환 방법도 달라(순수 함수
-# 단언 vs 렌더 테스트) 검사를 갈랐다. 매칭은 같은 자리 동명 `<이름>.test.ts(x)` 다.
-# 소급분은 설치 시점 harness_baseline.txt 동결이 흡수한다.
+# 환산이 틀려도 초록불이다. 로직(.ts)과 컴포넌트(.tsx)는 성격도 테스트 방법도 달라서(순수 함수
+# 단언 vs 렌더 테스트) 검사를 나눴다. 짝은 같은 디렉토리에 있는 같은 이름의 `<이름>.test.ts(x)` 다.
+# 설치 전부터 있던 파일은 설치 시점에 harness_baseline.txt 에 동결해 예외로 둔다.
 
 # export 함수가 있으면 로직 파일이다. 상수·타입 전용 .ts 는 단언할 행동이 없어 대상이 아니다.
 _EXPORT_FN = re.compile(r"^export (?:function|const \w+ = [(<])", re.M)
 
 
 def check_ui_logic_test_pairing(ui_files: list[Path]) -> list[str]:
-    """export 함수가 있는 .ts 에 같은 자리 동명 행동 테스트가 없으면 위반."""
+    """export 함수가 있는 .ts 에 같은 디렉토리·같은 이름의 행동 테스트가 없으면 위반."""
     bad: list[str] = []
     for f in ui_files:
         rel = _rel(f)
@@ -72,7 +73,7 @@ def check_ui_logic_test_pairing(ui_files: list[Path]) -> list[str]:
 
 
 def check_ui_component_test_pairing(ui_files: list[Path]) -> list[str]:
-    """모든 .tsx 에 같은 자리 동명 렌더 테스트가 없으면 위반."""
+    """모든 .tsx 에 같은 디렉토리·같은 이름의 렌더 테스트가 없으면 위반."""
     bad: list[str] = []
     for f in ui_files:
         rel = _rel(f)

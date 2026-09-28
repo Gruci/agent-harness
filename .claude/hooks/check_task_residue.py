@@ -1,8 +1,8 @@
 """Stop hook — docs/tasks/ 루트에 plan·research 가 남아있으면 세션 종료를 막는다.
 
-판정과 설계 근거(보드 busy 면 건너뜀·갓 만든 산출물 유예·`wip_` 예외)는 `kernel/workspace.py`
-다 — Codex Stop(`kernel/hook.py`)이 같은 판정을 돈다. 여기는 stderr·trace·exit 만 맡는다.
-커널을 못 읽으면 판정을 못 해 통과하되 stderr 로 고지한다.
+판정 로직과 설계 근거는 `kernel/workspace.py` 에 있다(보드에 진행 중 과업이 있으면 건너뜀, 방금 만든 산출물은 유예, `wip_` 예외).
+Codex Stop(`kernel/hook.py`)도 같은 판정을 쓴다. 이 훅은 stderr·trace·exit 만 맡는다.
+커널을 못 읽으면 판정할 수 없어 통과시키되 stderr 로 알린다.
 """
 import sys
 from pathlib import Path

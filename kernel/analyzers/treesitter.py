@@ -8,12 +8,12 @@
   MODULE_RULE go_package   디렉토리가 패키지, go.mod 의 module 접두가 붙은 import 가 레포 내부
   PUBLIC_RULE capitalized  대문자 시작이 공개 · underscore  `_` 접두가 비공개
 
-`tree_sitter` 와 문법 패키지(`tree_sitter_<SYNTAX>`)는 선택 의존이다. import 는 여기서만, 그것도
-필요할 때만 한다 — 커널의 설치 의존은 여전히 0이다. 없으면 `build` 가 사유를 돌려주고 러너는
+`tree_sitter` 와 문법 패키지(`tree_sitter_<SYNTAX>`)는 선택 의존이다. import 는 이 모듈에서만, 그것도
+필요한 시점에만 한다. 그래서 커널이 설치를 요구하는 의존성은 여전히 0개다. 없으면 `build` 가 사유를 돌려주고 러너는
 그 게이트를 [TOOL] 로 찍는다. py-tree-sitter 0.23 이상을 기준으로 하고, 0.25 의 QueryCursor 도 받는다.
 
 타입 누락(`missing_types`)은 여기서 내지 않는다 — tree-sitter 를 쓰는 언어는 대개 타입을 강제하고,
-아니면 팩이 NOT_APPLICABLE 로 말한다.
+그렇지 않은 언어는 팩이 NOT_APPLICABLE 로 선언한다.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def _compile(ts, language, source: str):
 
 
 def _matches(ts, query, node) -> list[dict[str, list]]:
-    """캡처 이름 → 노드 목록, 매치 단위. 0.25 는 QueryCursor, 그 전은 query.matches 다."""
+    """매치마다 캡처 이름 → 노드 목록 딕셔너리를 만든다. 0.25 는 QueryCursor, 그 전은 query.matches 를 쓴다."""
     cursor_cls = getattr(ts, "QueryCursor", None)
     raw = cursor_cls(query).matches(node) if cursor_cls is not None else query.matches(node)
     groups: list[dict[str, list]] = []
@@ -78,7 +78,7 @@ def _go_module_path(root: Path) -> str | None:
 
 
 def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]:
-    """팩의 엔진과, 못 만들면 그 사유. 설치 문제와 팩 결함(쿼리 오류)을 문구로 가른다."""
+    """팩의 엔진을 돌려주고, 못 만들면 그 사유를 돌려준다. 설치 문제인지 팩 결함(쿼리 오류)인지를 사유 문구로 구분한다."""
     try:
         import tree_sitter as ts
     except ImportError:
@@ -121,7 +121,7 @@ class Engine:
         if self._module_rule == "go_package":
             directory = rel.rsplit("/", 1)[0] if "/" in rel else ""
             return directory.replace("/", ".") if directory else self._root_key()
-        return rel.rsplit(".", 1)[0].replace("/", ".")      # 규칙 미선언 — 경로가 곧 키
+        return rel.rsplit(".", 1)[0].replace("/", ".")      # 규칙을 선언하지 않았으면 경로가 곧 키다
 
     def _resolve_import(self, raw: str) -> tuple[str | None, str | None]:
         """(레포 안 모듈 키, 외부 이름). go.mod 접두가 붙은 것만 내부다."""

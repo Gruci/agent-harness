@@ -1,10 +1,10 @@
 """tests/fixture_files.py — 시험용 미니 프로젝트의 파일 내용 정본.
 
-게이트마다 위반을 **정확히 1건씩** 심은 가짜 프로젝트의 실물이다. 여기는 데이터만 있고
-쓰는 일은 `build_fixture.py` 가 한다 — 위반 사례가 늘수록 이 파일만 길어지게 갈라뒀다.
+게이트마다 위반을 **정확히 1건씩** 심은 가짜 프로젝트의 파일 내용이다. 이 파일에는 데이터만 두고
+디스크에 쓰는 일은 `build_fixture.py` 가 맡는다. 위반 사례가 늘어도 이 파일만 길어지도록 나눠 두었다.
 
-새 게이트를 만들면 여기에 그 게이트가 잡을 파일을 하나 추가하고 정답지를 다시 뜬다.
-추가하지 않으면 그 게이트는 골든이 안 덮는 죽은 게이트가 된다.
+새 게이트를 만들면 그 게이트가 잡을 파일을 여기에 하나 추가하고 정답지를 다시 만든다.
+추가하지 않으면 골든 대조가 그 게이트를 전혀 검사하지 못한다.
 """
 
 from __future__ import annotations
@@ -192,7 +192,7 @@ if TYPE_CHECKING:
 VALUE: "Path | None" = None
 '''
 
-# 81줄 함수 — 파일 400줄 상한이 못 보는 축. 줄들을 서로 다르게 만들어 블록 중복에 안 걸린다.
+# 81줄 함수. 파일 400줄 상한으로는 잡히지 않는 경우다. 줄마다 내용을 다르게 만들어 블록 중복 검사에 걸리지 않게 한다.
 FILES["utils/long_func.py"] = (
     '"""픽스처: 함수 길이 상한 초과."""\n\n\ndef long_calc() -> int:\n'
     + "".join(f"    value_{i} = {i}\n" for i in range(80))
@@ -221,7 +221,7 @@ def rows(conn: object) -> list:
     return conn.execute("SELECT value FROM metric").fetchall()
 '''
 
-# 루트 잡파일 — 어느 패키지 소속도 아닌 덤프. 잡파일 게이트만 잡는다(.py 가 아니라 배치 게이트 밖).
+# 루트 잡파일: 어느 패키지에도 속하지 않는 메모 덤프다. 잡파일 게이트만 이 파일을 잡는다. .py 가 아니라서 배치 게이트 대상이 아니다.
 FILES["notes_dump.txt"] = "임시 조사 메모 덤프\n"
 
 
@@ -264,14 +264,14 @@ FILES["frontend/src/Fixed.tsx"] = '''export const panel = { width: "480px" };
 FILES["frontend/src/Storage.tsx"] = '''export const saved = localStorage.getItem("draft");
 '''
 
-# 브라우저 API 래퍼 정본 — 자기 자신은 검사 대상이 아니다(프로파일 ui_platform 등재)
+# 브라우저 API 래퍼의 정본. 프로파일 ui_platform 에 등록돼 있어 이 파일 자체는 검사 대상이 아니다.
 FILES["frontend/src/platform.ts"] = '''export const read = (key: string) => window.localStorage.getItem(key);
 '''
 
 # ── 프론트 신설 게이트 픽스처 ──────────────────────────────────────────────────
 #
-# 테스트 짝 게이트의 지정 위반은 Label.tsx(컴포넌트)와 calcShare.ts(로직) 둘뿐이다.
-# 나머지 화면 픽스처는 동명 .test 스텁을 두어 "게이트마다 위반 1건" 원칙을 지킨다.
+# 테스트 짝 게이트가 잡도록 일부러 심은 위반은 Label.tsx(컴포넌트)와 calcShare.ts(로직) 둘뿐이다.
+# 나머지 화면 픽스처에는 같은 이름의 .test 스텁(내용 없는 테스트 파일)을 두어 "게이트마다 위반 1건" 원칙을 지킨다.
 
 FILES["frontend/src/calcShare.ts"] = '''export function share(part: number, total: number): number {
   return total === 0 ? 0 : part / total;
@@ -304,7 +304,7 @@ def test_placeholder():
 # 배열 옵셔널 게이트는 baseline 파일이 없으면 통째로 꺼진다 — 빈 파일로 켜둔다.
 FILES["api_array_baseline.txt"] = "# 픽스처: 동결분 없음\n"
 
-# 커널이 프로젝트에 대해 아는 것 전부. 픽스처는 게이트를 전부 켜도록 다 채운다.
+# 커널이 프로젝트에 대해 아는 정보는 이 프로파일이 전부다. 픽스처는 모든 게이트가 켜지도록 항목을 다 채운다.
 FILES["harness_profile.py"] = '''"""픽스처 프로젝트 프로파일 — 게이트 전량을 켠다."""
 
 STAGE = "mature"
@@ -350,8 +350,9 @@ BEHAVIOR_TESTED_ROOTS = ("kofia/",)
 LOCAL_GATES = ()
 '''
 
-# 검사 48 — 그림 ↔ 실물 1:1. 위반을 하나씩 심는다: 없는 revision · 없는 파일 · 행 범위 밖 ·
-# sources 없는 노드 · 안 그린 레이어(utils/) · 영수증 없음. external 노드는 면제라 통과해야 한다.
+# 검사 48(아키텍처 그림 1:1 대조)용. 그림과 실제 코드가 1:1로 맞는지 보는 검사에 위반을 하나씩 심는다.
+# 심은 위반: 없는 revision, 없는 파일, 행 범위 밖 참조, sources 없는 노드, 그리지 않은 레이어(utils/), 영수증 없음.
+# external 노드는 검사 면제라 통과해야 한다.
 FILES["docs/architecture/app.architecture.json"] = '''{
   "schema_version": 1,
   "diagram_type": "architecture",

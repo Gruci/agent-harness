@@ -1,15 +1,16 @@
 """kernel/langs/go.py — Go 언어팩. 프로젝트는 `profiles/lang/go.py` 로 덮어쓸 수 있다.
 
-관용구 린트는 `go vet` 과 `staticcheck` 에 위임한다. 우리가 Go 의미론을 다시 만들 이유가
-없다 — 그쪽이 정확하고, 이미 그 생태계의 표준이다. 구문 사실(함수 범위·import·최상위 이름)만
-`QUERIES` 로 뽑아 언어 무관 게이트와 컴포넌트 의존 검사를 켠다. tree-sitter 는 초기 설정의
-스택 맞춤에서 설치한다(선택 의존).
+관용구 린트는 `go vet` 과 `staticcheck` 에 맡긴다. Go 의미론을 다시 구현할 이유가
+없다. 그 도구들이 정확하고 이미 Go 생태계의 표준이다. 구문 사실(함수 범위·import·최상위 이름)만
+`QUERIES` 로 뽑아 언어 무관 게이트와 컴포넌트 의존 검사를 켠다. tree-sitter 는 선택 의존성이며
+초기 설정에서 스택을 맞출 때 설치한다.
 
-`NOT_APPLICABLE` 이 셋인 것이 이 팩의 요점이다. Go 에서 타입힌트 게이트가 안 도는 건
-손실이 아니라 **언어가 이미 보장**하기 때문이다. 손실과 비손실을 구분해야 무엇을 잃었는지
-알 수 있다.
+`NOT_APPLICABLE` 항목이 셋이라는 점이 이 팩의 요점이다. Go 에서 타입힌트 게이트가 돌지 않는
+것은 검사를 잃은 게 아니라 **언어가 이미 보장**하기 때문이다. 잃은 검사와 필요 없는 검사를
+구분해야 실제로 무엇을 잃었는지 알 수 있다.
 
-레퍼런스 팩이다 — 새 언어팩은 이 파일의 선언을 본떠 만들고 `kernel.pack_check` 로 1급을 확인한다.
+이 파일은 레퍼런스 팩이다. 새 언어팩은 이 파일의 선언을 본떠 만들고, `kernel.pack_check` 출력에
+[미검증] 이 없는 1급 팩인지 확인한다.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from __future__ import annotations
 EXT = ("*.go",)
 SYNTAX = "go"
 
-# tree-sitter-go 쿼리. @def 는 범위, 그 안의 @name 이 이름이다. 클로저(func_literal)는 관용구라 안 본다.
+# tree-sitter-go 쿼리. @def 가 대상의 범위이고 그 안의 @name 이 그 이름이다. 클로저(func_literal)는 Go 관용구라 보지 않는다.
 QUERIES = {
     "functions": (
         "(function_declaration name: (identifier) @name) @def\n"
@@ -29,8 +30,8 @@ QUERIES = {
         "(source_file (type_declaration (type_spec name: (type_identifier) @name)))"
     ),
 }
-MODULE_RULE = "go_package"      # 디렉토리 = 패키지. go.mod 의 module 접두가 붙은 import 만 레포 내부다
-PUBLIC_RULE = "capitalized"     # 대문자 시작이 공개 — 언어 규칙 그대로
+MODULE_RULE = "go_package"      # 디렉토리 하나가 패키지 하나다. go.mod 의 module 경로로 시작하는 import 만 레포 내부로 본다
+PUBLIC_RULE = "capitalized"     # 대문자로 시작하는 이름이 공개다. Go 언어 규칙 그대로다
 
 # 적합성 검사 예제 — closures·type_hints 는 NOT_APPLICABLE 이라 예제가 없다.
 FIXTURES = {

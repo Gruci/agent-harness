@@ -6,7 +6,7 @@
   python -X utf8 setup_global_permissions.py --agent codex --check
 
 clone 직후 1회. 기존 설정(훅·플러그인 등)은 보존하고 permissions 만 병합한다.
-기본 에이전트는 claude다. Codex는 CODEX_HOME 또는 ~/.codex를 사용한다.
+기본 에이전트는 claude다. Claude는 CLAUDE_CONFIG_DIR 또는 ~/.claude를, Codex는 CODEX_HOME 또는 ~/.codex를 사용한다.
 Codex는 config.toml과 글로벌 지침의 표시된 블록만 수정하고 기존 파일을 한 번 백업한다.
 --check는 파일을 쓰지 않으며 런타임이 강제한 정책이나 세션 옵션을 변경하지 않는다.
 
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 ALLOW = [
@@ -32,7 +33,8 @@ ALLOW = [
 
 
 def configure_claude(check: bool = False) -> int:
-    path = Path.home() / ".claude" / "settings.json"
+    # 계정을 여러 개 쓰는 환경은 CLAUDE_CONFIG_DIR 로 설정 디렉터리를 바꾼다
+    path = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "settings.json"
     settings: dict[str, object] = {}
     if path.exists():
         settings = json.loads(path.read_text(encoding="utf-8"))

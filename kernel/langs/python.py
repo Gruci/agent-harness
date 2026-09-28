@@ -2,7 +2,7 @@
 
 커널이 파이썬으로 돌기 때문에 `ast` 를 그냥 쓸 수 있다(`kernel/analyzers/python.py`). 그래서
 구문 사실 게이트가 전부 켜지고, 해당 없음으로 빠지는 것도 없다. 다른 언어팩의 기준선 역할을
-한다 — QUERIES 가 없는 것은 결함이 아니라 표준 ast 가 그 자리를 맡기 때문이다.
+한다. QUERIES 가 없는 것은 결함이 아니라 표준 ast 가 그 역할을 대신하기 때문이다.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 EXT = ("*.py",)
 SYNTAX = "python"
 
-# 적합성 검사 예제. 기준선 팩이라 pack_check 가 [1급] 판정 경로 자체를 여기로 증명한다.
+# 적합성 검사 예제. 기준선 팩이므로 pack_check 는 이 예제로 [1급] 판정 경로 자체가 제대로 도는지 증명한다.
 FIXTURES = {
     "closures": {
         "violating": "def outer():\n    def inner():\n        return 1\n    return inner()\n",

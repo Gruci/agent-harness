@@ -3,9 +3,9 @@
 커널은 이 모듈을 통해서만 프로젝트를 안다. 실물은 `<프로젝트 루트>/harness_profile.py` 이고,
 없으면 전부 기본값(대체로 비어 있음)이라 레이어를 요구하는 게이트는 [SKIP] 이 된다.
 
-**비어 있으면 조용히 통과하는 게 아니라 [SKIP] 으로 찍힌다.** 이 구분이 이 파일의 존재 이유다 —
-이전 하네스는 레이어 이름이 안 맞아 대상이 0개인데도 [OK] 로 통과해, 지켜주지 않는 게이트를
-지켜준다고 믿게 만들었다.
+**비어 있으면 조용히 통과하는 게 아니라 [SKIP] 으로 찍힌다.** 이 구분 때문에 이 파일이 있다.
+이전 하네스는 레이어 이름이 안 맞아 검사 대상이 0개인데도 [OK] 로 통과시켰고, 그래서 실제로는
+아무것도 검사하지 않는 게이트를 믿게 만들었다.
 
 스키마 정의와 각 항목의 뜻은 `profiles/_template.py` 가 정본이다.
 """
@@ -49,7 +49,7 @@ _MOD = _load()
 # 파이썬 모듈이라 오타가 예외를 안 낸다. `LAYER = {...}` 는 그냥 무시되고 그 게이트가 [SKIP]
 # 이 되며, `SCOPE["exclude_all"] = "tests/"` 처럼 튜플 자리에 문자열을 적으면 `tuple()` 이
 # 글자 단위로 쪼개 `startswith(("t","e","s",...))` 가 돼 **소스 대부분이 조용히 검사에서
-# 빠진다.** 둘 다 화면엔 아무것도 안 뜬다. 그래서 강제(coerce)하기 전에 모양부터 본다.
+# 빠진다.** 둘 다 화면에는 아무 경고도 뜨지 않는다. 그래서 값을 변환(coerce)하기 전에 형식부터 검사한다.
 _KNOWN_NAMES = frozenset({
     "STAGE", "LANG", "ARCH", "SYNTAX", "SOURCE_EXT", "UI_EXT", "PATTERNS", "NOT_APPLICABLE",
     "LINTERS", "CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "HUBS",
@@ -76,9 +76,9 @@ def _is_seq(value: object) -> bool:
 
 
 def _shape_errors(mod: Any) -> list[str]:
-    """프로파일 원문의 모양 위반. 이름 오타·문자열/튜플 혼동·모르는 하위 키."""
+    """프로파일 원문의 형식 위반을 찾는다. 설정 이름 오타, 튜플 자리에 쓴 문자열, 모르는 하위 키가 대상이다."""
     if mod is None:
-        return [f"{PROFILE_FILE}: PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 프로파일과 컴포넌트 그래프를 먼저 구성하라"]
+        return [f"{PROFILE_FILE}: PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 인 프로파일과 컴포넌트 그래프를 먼저 구성하라"]
     found: list[str] = []
     for name in vars(mod):
         if name.isupper() and len(name) > 1 and name not in _KNOWN_NAMES:
@@ -86,16 +86,16 @@ def _shape_errors(mod: Any) -> list[str]:
     for name in _STR_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not isinstance(value, str):
-            found.append(f"{PROFILE_FILE}: {name} 은 문자열이어야 한다 — {type(value).__name__}")
+            found.append(f"{PROFILE_FILE}: {name} 은 문자열이어야 한다 — 지금 값의 타입은 {type(value).__name__}")
     schema = getattr(mod, "PROFILE_SCHEMA", None)
     if getattr(mod, "COMPONENT_GRAPH", "docs/architecture/components.json") != "docs/architecture/components.json":
         found.append(f"{PROFILE_FILE}: COMPONENT_GRAPH must be docs/architecture/components.json")
     if schema != _REQUIRED_SCHEMA or isinstance(schema, bool):
-        found.append(f"{PROFILE_FILE}: 서식 {schema!r} 실행 불가 — PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 이어야 한다")
+        found.append(f"{PROFILE_FILE}: 서식 버전 {schema!r} 로는 실행할 수 없다 — PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 이어야 한다")
     for name in _DICT_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not isinstance(value, dict):
-            found.append(f"{PROFILE_FILE}: {name} 은 dict 여야 한다 — {type(value).__name__}")
+            found.append(f"{PROFILE_FILE}: {name} 은 dict 여야 한다 — 지금 값의 타입은 {type(value).__name__}")
     for name in _SEQ_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not _is_seq(value):
@@ -118,7 +118,7 @@ PROFILE_ERRORS: list[str] = _shape_errors(_MOD)
 
 
 def _dict(name: str) -> dict[str, Any]:
-    """모양이 틀린 선언은 없는 것으로 읽는다 — 형식 위반은 PROFILE_ERRORS 가 따로 찍는다."""
+    """형식이 틀린 선언은 없는 것으로 읽는다. 형식 위반은 PROFILE_ERRORS 가 따로 출력한다."""
     given = getattr(_MOD, name, None) if _MOD else None
     return given if isinstance(given, dict) else {}
 
@@ -136,7 +136,7 @@ def _mapping(name: str, keys: tuple[str, ...], empty: object) -> dict[str, Any]:
 
 STAGE: str = getattr(_MOD, "STAGE", "greenfield") if _MOD else "greenfield"
 LOADED: bool = _MOD is not None
-# 프로파일이 선언한 서식 세대. 0 = 미선언.
+# 프로파일이 선언한 서식 버전. 선언하지 않았으면 0 이다.
 PROFILE_SCHEMA: int = (
     getattr(_MOD, "PROFILE_SCHEMA", 0) if _MOD and isinstance(getattr(_MOD, "PROFILE_SCHEMA", 0), int) else 0
 )
@@ -166,9 +166,9 @@ ROOT_FILES: tuple[str, ...] = _seq("ROOT_FILES")
 
 # ── 언어 ───────────────────────────────────────────────────────────────────────
 #
-# 게이트가 볼 파일 확장자와, 구문 분석·언어 관용구에 의존하는 검사의 가용 여부.
-# 구문 사실을 못 받는 검사는 [OK] 가 아니라 [TOOL] 이 된다(판정은 `kernel/facts.py`) —
-# 파이썬 정규식이 다른 언어에서 안 걸리는 것을 "위반 없음"으로 보고하면 그게 무음 통과다.
+# 게이트가 볼 파일 확장자와, 구문 분석이나 언어 관용구에 기대는 검사를 돌릴 수 있는지를 정한다.
+# 구문 분석 결과(구문 사실)를 못 받은 검사는 [OK] 가 아니라 [TOOL] 이 된다(판정은 `kernel/facts.py`).
+# 파이썬용 정규식이 다른 언어에서 안 걸린 것을 "위반 없음"으로 보고하면 검사 없이 통과한 것과 같다.
 LANG: str | None = getattr(_MOD, "LANG", None) if _MOD else None
 try:
     _PACK = lang.load(LANG) if LANG is not None else lang.unselected()
@@ -190,7 +190,7 @@ if _MOD and getattr(_MOD, "PATTERNS", None):
 
 # ── 아키텍처 ──────────────────────────────────────────────────────────────────
 #
-# 이 프로젝트 형태에 어떤 레이어가 존재하는가. 미선언(None)이면 아무것도 N/A 로 돌리지 않는다.
+# 이 프로젝트 형태에 어떤 레이어가 있는지 정한다. 선언하지 않으면(None) 어떤 검사도 N/A 로 돌리지 않는다.
 ARCH: str | None = getattr(_MOD, "ARCH", None) if _MOD else None
 try:
     _ARCH_PACK = arch.load(ARCH)
@@ -200,13 +200,13 @@ except ValueError as exc:
 
 
 def _na_prefixed(entries: dict[str, str], tag: str | None) -> dict[str, str]:
-    """N/A 사유에 출처 접두를 베이킹한다. 러너는 이 문자열을 그대로 찍는다."""
+    """N/A 사유 앞에 출처 이름을 미리 붙여 둔다. 러너는 이 문자열을 그대로 출력한다."""
     label = tag or "미선언"
     return {slug: f"{label}: {reason}" for slug, reason in entries.items()}
 
 
-# 병합 순서: 언어팩 → 아키텍처팩 → 프로파일. 나중이 이긴다 —
-# 프로젝트 사정이 언어·아키텍처 관례보다 우선이라는 기존 원칙의 연장이다.
+# 병합 순서는 언어팩, 아키텍처팩, 프로파일이고 나중에 병합한 값이 앞의 값을 덮어쓴다.
+# 프로젝트 사정이 언어·아키텍처 관례보다 우선한다는 기존 원칙을 그대로 따른 것이다.
 NOT_APPLICABLE: dict[str, str] = _na_prefixed(dict(_PACK["NOT_APPLICABLE"]), SYNTAX)
 NOT_APPLICABLE.update(_na_prefixed(_ARCH_PACK["NOT_APPLICABLE"], ARCH))
 if _MOD and getattr(_MOD, "NOT_APPLICABLE", None):
@@ -216,7 +216,7 @@ LINTERS: tuple = _seq("LINTERS", tuple(_PACK["LINTERS"]))
 
 
 def pattern(name: str) -> str:
-    """선택한 언어가 선언한 관용구. 미선언은 빈 문자열이다."""
+    """선택한 언어가 선언한 관용구. 선언이 없으면 빈 문자열이다."""
     return PATTERNS.get(name, "")
 
 
@@ -228,14 +228,14 @@ LESSONS_DOC: str | None = getattr(_MOD, "LESSONS_DOC", None) if _MOD else None
 AGENT_MODEL_POLICY: dict[str, tuple[str, str]] = (
     dict(getattr(_MOD, "AGENT_MODEL_POLICY", {})) if _MOD else {}
 )
-# 월간 감사류의 발동 임계치 항목별 덮어쓰기. 기본값은 kernel/maintenance.py 가 갖는다.
+# 월간 감사 알림을 띄우는 임계치를 항목별로 덮어쓴다. 기본값은 kernel/maintenance.py 에 있다.
 MAINTENANCE: dict[str, dict[str, int]] = (
     dict(getattr(_MOD, "MAINTENANCE", {})) if _MOD else {}
 )
-# 헤더 `V<major>.<minor>` 버전 범프를 강제할 LLM 프롬프트 파일 목록. 비면 그 게이트는 [SKIP].
+# 헤더의 `V<major>.<minor>` 버전을 올리도록 강제할 LLM 프롬프트 파일 목록. 비어 있으면 그 게이트는 [SKIP] 이다.
 VERSIONED_PROMPTS: tuple[str, ...] = _seq("VERSIONED_PROMPTS")
-# UI 카피 LLM 감수 훅의 도메인 주입 — "context"(업종·제품 한 줄)와 "product_terms"(위반이
-# 아닌 도메인 필수 용어). 훅의 판정 기준 자체는 범용이라 커널이 갖고, 여기는 맥락만 준다.
+# UI 문구를 LLM 으로 검수하는 훅에 넘길 도메인 정보. "context" 는 업종·제품을 설명하는 한 줄이고,
+# "product_terms" 는 위반으로 보지 않을 도메인 필수 용어다. 판정 기준은 범용이라 커널이 갖고, 여기서는 맥락만 준다.
 UI_COPY: dict[str, Any] = dict(getattr(_MOD, "UI_COPY", {})) if _MOD else {}
 
 
@@ -260,7 +260,7 @@ def scratch() -> tuple[str, ...]:
     return SCOPE["exclude_scratch"]
 
 
-# 화면 린터(검사 10·17~20·42)가 도는 npm 프로젝트 — node_modules 의 부모. 없으면 ui 레이어의 첫 세그먼트.
+# 화면 린터(검사 10·17~20·42)를 돌릴 npm 프로젝트 폴더, 즉 node_modules 가 들어 있는 폴더. 없으면 ui 레이어 경로의 첫 세그먼트를 쓴다.
 UI_NPM_DIR: str | None = getattr(_MOD, "UI_NPM_DIR", None) if _MOD else None
 
 
@@ -268,11 +268,11 @@ _TEMPLATE_NAME = re.compile(r"^([A-Z][A-Z_]+)\s*[:=]", re.M)
 
 
 def outdated_notice() -> str:
-    """프로파일이 커널 서식보다 오래됐으면 고지문, 아니면 빈 문자열.
+    """프로파일이 커널 서식보다 오래됐으면 안내문을, 아니면 빈 문자열을 돌려준다.
 
-    새 키는 `getattr` 기본값으로 조용히 [SKIP] 이 된다. "설정을 안 적었다"와 "이 프로파일이 커널보다
-    오래됐다"는 사람이 할 일이 다르므로 후자는 세션 시작에 따로 말한다. 새 항목 목록은 서식
-    정본(`profiles/_template.py`)의 대문자 이름에서 프로파일에 없는 것을 뽑는다 — 표를 따로 두지 않는다.
+    프로파일에 없는 새 키는 `getattr` 기본값을 받아 조용히 [SKIP] 이 된다. "설정을 안 적었다"와 "이 프로파일이
+    커널보다 오래됐다"는 사람이 할 일이 다르므로 후자는 세션 시작 때 따로 알린다. 새 항목 목록은 서식
+    정본(`profiles/_template.py`)의 대문자 이름 중 프로파일에 없는 것을 뽑아 만든다. 목록 표를 따로 두지 않는다.
     """
     from kernel import PROFILE_SCHEMA as required
 
@@ -281,7 +281,7 @@ def outdated_notice() -> str:
     template = ROOT / "profiles" / "_template.py"
     names = set(_TEMPLATE_NAME.findall(template.read_text(encoding="utf-8"))) if template.exists() else set()
     missing = sorted(n for n in names - set(vars(_MOD) if _MOD else ()) if n not in ("PRESET_SUMMARY", "PRESET_FITS"))
-    return (f"[PROFILE SCHEMA] {PROFILE_FILE} 서식 {PROFILE_SCHEMA} != 커널 {required} — "
+    return (f"[PROFILE SCHEMA] {PROFILE_FILE} 서식 버전이 {PROFILE_SCHEMA} 인데 커널은 {required} 를 요구한다 — "
             f"채울 수 있는 새 항목: {' '.join(missing) or '없음'}. profiles/_template.py 의 설명을 보고 "
             f"채운 뒤 PROFILE_SCHEMA = {required} 로 맞춘다.")
 

@@ -1,15 +1,15 @@
 """kernel/isolation.py — worktree·workboard 강제: 편집 전 가드와 본체로 합치기 전 검사.
 
 Claude 래퍼(`.claude/hooks/check_pretool.py`)와 Codex 진입점이 둘 다 `kernel/hook.py --event
-PreToolUse` 로 이 판정을 부른다. 페이로드·exit·출력 JSON 은 어댑터 몫이고 여기는 판정과 문구다.
-결과는 `kernel.workspace.Finding` 한 모양이다.
+PreToolUse` 로 이 판정을 부른다. 페이로드 해석과 exit 코드와 출력 JSON 은 어댑터가 맡고, 이 모듈은
+판정과 메시지 문구만 맡는다. 결과는 모두 `kernel.workspace.Finding` 형태다.
 
 ## 왜 강제하나 — 격리가 선택이면 아무도 안 한다
 
 "단일 세션이면 메인 체크아웃에서 작업할 수 있다"가 정본이던 동안 실제로는 모든 세션이 메인에서
 작업했고, 게이트는 작업 중인 트리에서 매 저장·매 턴 종료마다 차단을 반복했다. 백그라운드 워커가
 코드를 쓰는 동안 메인 세션의 Stop 이 그 미완성 상태를 네 번 막았다(`dev/LESSONS.md` §25).
-작업 공간과 합쳐지는 본체를 가르면 그 마찰이 사라진다 — 작업 중은 노터치, 나올 때 검사.
+작업 공간(worktree)과 결과가 합쳐지는 본체를 나누면 그 마찰이 사라진다. 작업 중에는 막지 않고, 본체로 합칠 때 검사한다.
 
 ## 편집 전 가드 — 두 판정, 예외 셋
 
@@ -19,20 +19,20 @@ PreToolUse` 로 이 판정을 부른다. 페이로드·exit·출력 JSON 은 어
 | 메인 체크아웃 | 공유 체크아웃 | 구현 파일을 메인에서 고친다 |
 
 예외는 `workboard/**`·`docs/tasks/**`(등록·research·plan 은 메인에서 쓴다)와 **바뀐 줄 1줄 이하**다.
-1줄 예외는 `CLAUDE.md` 4단계 예외("오탈자·설정값 1줄")의 기계 판정이라 두 판정을 다 면제한다 —
-그 편집은 plan 이 없고 plan 이 없으면 보드 행도 없는 것이 정상이다. 줄 수만 보고 파일 종류는
+1줄 예외는 `CLAUDE.md` 4단계 워크플로우의 예외("오탈자·설정값 1줄")를 기계로 판정한 것이라 두 판정을 모두 면제한다.
+그런 편집에는 plan 이 없고, plan 이 없으면 보드 행도 없는 것이 정상이다. 줄 수만 보고 파일 종류는
 보지 않는다(사용자 지정 기준).
 
-판정 불능(세션 식별자 없음·git 조회 실패)은 **비차단 경고**다. 하네스 오작동으로 모든 편집이
-막히면 복구 수단이 그 편집이라 잠긴다. 레포 밖(스크래치패드)과 다른 레포의 파일은 대상이 아니다.
+세션 식별자가 없거나 git 조회가 실패해 판정할 수 없으면 막지 않고 **경고만** 한다. 하네스가 오작동해
+모든 편집이 막히면, 그 오작동을 고칠 편집까지 막혀 복구할 방법이 없어진다. 레포 밖(스크래치패드)과 다른 레포의 파일은 대상이 아니다.
 
 ## 나올 때 검사 — 본체로 합치는 명령 직전
 
 `git push`·`gh pr create`·`gh pr merge`·`git merge` 를 실행하기 직전에 그 체크아웃에서
 `kernel.runner --verify` 를 돌려 exit 0 이 아니면 막는다. `[TOOL]`·`[DECISION]` 도 통과가 아니다.
-러너 실행 불능은 **차단**(fail-closed) — 합치는 것은 되돌리기 비싸다. `git -C <경로>` 는 그 경로의
-체크아웃을 검사한다. 명령은 조각의 머리에서만 찾는다 — `echo "git push"` 와 커밋 메시지 안의
-산문은 명령이 아니다(`kernel/worktree.py` 의 같은 원칙).
+러너를 실행하지 못해도 **막는다**(fail-closed). 본체에 합친 것은 되돌리기 비싸기 때문이다. `git -C <경로>` 는 그 경로의
+체크아웃을 검사한다. 명령은 명령줄을 나눈 각 조각의 맨 앞에서만 찾는다. `echo "git push"` 나 커밋 메시지 안의
+문장은 명령이 아니다(`kernel/worktree.py` 도 같은 원칙을 따른다).
 """
 
 from __future__ import annotations
@@ -196,7 +196,7 @@ def _register_message(sid8: str) -> str:
     today = date.today().isoformat()
     return "\n".join([
         f"[ISOLATION] workboard 에 이 세션의 과업 파일이 없다 — 등록부터 한다 (#sid:{sid8}).",
-        "workboard/<영역>-<대상>.md 를 공유 체크아웃에 만든다. 같은 범위가 있으면 합류한다:",
+        "workboard/<영역>-<대상>.md 를 공유 체크아웃에 만든다. 같은 범위의 과업 파일이 이미 있으면 새로 만들지 말고 그 파일 항목에 줄을 추가한다(합류):",
         "  - 범위: <영역>-<대상>",
         f"  - 과업: <feat|fix|chore>/<브랜치> #sid:{sid8}",
         "  - 항목:",
@@ -229,7 +229,7 @@ def _rel_or_name(path: Path, shared: Path) -> str:
 
 def edit_guard(paths: list[Path], sid8: str | None, lines: int,
                board: Path | None = None) -> Finding | None:
-    """편집 전 판정. 보드 미등록 → 메인 체크아웃 순이다 — 등록이 프로토콜상 먼저다."""
+    """편집 전 판정. 보드 등록 여부를 먼저 보고 메인 체크아웃 편집 여부를 다음에 본다. 프로토콜상 등록이 먼저이기 때문이다."""
     board = board_dir() if board is None else board
     shared = board.resolve().parent
     if lines <= MAX_FREE_LINES:
@@ -243,7 +243,7 @@ def edit_guard(paths: list[Path], sid8: str | None, lines: int,
                        ("sid 없음",))
     if any(kind == "unknown" for _path, kind in targets):
         return Finding(HOOK_NAME, "edit_guard", False,
-                       "[ISOLATION] git 조회 실패 — 체크아웃을 못 가려 격리 가드를 건너뛴다.",
+                       "[ISOLATION] git 조회에 실패해 어느 체크아웃인지 가리지 못했다 — 격리 가드를 건너뛴다.",
                        ("git 조회 실패",))
     scope = my_scope(sid8, board)
     if scope is None:
@@ -257,7 +257,7 @@ def edit_guard(paths: list[Path], sid8: str | None, lines: int,
 
 
 def exit_command(command: str) -> tuple[str, Path | None] | None:
-    """합치는 명령이면 (명령 이름, `git -C` 경로). 조각의 머리에서만 본다."""
+    """본체로 합치는 명령이면 (명령 이름, `git -C` 경로)를 돌려준다. 명령줄 각 조각의 맨 앞만 본다."""
     try:
         tokens = shlex.split(command.replace("\\", "/"), posix=True)
     except ValueError:
@@ -276,7 +276,7 @@ def exit_command(command: str) -> tuple[str, Path | None] | None:
 
 
 def _verdict_lines(stdout: str) -> list[str]:
-    """러너 출력 중 사람이 봐야 할 줄 — 등급 머리와 그 위반 항목만."""
+    """러너 출력 중 사람이 봐야 할 줄. [FAIL]·[TOOL]·[DECISION] 머리줄과 그 아래 위반 항목만 남긴다."""
     kept: list[str] = []
     inside = False
     for line in stdout.splitlines():
@@ -298,7 +298,7 @@ def _blocked(name: str, reason: str, detail: list[str]) -> Finding:
 
 
 def exit_gate(command: str, cwd: Path) -> Finding | None:
-    """합치는 명령이면 그 체크아웃에서 `--verify`. exit 0 이 아니면 차단, 실행 불능도 차단."""
+    """본체로 합치는 명령이면 그 체크아웃에서 `--verify` 를 돌린다. exit 0 이 아니거나 러너를 실행하지 못하면 막는다."""
     found = exit_command(command)
     if found is None:
         return None
@@ -313,7 +313,7 @@ def exit_gate(command: str, cwd: Path) -> Finding | None:
                               capture_output=True, text=True, encoding="utf-8", errors="replace",
                               timeout=VERIFY_TIMEOUT_SEC)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return _blocked(name, f"러너 실행 불능 {type(exc).__name__}(fail-closed).", [])
+        return _blocked(name, f"러너를 실행하지 못했다: {type(exc).__name__}(fail-closed).", [])
     if done.returncode == 0:
         return None
     reason = f"{root} 에서 `python -X utf8 -m kernel.runner --verify` 가 exit {done.returncode}."

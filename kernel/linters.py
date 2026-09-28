@@ -8,7 +8,7 @@
   도구가 있다   → 돌리고 출력을 위반으로 읽는다
   도구가 없다   → [TOOL] 로 찍고 설치 명령을 준다. 통과로 처리하지 않는다
 
-마지막 줄이 핵심이다. 도구 부재를 조용히 넘기면 "검사했는데 깨끗함"과 "검사 자체를 못 함"이
+마지막 줄이 핵심이다. 도구가 없는 것을 조용히 넘기면 "검사했는데 깨끗함"과 "검사 자체를 못 함"이
 구분되지 않는다 — 이 하네스가 없애려는 상태 그대로다.
 
 언어팩의 `LINTERS` 가 선언 정본이다:
@@ -20,8 +20,8 @@
 
 화면 레이어는 언어팩이 아니라 아래 「화면 린터」가 같은 원칙으로 위임한다. 검사 10·17~20·42 의
 판정 정본은 `kernel/eslint.harness.mjs` 하나이고, 러너는 npm 프로젝트의 `node_modules/.bin/eslint`
-로 그 설정을 돌려 메시지 머리의 `[slug]` 로 여섯 섹션에 나눈다. 줄 정규식은 문자열과 코드를
-구분하지 못했다 — 주석 속 색이 걸리고 여러 줄 표현은 빠졌다.
+로 그 설정을 돌리고, 메시지 앞의 `[slug]` 로 결과를 여섯 섹션에 나눈다. 예전의 줄 단위 정규식은 문자열과 코드를
+구분하지 못해, 주석 속 색 값이 걸리고 여러 줄에 걸친 표현은 놓쳤다.
 """
 
 from __future__ import annotations
@@ -114,7 +114,7 @@ def sections() -> list[tuple[str, str, list[str], str]]:
 UI_SLUGS = ("ts_any", "raw_fetch", "hex_literal", "responsive", "browser_api", "hash_nav")
 UI_CONFIG = Path(__file__).resolve().parent / "eslint.harness.mjs"
 _SLUG_TAG = re.compile(r"^\[(\w+)\]\s*")
-# 정규식 시절 admin 화면(`ui_admin` 레이어·경로의 /admin/)을 면제하던 넷
+# 정규식 방식을 쓰던 때 admin 화면(`ui_admin` 레이어와 경로의 /admin/)을 면제하던 네 검사
 _ADMIN_SLUGS = ("raw_fetch", "hex_literal", "responsive", "browser_api")
 
 
@@ -125,8 +125,8 @@ class UiLint:
 
 
 def ui_npm_dir() -> Path | None:
-    """node_modules 를 가진 npm 프로젝트. 프로파일 `UI_NPM_DIR` 이 우선, 없으면 ui 레이어의 첫 세그먼트 —
-    프리셋 셋 다 `frontend/src` 라 유도로 충분하고 다르면 선언이 이긴다."""
+    """node_modules 를 가진 npm 프로젝트. 프로파일 `UI_NPM_DIR` 이 우선이고, 없으면 ui 레이어 경로의 첫 세그먼트다.
+    프리셋 세 개가 모두 `frontend/src` 라 대개 이 추론으로 충분하고, 다르면 선언을 따른다."""
     ui = profile.layer("ui")
     if not ui:
         return None
@@ -134,8 +134,8 @@ def ui_npm_dir() -> Path | None:
 
 
 def ui_eslint_bin(npm_dir: Path) -> Path | None:
-    """실행 파일 실존. `npx --no-install` 은 패키지가 없어도 npm 오류를 내며 끝나 파서가 0건으로 읽는다 —
-    그게 무음 통과 경로라 파일 존재로 본다."""
+    """실행 파일이 실제로 있는지 본다. `npx --no-install` 은 패키지가 없으면 npm 오류만 내고 끝나는데, 파서는 이를
+    위반 0건으로 읽어 조용히 통과시킨다. 그래서 실행 파일의 존재로 판단한다."""
     exe = npm_dir / "node_modules" / ".bin" / ("eslint.cmd" if os.name == "nt" else "eslint")
     return exe if exe.exists() else None
 
@@ -146,8 +146,8 @@ def _npm_relative(npm_dir: Path, rel_path: str) -> str:
 
 
 def ui_allow(npm_dir: Path) -> dict[str, list[str]]:
-    """slug 별 면제 glob(npm 디렉토리 기준). 프로파일 ALLOWLIST · admin 화면 · 토큰 정본 —
-    정규식 시절의 allow·admin 판정을 그대로 옮긴 것이다."""
+    """slug 별 면제 glob(npm 디렉토리 기준). 면제 대상은 프로파일 ALLOWLIST, admin 화면, 토큰 정본 파일이다.
+    정규식 방식을 쓰던 때의 allow·admin 판정을 그대로 옮겼다."""
     admin = ["**/admin/**"]
     admin_layer = profile.layer("ui_admin")
     if admin_layer:
@@ -168,7 +168,7 @@ def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]
                   tokens_note: str) -> dict[str, list[str]]:
     """하네스 설정으로 ESLint 를 돌려 `[slug]` 태그로 나눈다.
 
-    파싱 불능(fatal)은 여섯 slug 전부에 적는다 — 그 파일은 여섯 검사 전부가 불능이기 때문이다.
+    파싱에 실패한(fatal) 파일은 여섯 slug 모두에 기록한다. 그 파일은 여섯 검사 어느 것도 할 수 없기 때문이다.
     테스트가 프로파일 없이 이 함수를 직접 부른다.
     """
     exe = ui_eslint_bin(npm_dir)
@@ -208,7 +208,7 @@ def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]
 
 
 def run_ui_lint(ui_files: list[Path]) -> UiLint:
-    """프로파일 글루. 대상은 러너가 준 파일 그대로 — `--file` 이면 하나, 전량이면 ui 레이어 전부."""
+    """프로파일 설정을 읽어 eslint_report 에 넘긴다. 대상은 러너가 준 파일 그대로다. `--file` 실행이면 하나, 전체 실행이면 ui 레이어 전부다."""
     npm_dir = ui_npm_dir()
     if not npm_dir or not npm_dir.is_dir():
         return UiLint({}, "npm 디렉토리 없음 — 프로파일 UI_NPM_DIR 로 지정 (기본은 ui 레이어 첫 세그먼트)")

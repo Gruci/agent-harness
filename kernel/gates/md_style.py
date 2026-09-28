@@ -1,16 +1,18 @@
 """kernel/gates/md_style.py — 검사 25 MD 작성 규칙 (dev/MD_STANDARD.md 의 기계 검사 가능 부분).
 
-의미 단위 판정 자체는 자동화 불가 — 여기는 '의미 뭉개짐의 구조적 신호'만 검출한다.
+한 줄이 한 의미 단위인지는 자동으로 판정할 수 없다. 여기서는 여러 의미가 한 줄에 뭉쳐 있다는
+구조적 신호만 찾는다.
 길이는 규칙이 아니다(의미가 하나면 길어도 된다). 규칙은 "한 줄에 독립 사실이 여럿인가"다.
 
   강제  ⑬a 코드펜스 트리 덤프 / ⑬b 나열 뭉개기 / ⑬c 괄호 중첩 / ⑬d 머리 역할 계약 누락
-  리포트 ⑬e 날짜 태그 밀도 / ⑬f 경로 토큰 밀도 / ⑬g 시그니처 밀도  (성분 A·B·D 재유입 신호)
+  리포트 ⑬e 날짜 태그 밀도 / ⑬f 경로 토큰 밀도 / ⑬g 시그니처 밀도  (MD 에 적지 않기로 한 성분 A·B·D 가 다시 들어온 신호)
 
-소급 유예: static_check_md_baseline.txt 등재 파일은 강제→리포트 강등. 감소만 허용(래칫).
+소급 유예: static_check_md_baseline.txt 에 등재된 파일은 강제 위반을 리포트로 낮춘다. 이 목록은
+줄어들기만 해야 한다(래칫).
 
-나열 판정 근거: 구분자 개수만 세면 패키지명을 죽 늘어놓은 정상 나열(코드명 12개 = 한 의미)이
-걸린다. 그래서 인라인 코드를 걷어낸 뒤 남는 '산문 조각'만 센다 — 구분자 사이에 설명이 붙어야
-독립 사실이 여럿이라는 뜻이다.
+나열 판정 근거: 구분자 개수만 세면 패키지명을 죽 늘어놓은 정상 나열(코드명 12개도 의미는 하나다)이
+걸린다. 그래서 인라인 코드를 걷어낸 뒤 남는 '산문 조각'만 센다. 구분자 사이에 설명이 붙어 있어야
+독립된 사실이 여럿이라고 본다.
 """
 from __future__ import annotations
 
@@ -122,9 +124,9 @@ def _scan_lines(rel: str, lines: list[str], hard: list[str], soft: list[str]) ->
             hard.append(f"{rel}:{number}: ⑬c 괄호 {depth}중 중첩 — 문장을 다시 써라")
         paths = len(PATH_TOKEN.findall(raw))
         if paths >= MAX_PATH_TOKENS:
-            soft.append(f"{rel}:{number}: ⑬f 경로 토큰 {paths}개 — 성분 A·C 재유입 신호")
+            soft.append(f"{rel}:{number}: ⑬f 경로 토큰 {paths}개 — 성분 A·C(파일 목록·소비처)가 다시 들어온 신호")
         if len(SIG_TOKEN.findall(prose)) >= MAX_SIGNATURES:
-            soft.append(f"{rel}:{number}: ⑬g 시그니처 패턴 다수 — 성분 B 재유입 신호")
+            soft.append(f"{rel}:{number}: ⑬g 시그니처 패턴 다수 — 성분 B(시그니처·타입 목록)가 다시 들어온 신호")
 
     if rel not in tuple(profile.MD["date_exempt"]) and dates >= MAX_DATES:
         soft.append(f"{rel}: ⑬e 날짜 태그 {dates}개 — 성분 D 의심(경위는 dev/LESSONS.md 로)")

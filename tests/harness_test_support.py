@@ -12,7 +12,7 @@ class TemporaryRootTestCase(unittest.TestCase):
         self.root = Path(temporary_root.name)
 
 
-# workboard 과업 파일 픽스처 — 깨지면 잡는 것: 파일=행 계약·브랜치 오인·겹침 판정·이름 조인.
+# workboard 과업 파일 픽스처. 이 픽스처로 잡는 회귀: 파일 하나가 보드 행 하나라는 계약, 브랜치를 엉뚱한 필드에서 읽는 오류, 겹침 판정, 이름 조인.
 TASK_TEXT = (
     "- 범위: admin-report-viewers\n"
     "- 과업: feat/report-viewers #sid:abcd1234\n"

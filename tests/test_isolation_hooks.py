@@ -1,7 +1,7 @@
 """tests/test_isolation_hooks.py — 격리 강제의 훅 수준 행동: 실제 체크아웃에서 kernel.hook 을 돌린다.
 
-`tests/test_isolation.py` 가 판정 함수를 잡고, 여기는 두 런타임의 채널까지 본다 — Claude 는
-exit 와 stderr, Codex 는 exit 와 `{"systemMessage": …}` 다.
+`tests/test_isolation.py` 는 판정 함수를 검사하고, 여기서는 두 런타임이 결과를 전하는 채널까지 본다.
+Claude 는 exit 코드와 stderr, Codex 는 exit 코드와 `{"systemMessage": …}` 로 전한다.
 
   worktree 안 Stop     차단(2) 대신 [WIP] 알림 — Claude exit 1, Codex exit 0 + systemMessage
   나올 때 검사         --verify 통과면 push 가 나가고, 위반이 생기면 push·PR·merge 가 막힌다

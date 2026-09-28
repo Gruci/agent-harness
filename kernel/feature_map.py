@@ -1,4 +1,4 @@
-"""Project canonical intent and current source ownership without inventing approval."""
+"""Generate a projection of the canonical component intent and current source ownership; it never implies approval."""
 import argparse
 import hashlib
 import json

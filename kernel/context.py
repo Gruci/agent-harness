@@ -24,9 +24,9 @@ READ_ENC = "utf-8-sig"
 
 
 def _rel(f: Path) -> str:
-    """루트 기준 경로. worktree(`worktrees/<이름>/`) 안 파일은 접두를 벗긴다 —
-    작성 시점 훅은 메인 체크아웃의 ROOT 로 도는데 구현은 worktree 안에서 일어난다.
-    안 벗기면 경로 기반 게이트(헤더 주석 등)가 전부 오탐한다."""
+    """루트 기준 경로. worktree(`worktrees/<이름>/`) 안 파일은 그 접두를 떼어낸다.
+    작성 시점 훅은 메인 체크아웃의 ROOT 기준으로 실행되지만 구현은 worktree 안에서 하기 때문이다.
+    접두를 떼지 않으면 경로 기반 게이트(헤더 주석 등)가 모두 오탐한다."""
     rel = f.relative_to(ROOT).as_posix()
     parts = rel.split("/")
     if len(parts) > 2 and parts[0] == "worktrees":
@@ -67,9 +67,9 @@ def git_output(*args: str) -> str | None:
 
 
 def default_branch() -> str | None:
-    """원격 기본 브랜치 이름. `origin/HEAD` → 실패 시 main·master 실물 순.
+    """원격 기본 브랜치 이름. `origin/HEAD` 를 먼저 보고, 없으면 원격에 실제로 있는 main, master 순으로 찾는다.
 
-    훅 쪽 `_hookio.default_branch` 와 판정이 같다. 훅은 커널 로드 실패에도 살아야 해서 한 벌을 따로 둔다.
+    훅 쪽 `_hookio.default_branch` 와 판정이 같다. 훅은 커널을 불러오지 못해도 동작해야 하므로 같은 구현을 훅 쪽에 따로 둔다.
     """
     head = git_output("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
     if head and head.strip():
@@ -93,11 +93,11 @@ def tracked(*patterns: str, under: str | None = None) -> list[Path]:
             if (under is None or rel.startswith(under)) and (ROOT / rel).exists()]
 
 
-# ── 하네스 자신의 발자국 ───────────────────────────────────────────────────────
+# ── 하네스 자체 파일 ───────────────────────────────────────────────────────
 #
 # 커널·프리셋·훅 스크립트는 프로젝트의 앱 코드가 아니다. 코드 게이트의 대상으로 넣으면
-# 하네스를 설치했다는 이유만으로 위반이 생기고, 사람은 그걸 게이트의 오탐으로 배운다.
-# MD 는 뺀 대상이 아니다 — 하네스가 자기 문서를 안 지키면 그건 진짜 위반이다.
+# 하네스를 설치했다는 이유만으로 위반이 생기고, 사람은 게이트가 오탐한다고 여기게 된다.
+# MD 는 제외 대상이 아니다 — 하네스 문서가 규칙을 어기면 그건 진짜 위반이다.
 
 HARNESS_OWN_PREFIXES = ("kernel/", "profiles/", ".claude/")
 HARNESS_OWN_FILES = ("harness_install.py", "setup_global_permissions.py", "harness_profile.py")

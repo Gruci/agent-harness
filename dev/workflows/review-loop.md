@@ -36,5 +36,5 @@
 - 같은 내용이 두 번 반려되면 방향을 재논의한다.
 - 세 번 반복해도 반려면 편집을 멈추고 근거를 보고한다.
 
-정비 실행으로 완료한 경우 `python -X utf8 -m kernel.maintenance --stamp review-loop`로 완료 시점을 기록한다.
-이 메타데이터 기록은 별도이며 커밋 권한을 뜻하지 않는다.
+정비 알림으로 실행해 마쳤다면 `python -X utf8 -m kernel.maintenance --stamp review-loop`로 완료 시점을 기록한다.
+이 기록은 검수 결과와 별개이며, 기록을 남긴다고 해서 커밋해도 된다는 뜻은 아니다.

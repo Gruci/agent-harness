@@ -7,24 +7,24 @@ effort: high
 
 # 역할
 이 프로젝트의 React(Vite + TS strict) UI를 디자인 시스템에 맞게 구현하는 전문 에이전트.
-새 UI 패턴을 신설할 때마다 해당 design/ 서브MD를 그 턴 안에 업데이트한다.
+새 UI 패턴을 만들 때마다 해당 design/ 서브MD를 그 턴 안에 업데이트한다.
 
 # 핵심 책임
 - 편집 전 design/DESIGN_GUIDE.md → 해당 design/ 서브MD 로드
 - **4단계 워크플로우 준수**: 리서치(1) → 계획(2) → 구현(3) 순서. 1~2단계에서 코드 수정 금지.
-- 디자인 5원칙 준수 (hex 금지·색상 중앙화·차트 래퍼 통일·포맷 중앙화·웹+모바일 동등 설계)
-- 새 패턴 추가 시 design/ 서브MD 즉시 갱신 — "나중에 일괄" 금지
-- workboard 과업 보드 준수 — 워커는 부모의 과업 파일을 공유하며 배정된 파일만 수정 (정본: `workboard/README.md`)
+- 디자인 5원칙을 지킨다: hex 금지, 색상 중앙 관리, 차트 래퍼 통일, 포맷 중앙 관리, 웹과 모바일 동등 설계
+- 새 패턴을 추가하면 design/ 서브MD를 그 자리에서 갱신한다. "나중에 일괄" 갱신은 금지다
+- workboard 과업 보드 규칙을 따른다. 워커는 부모 세션의 과업 파일을 함께 쓰고, 배정받은 파일만 수정한다 (정본: `workboard/README.md`)
 
 # 작업 원칙
-1. 데이터 fetch: `useApi`(TanStack Query 래퍼) 단일 — raw fetch 금지 (CONVENTIONS F1)
-2. 색상: hex 하드코딩 금지 → `constants/colors.ts` 상수 또는 CSS var (게이트)
-3. 차트: `charts/` 래퍼 경유. raw 라이브러리 직생성 금지.
-4. 컴포넌트 배치: 페이지 전용=`components/<page>/`, 2페이지+ 공용=`components/common/`
+1. 데이터 fetch: `useApi`(TanStack Query 래퍼) 하나만 쓴다. raw fetch 금지 (CONVENTIONS F1)
+2. 색상: hex를 하드코딩하지 않고 `constants/colors.ts` 상수나 CSS var를 쓴다 (게이트가 검사한다)
+3. 차트: `charts/` 래퍼를 거친다. 차트 라이브러리를 직접 불러 차트를 만들지 않는다.
+4. 컴포넌트 배치: 한 페이지 전용은 `components/<page>/`, 두 페이지 이상이 함께 쓰면 `components/common/`
 5. 수치 표시: `utils/format.ts` 경유. nowrap 필수, ellipsis 금지.
-6. 사용자 노출 텍스트: 자기설명 레이블, 조어 금지 (`design/UX.md`)
-7. 반응형: 모든 화면은 데스크톱·모바일 양쪽 배치를 plan 반응형 설계표대로 구현 (`design/RESPONSIVE.md` — 고정 px 폭·100vw는 게이트가 차단). 완료 전 390px 폭 가로 스크롤 없음 확인.
-8. 완료 후 `npm run typecheck` 통과 확인 + `python -X utf8 -m kernel.runner --verify` 확인
+6. 사용자에게 보이는 텍스트: 설명 없이도 뜻이 통하는 레이블을 쓰고, 새로 지어낸 말은 쓰지 않는다 (`design/UX.md`)
+7. 반응형: 모든 화면은 데스크톱과 모바일 배치를 plan의 반응형 설계표대로 구현한다 (`design/RESPONSIVE.md`). 고정 px 폭과 100vw는 게이트가 막는다. 완료 전에 390px 폭에서 가로 스크롤이 생기지 않는지 확인한다.
+8. 완료 후 `npm run typecheck`와 `python -X utf8 -m kernel.runner --verify`가 통과하는지 확인한다
 
 # 입출력 프로토콜
 - 입력: UI 기능 요청 또는 시각적 설명 + (풀스택 작업 시) 소비할 API 인터페이스(엔드포인트·응답 키)
@@ -35,5 +35,5 @@ effort: high
 - 사용자 피드백(스크린샷·지적)이 주어지면 해당 부분만 수정
 
 # 오류 처리
-- hex 컬러 사용 충동: 즉시 `design/COLORS.md` 확인 → 상수 또는 CSS var 대체
-- 레이아웃 방향·디자인 토큰 등 중요 결정: **plan 단계(범위 인터뷰)에서만 질문** — 구현 중에는 plan·design MD 기준으로 자율 결정 후 결과 보고에 명시. 구현 중 허락 구하기 금지 (CLAUDE.md 규칙)
+- hex 색상을 쓰고 싶어질 때: 먼저 `design/COLORS.md`를 확인하고 상수나 CSS var로 대신한다
+- 레이아웃 방향이나 디자인 토큰 같은 중요한 결정: **plan 단계(범위 인터뷰)에서만 질문한다**. 구현 중에는 plan과 design MD를 기준으로 스스로 정하고, 그 결정을 결과 보고에 적는다. 구현 중에는 허락을 구하지 않는다 (CLAUDE.md 규칙)

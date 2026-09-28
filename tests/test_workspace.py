@@ -1,13 +1,13 @@
 """tests/test_workspace.py — worktree·작업공간 판정(`kernel/worktree.py`·`kernel/workspace.py`)의 행동 테스트.
 
-이 판정은 Claude 훅과 Codex 진입점이 같이 쓴다. 오판은 게이트 오탐보다 비싸다 — 세션을
-잠그거나 작업 중인 worktree 를 지우라고 요구한다. 실제로 그 둘이 연달아 났다
-(`dev/LESSONS.md` §19). 그래서 판정 함수를 커널 모듈에서 직접 잡아둔다.
+이 판정은 Claude 훅과 Codex 진입점이 같이 쓴다. 오판은 게이트 오탐보다 비싸다. 세션을
+잠그거나, 작업 중인 worktree 를 지우라고 요구하기 때문이다. 실제로 그 두 사고가 연달아 났다
+(`dev/LESSONS.md` §19, 고칠 수단이 없는 조건으로 차단한 사고). 그래서 커널 모듈의 판정 함수를 직접 테스트한다.
 
-  worktree 잔해   갓 판 worktree 를 잔해로 뒤집지 않는가
-  이름·자리       접미·범위·자리 규약과 heredoc 산문 오독
-  보드 잔존       진행 중인 내 과업은 통과, 브랜치명 없는 과업은 경고
-  과업 산출물     갓 만든 산출물 유예, 보드 조회 실패에도 검사가 도는가
+  worktree 잔해   방금 만든 worktree 를 잔해로 잘못 판정하지 않는가
+  이름·자리       이름 접미사·범위·위치 규약, heredoc 안 산문을 명령으로 잘못 읽지 않는가
+  보드 과업       진행 중인 내 과업은 통과, 브랜치명 없는 과업은 경고
+  과업 산출물     방금 만든 산출물은 유예하고, 보드 조회가 실패해도 검사가 도는가
   Codex Stop      경고만 있으면 exit 0 + systemMessage, 차단이 섞이면 stderr + 2 인가
   Claude 래퍼     커널로 옮긴 뒤에도 기존 exit 와 stderr 머리말을 내는가
 
@@ -32,12 +32,12 @@ ROOT = Path(__file__).resolve().parents[1]
 HOOKS = ROOT / ".claude" / "hooks"
 sys.path.insert(0, str(ROOT))
 
-# 중첩 def 금지(검사 2)라 가짜 git 을 모듈 레벨에 둔다. `_UPSTREAM` 이 케이스를 가른다.
+# 중첩 def 금지 검사(검사 2) 때문에 가짜 git 을 모듈 레벨에 둔다. 케이스는 `_UPSTREAM` 값으로 가른다.
 _UPSTREAM = ""
 
 
 def _fake_git(*args: str) -> str | None:
-    """worktree 잔해 판정이 묻는 세 질문만 답한다 — 나머지 둘은 항상 '잔해 쪽'이다."""
+    """worktree 잔해 판정이 묻는 세 질문에만 답한다. config 를 뺀 나머지 두 질문의 답은 항상 '잔해' 쪽이다."""
     if args[0] == "config":
         return _UPSTREAM                          # branch.<X>.merge 값
     if args[0] == "show-ref":
@@ -50,7 +50,7 @@ def _fake_git(*args: str) -> str | None:
 def test_fresh_worktree_not_dead() -> None:
     """`git worktree add -b X origin/main` 이 남기는 upstream 은 push 이력이 아니다.
 
-    시작점을 upstream 으로 자동 등록하므로 `branch.X.remote` 는 갓 판 브랜치에도 있다.
+    시작점을 upstream 으로 자동 등록하므로 `branch.X.remote` 는 방금 만든 브랜치에도 있다.
     그것을 push 이력으로 읽으면 나머지 두 조건(원격 ref 없음·기본 브랜치의 조상)이 자동으로
     참이라, worktree 를 만든 그 순간부터 "머지 완료, 지워라"가 된다.
     """
@@ -59,8 +59,8 @@ def test_fresh_worktree_not_dead() -> None:
     real_git = worktree._git
     worktree._git = _fake_git
     try:
-        _UPSTREAM = "refs/heads/main\n"           # 갓 판 것 — upstream 이 기본 브랜치다
-        assert worktree.is_dead("feat/x", "main") is False, "갓 판 worktree 를 잔해로 판정했다"
+        _UPSTREAM = "refs/heads/main\n"           # 방금 만든 브랜치 — upstream 이 기본 브랜치다
+        assert worktree.is_dead("feat/x", "main") is False, "방금 만든 worktree 를 잔해로 판정했다"
 
         _UPSTREAM = "refs/heads/feat/x\n"         # push -u 이력 — upstream 이 자기 이름이다
         assert worktree.is_dead("feat/x", "main") is True, "진짜 잔해를 놓쳤다"
@@ -72,14 +72,14 @@ def test_fresh_worktree_not_dead() -> None:
 
 
 def test_alive_no_nameerror() -> None:
-    """`_alive` 가 실제로 실행 가능한가 — import 누락이면 NameError 가 `except` 에 삼켜져
-    lock 걸린 worktree 가 영구 면제된다(2026-09-07 실측: `import subprocess` 누락)."""
+    """`_alive` 가 실제로 실행되는가. import 가 빠지면 NameError 를 `except` 가 삼켜서
+    lock 걸린 worktree 가 정리 대상에서 영구히 빠진다(2026-09-07 실제 발생: `import subprocess` 누락)."""
     from kernel import worktree
     assert worktree._alive(os.getpid()) is True, "살아있는 자기 PID 를 죽었다고 판정했다"
 
 
 def test_worktree_rel_strip() -> None:
-    """worktree 안 파일의 상대경로는 접두를 벗겨야 한다 — 안 벗기면 경로 기반 게이트가 전부 오탐한다."""
+    """worktree 안 파일의 상대경로에서는 `worktrees/<이름>/` 접두를 떼야 한다. 떼지 않으면 경로 기반 게이트가 전부 오탐한다."""
     from kernel.context import ROOT as KROOT, _rel
     inside = KROOT / "worktrees" / "feat-x--12345678" / "orders" / "a.py"
     assert _rel(inside) == "orders/a.py", "루트 worktrees/ 접두를 못 벗겼다"
@@ -88,7 +88,7 @@ def test_worktree_rel_strip() -> None:
 
 
 def test_worktree_location() -> None:
-    """자리 규약 — 공유 루트 기준 상대 `worktrees/<이름>` 만 통과. 나머지는 기대 경로 제시."""
+    """위치 규약: 공유 루트 기준 상대경로 `worktrees/<이름>` 만 통과한다. 나머지는 기대 경로를 알려준다."""
     from kernel import worktree as naming
     expected = "worktrees/feat-x--12345678"
     assert naming.wrong_location(expected) is None
@@ -102,7 +102,7 @@ def test_worktree_location() -> None:
         ("worktrees/sub/feat-x--12345678", "중첩 자리"),
         (".claude/worktrees/feat-x--12345678", ".claude/ 밑"),
         (".codex/worktrees/feat-x--12345678", ".codex/ 밑"),
-        ("feat-x--12345678", "루트 직생성"),
+        ("feat-x--12345678", "루트에 바로 생성"),
     ):
         assert naming.wrong_location(token) == expected, f"{label}을 통과시켰다: {token}"
     with tempfile.TemporaryDirectory() as tmp:
@@ -124,7 +124,7 @@ def test_worktree_location() -> None:
 
 
 def test_worktree_name_matches_scope() -> None:
-    """worktree 이름 앞부분 = 내 workboard 범위 — 어긋나면 기대 이름, 보드 파일이 없으면 skip.
+    """worktree 이름 앞부분은 내 workboard 범위와 같아야 한다. 어긋나면 기대 이름을 알려주고, 보드 파일이 없으면 검사를 건너뛴다.
 
     보드 등록이 worktree 보다 먼저지만, 순서를 바꾼 예외 상황에서 막으면 손쓸 방법이 없다.
     """
@@ -145,11 +145,11 @@ def test_worktree_add_only_at_command_head() -> None:
     """인용문 안의 `git worktree add` 는 명령이 아니다.
 
     문자열 전체를 훑던 판정이 커밋 메시지 heredoc 안의 산문을 명령으로 읽어 자기 커밋을 막았다.
-    `outbound_link` 가 앞 3토큰 제한으로 막는 것과 같은 부류다 — 명령인지 인자인지는 자리가 정한다.
+    `outbound_link` 가 앞 3토큰만 보도록 제한해 막은 문제와 같은 종류다. 명령인지 인자인지는 토큰의 위치가 정한다.
     """
     from kernel import worktree as naming
-    # 실제로 이 훅을 터뜨린 명령이다. heredoc 본문은 따옴표가 아니라 shlex 가 그대로 낱말로
-    # 쪼개므로 `git`·`worktree`·`add` 가 나란히 선다 — 인접성 검사로는 안 갈리고 자리로만 갈린다.
+    # 이 훅이 실제로 잘못 막은 명령이다. heredoc 본문은 따옴표로 묶이지 않아 shlex 가 그대로 낱말로
+    # 쪼갠다. 그래서 `git`·`worktree`·`add` 가 나란히 놓여, 낱말이 붙어 있는지로는 구분되지 않고 위치로만 구분된다.
     heredoc_prose = (
         "git commit -q -F - <<'EOF'\n"
         "feat(harness): 역이식\n\n"
@@ -185,7 +185,7 @@ def test_board_residue_keeps_running_task() -> None:
     try:
         with tempfile.TemporaryDirectory() as tmp:
             board = fake_board(Path(tmp))
-            assert workspace.board_residue("abcd1234", board) is None, "진행 중인 내 과업을 잔존으로 잡았다"
+            assert workspace.board_residue("abcd1234", board) is None, "진행 중인 내 과업을 남은 잔해로 잡았다"
             (board / "no-branch.md").write_text("- 과업: 메인 체크아웃 #sid:abcd1234\n", encoding="utf-8")
             found = workspace.board_residue("abcd1234", board)
             assert found is not None and found.block is False, "브랜치명 없는 과업은 경고여야 한다"
@@ -196,10 +196,10 @@ def test_board_residue_keeps_running_task() -> None:
 
 
 def test_task_residue_fresh() -> None:
-    """방금 만든 산출물은 검출하지 않는다 — 보드 행 없는 계획 단계 세션을 유예가 덮는다."""
+    """방금 만든 산출물은 검출하지 않는다. 보드에 아직 등록하지 않은 계획 단계 세션은 이 유예 시간이 보호한다."""
     from kernel import workspace as residue
     fake = ROOT / "docs" / "BACKLOG.md"            # 실존 파일이면 무엇이든 mtime 조작 없이 fresh
-    assert residue._is_fresh(fake, time.time()) in (True, False)   # 판정이 죽지 않는다
+    assert residue._is_fresh(fake, time.time()) in (True, False)   # 판정 중에 예외가 나지 않는다
     assert residue._is_fresh(fake, fake.stat().st_mtime + 60) is True, "1분 전 파일을 잔해로 판정"
     assert residue._is_fresh(fake, fake.stat().st_mtime + residue.FRESH_SEC + 1) is False, \
         "하루 지난 파일을 fresh 로 판정"
@@ -212,7 +212,7 @@ def _broken_board(board: Path) -> list[str]:
 
 
 def test_task_residue_survives_board_failure() -> None:
-    """보드 조회가 죽어도 잔존 검사는 돈다 — 예전엔 다른 훅의 최상위 `sys.exit(0)` 에 통째로 끝났다."""
+    """보드 조회가 실패해도 남은 산출물 검사는 돈다. 예전에는 다른 훅의 최상위 `sys.exit(0)` 때문에 검사 전체가 그냥 끝났다."""
     from kernel import workspace as residue
     saved_rows, saved_dir = residue.active_rows, residue.TASK_DIR
     residue.active_rows = _broken_board
@@ -223,7 +223,7 @@ def test_task_residue_survives_board_failure() -> None:
             os.utime(plan, (0, 0))                 # 유예(24시간)를 넘긴 산출물
             residue.TASK_DIR = Path(tmp)
             assert residue.board_is_busy() is False, "보드 실패를 '보드 비었음'으로 보지 않았다"
-            assert residue.task_leftovers() == [plan], "보드 실패에 잔존 검사가 꺼졌다"
+            assert residue.task_leftovers() == [plan], "보드 조회 실패로 남은 산출물 검사가 꺼졌다"
             found = residue.task_residue()
             assert found is not None and found.block and found.message.startswith("[TASK RESIDUE]"), found
     finally:
@@ -242,7 +242,7 @@ def test_codex_stop_verdict() -> None:
     with contextlib.redirect_stderr(err):
         assert workspace_verdict([warn, block]) == (2, ""), "차단은 exit 2 + stderr 다"
     assert "[TASK RESIDUE]" in err.getvalue() and "[WORKBOARD]" in err.getvalue(), \
-        "차단 턴은 경고도 stderr 에 같이 실어야 모델이 읽는다"
+        "차단하는 턴에는 경고도 stderr 에 함께 내야 모델이 읽는다"
 
 
 def _wrapper_root(base: Path) -> Path:
