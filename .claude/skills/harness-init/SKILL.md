@@ -115,9 +115,11 @@ grep -qx "worktrees/" .git/info/exclude 2>/dev/null || echo "worktrees/" >> .git
 LANG = "go"      # kernel/langs/go.py
 ```
 
-쓸 수 있는 팩은 `python`·`go`·`typescript` 다. 없는 언어면 `kernel/langs/` 의 것을
-본떠 `profiles/lang/<이름>.py` 로 만든다 — 프로젝트 것이 커널 것을 이긴다. 선언할 것은
-넷뿐이다: `EXT`·`PATTERNS`·`NOT_APPLICABLE`·`LINTERS`.
+쓸 수 있는 팩은 `python`·`go`·`typescript` 다. 없는 언어면 `kernel/langs/go.py` 를
+본떠 `profiles/lang/<이름>.py` 로 만든다 — 프로젝트 것이 커널 것을 이긴다. 선언할 것의
+목록은 `kernel/lang.py` 헤더다. 만든 팩이 1급인지는 선언이 아니라
+`python -X utf8 -m kernel.pack_check <이름>` 이 판정한다 — `[미검증]` 이 남으면 그 게이트는
+그 언어에서 안 돈다.
 
 확장자가 안 맞으면 대상이 0건이라 나머지를 아무리 채워도 안 돈다. 그래서 이게 먼저다.
 

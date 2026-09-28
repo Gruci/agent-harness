@@ -167,15 +167,17 @@ ROOT_FILES: tuple[str, ...] = _seq("ROOT_FILES")
 # ── 언어 ───────────────────────────────────────────────────────────────────────
 #
 # 게이트가 볼 파일 확장자와, 구문 분석·언어 관용구에 의존하는 검사의 가용 여부.
-# SYNTAX 가 "python" 이 아니면 그 계열 검사 9종은 [OK] 가 아니라 [SKIP] 이 된다 —
+# 구문 사실을 못 받는 검사는 [OK] 가 아니라 [TOOL] 이 된다(판정은 `kernel/facts.py`) —
 # 파이썬 정규식이 다른 언어에서 안 걸리는 것을 "위반 없음"으로 보고하면 그게 무음 통과다.
 LANG: str | None = getattr(_MOD, "LANG", None) if _MOD else None
 try:
-    _PACK = lang.load(LANG) if LANG is not None else {
-        "EXT": (), "SYNTAX": None, "PATTERNS": {}, "NOT_APPLICABLE": {}, "LINTERS": ()}
+    _PACK = lang.load(LANG) if LANG is not None else lang.unselected()
 except ValueError as exc:
     PROFILE_ERRORS.append(f"{PROFILE_FILE}: {exc}")
-    _PACK = {"EXT": (), "SYNTAX": None, "PATTERNS": {}, "NOT_APPLICABLE": {}, "LINTERS": ()}
+    _PACK = lang.unselected()
+
+# 선택한 언어팩 전체. 분석기(`kernel/facts.py`)가 QUERIES·MODULE_RULE·PUBLIC_RULE 을 여기서 읽는다.
+PACK: dict[str, Any] = _PACK
 
 SOURCE_EXT: tuple[str, ...] = _seq("SOURCE_EXT", tuple(_PACK["EXT"]))
 UI_EXT: tuple[str, ...] = _seq("UI_EXT", ("*.tsx", "*.ts"))
@@ -216,16 +218,6 @@ LINTERS: tuple = _seq("LINTERS", tuple(_PACK["LINTERS"]))
 def pattern(name: str) -> str:
     """선택한 언어가 선언한 관용구. 미선언은 빈 문자열이다."""
     return PATTERNS.get(name, "")
-
-
-def syntax_ready() -> bool:
-    """파이썬 구문 분석에 의존하는 검사를 돌릴 수 있는가."""
-    return SYNTAX == "python"
-
-
-def need_syntax() -> str:
-    where = SYNTAX or "미선언"
-    return f"{where} 구문 분석기가 없어 검사 못 함"
 
 
 def not_applicable(slug: str) -> str:

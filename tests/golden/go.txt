@@ -3,7 +3,7 @@ exit=2
 [OK]   파일 길이 상한
 [OK]   헤더 경로 주석
 [N/A ] 중첩 def(클로저) — go: 클로저가 관용구라 금지가 부적절
-[TOOL] 함수 길이 상한 — go 구문 분석기가 없어 검사 못 함
+[TOOL] 함수 길이 상한 — tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치
 [OK]   TYPE_CHECKING↔future annotations 짝
 [SKIP] 축약 이름 단독 대입 — 설정에 금지할 축약어를 안 적었음
 [SKIP] 축약 접두 식별자 — 설정에 금지할 축약 접두어를 안 적었음
@@ -52,7 +52,7 @@ exit=2
    - stray.go: unclassified source; needs_decision
 [OK]   그래프 사용자 결정
 [OK]   공개 계약과 의존 방향
-[TOOL] 컴포넌트 구문 분석 — go: component syntax analyzer unavailable
+[TOOL] 컴포넌트 구문 분석 — go: tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치
 [SKIP] 기능 지도 대조 — resolve graph decisions first
 [OK]   선언 포트의 실행 계약
 [TOOL] 포트 계약 실행 환경 — port contracts: selected syntax analyzer is unavailable

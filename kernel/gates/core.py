@@ -12,6 +12,11 @@
   시크릿 토큰      실키 하드코딩 — 커밋되면 회전까지가 수습이다
   헤더 경로 주석   파일 이사 후 남은 잘못된 경로 주석
   미정의 모듈 상수 import 는 통과하고 호출 시점에 터지는 이름
+
+중첩 def·함수 길이·타입힌트는 `ast` 가 아니라 구문 사실(`kernel/facts.py`)을 읽는다. 사실을 만드는
+분석기가 언어를 안다 — 판정 헬퍼(`nested_pairs`·`long_functions`·`untyped_functions`)는 사실만 받고,
+`kernel/pack_check.py` 가 같은 헬퍼로 언어팩의 1급 여부를 판정한다. 미정의 모듈 상수는 Python 고유
+함정이라 아직 `ast` 다.
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ import builtins
 import re
 from pathlib import Path
 
-from kernel import profile
+from kernel import facts, profile
 from kernel.context import READ_ENC, _rel
 
 MAX_LINES = 400
@@ -83,15 +88,31 @@ def check_header_path_comment(files: list[Path]) -> list[str]:
     return bad
 
 
-def _nested_defs(tree: ast.AST) -> list[tuple[int, str]]:
-    found: list[tuple[int, str]] = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            for child in node.body:
-                for sub in ast.walk(child):
-                    if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        found.append((sub.lineno, f"{node.name} > {sub.name}"))
-    return found
+def nested_pairs(found: facts.FileFacts) -> list[tuple[int, str]]:
+    """중첩 def — (줄, "바깥 > 안쪽"). 감싸는 함수가 있는 함수 전부다."""
+    return [(fn.line, f"{fn.parent} > {fn.name}") for fn in found.functions if fn.parent]
+
+
+def long_functions(found: facts.FileFacts) -> list[tuple[facts.Function, int]]:
+    """상한을 넘는 함수와 그 줄 수."""
+    over: list[tuple[facts.Function, int]] = []
+    for fn in found.functions:
+        span = fn.end_line - fn.line + 1
+        if span > MAX_FUNC_LINES:
+            over.append((fn, span))
+    return over
+
+
+def untyped_functions(found: facts.FileFacts) -> list[tuple[facts.Function, list[str]]]:
+    """타입이 빠진 공개 함수와 빠진 자리. 언어가 타입을 강제하면(`missing_types` None) 비어 있다."""
+    gaps: list[tuple[facts.Function, list[str]]] = []
+    for fn in found.functions:
+        if not fn.public or fn.missing_types is None:
+            continue
+        missing = list(fn.missing_types) + (["반환"] if fn.missing_return else [])
+        if missing:
+            gaps.append((fn, missing))
+    return gaps
 
 
 def check_closures(files: list[Path]) -> list[str]:
@@ -108,14 +129,14 @@ def check_closures(files: list[Path]) -> list[str]:
         rel = _rel(f)
         if _is_scratch(rel):
             continue
-        text = f.read_text(encoding=READ_ENC)
-        try:
-            tree = ast.parse(text)
-        except SyntaxError as exc:
-            bad.append(f"{rel}: 파싱 실패 {exc}")
+        found = facts.facts_for(f)
+        if found is None:
             continue
-        lines = text.splitlines()
-        for lineno, pair in _nested_defs(tree):
+        if found.error:
+            bad.append(f"{rel}: 파싱 실패 {found.error}")
+            continue
+        lines = f.read_text(encoding=READ_ENC).splitlines()
+        for lineno, pair in nested_pairs(found):
             if escape in lines[lineno - 1]:
                 continue
             bad.append(f"{rel}:{lineno}: 중첩 def {pair} "
@@ -132,16 +153,11 @@ def check_func_length(files: list[Path]) -> list[str]:
         rel = _rel(f)
         if exempt and rel.startswith(exempt):
             continue
-        try:
-            tree = ast.parse(f.read_text(encoding=READ_ENC))
-        except SyntaxError:
+        found = facts.facts_for(f)
+        if found is None or found.error:
             continue                     # 파싱 실패는 중첩 def 게이트가 이미 보고한다
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            span = (node.end_lineno or node.lineno) - node.lineno + 1
-            if span > MAX_FUNC_LINES:
-                bad.append(f"{rel}:{node.lineno}: {node.name} {span}줄 (>{MAX_FUNC_LINES})")
+        for fn, span in long_functions(found):
+            bad.append(f"{rel}:{fn.line}: {fn.name} {span}줄 (>{MAX_FUNC_LINES})")
     return bad
 
 
@@ -259,23 +275,12 @@ def check_type_hints(files: list[Path]) -> list[str]:
         rel = _rel(f)
         if rel.startswith(exempt):
             continue
-        try:
-            tree = ast.parse(f.read_text(encoding=READ_ENC))
-        except SyntaxError:
+        found = facts.facts_for(f)
+        if found is None or found.error:
             continue                     # 파싱 실패는 중첩 def 게이트가 이미 보고한다
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            if node.name.startswith("_"):
-                continue
-            args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
-            missing = [a.arg for a in args
-                       if a.arg not in ("self", "cls") and a.annotation is None]
-            if node.returns is None:
-                missing.append("반환")
-            if missing:
-                bad.append(f"{rel}:{node.lineno}: {node.name}() 타입힌트 누락 — "
-                           f"{', '.join(missing)}")
+        for fn, missing in untyped_functions(found):
+            bad.append(f"{rel}:{fn.line}: {fn.name}() 타입힌트 누락 — "
+                       f"{', '.join(missing)}")
     return bad
 
 

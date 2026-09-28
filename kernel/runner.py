@@ -25,7 +25,7 @@ import importlib
 import sys
 from pathlib import Path
 
-from kernel import diagram, graph_checks, linters, profile
+from kernel import diagram, facts, graph_checks, linters, profile
 # 재수출 — trace(violation_path)·설치 스크립트(BASELINE_FILE·load_baseline)가 러너 경유로 쓴다.
 from kernel.baseline import (BASELINE_FILE, apply_baseline as _apply_baseline,  # noqa: F401
                              load_baseline, violation_path)
@@ -97,18 +97,19 @@ def _entry(slug: str, title: str, violations: list[str], ok: object, need: str) 
 
 
 def _syntax_section(slug: str, title: str, check: object, args: tuple,
-                    ok: object, need: str) -> Section:
-    """파이썬 구문 분석에 의존하는 검사.
+                    ok: object, need: str, kind: str) -> Section:
+    """구문 사실에 의존하는 검사. `kind` 는 그 게이트가 읽는 사실 종류(`kernel/facts.py` 헤더)다.
 
-    언어가 다르면 **실행하지 않는다.** `ast.parse` 를 다른 언어에 돌리면 전 파일이
+    선택한 언어의 분석기가 그 종류를 못 내면 **실행하지 않는다.** 파서 없이 돌리면 전 파일이
     '파싱 실패' 위반이 되기 때문이다. 관용구 정규식 계열은 언어팩의 `PATTERNS` 로
     갈아끼우므로 여기 오지 않는다 — 여기 남은 것은 진짜 파서가 필요한 것들뿐이다.
     """
     unneeded = profile.not_applicable(slug)
     if unneeded:
         return (slug, title, [], ("N/A", unneeded))   # 출처 접두는 profile 병합 시점에 베이킹됨
-    if not profile.syntax_ready():
-        return (slug, title, [], ("TOOL", profile.need_syntax()))
+    reason = facts.unavailable(kind)
+    if reason:
+        return (slug, title, [], ("TOOL", reason))
     return _entry(slug, title, check(*args), ok, need)   # type: ignore[operator]
 
 
@@ -154,8 +155,10 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
                "프로파일 없음"),
         _entry("line_limit", "파일 길이 상한", core.check_line_limit(files), files, NO_PY),
         _entry("header_path", "헤더 경로 주석", core.check_header_path_comment(files), files, NO_PY),
-        _syntax_section("closures", "중첩 def(클로저)", core.check_closures, (files,), files, NO_PY),
-        _syntax_section("func_limit", "함수 길이 상한", core.check_func_length, (files,), files, NO_PY),
+        _syntax_section("closures", "중첩 def(클로저)", core.check_closures, (files,), files, NO_PY,
+                        "nesting"),
+        _syntax_section("func_limit", "함수 길이 상한", core.check_func_length, (files,), files, NO_PY,
+                        "functions"),
         _entry("type_checking_future", "TYPE_CHECKING↔future annotations 짝",
                core.check_type_checking_future(files), files, NO_PY),
         _entry("abbrev_names", "축약 이름 단독 대입", core.check_abbrev_names(files),
@@ -165,19 +168,20 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
         _entry("ui_jargon", "UI 라벨 금칙어", core.check_ui_jargon(ui_files),
                ui_files and vocab["ui_denylist"], "설정에 화면 금칙어를 안 적었음"),
         _entry("py_any", "Any 타입힌트", core.check_py_any(files), files, NO_PY),
-        _syntax_section("type_hints", "공개 함수 타입힌트", core.check_type_hints, (files,), files, NO_PY),
+        _syntax_section("type_hints", "공개 함수 타입힌트", core.check_type_hints, (files,), files, NO_PY,
+                        "types"),
         _entry("secrets", "시크릿 토큰 하드코딩", core.check_secrets(both), both, NO_PY),
         _ui_entry("ts_any", "TS any 타입", lint, ui_files, NO_UI),
         _entry("env_access", "설정 밖 환경변수 조회", layers.check_env_access(files),
                files and settings, "설정에 환경변수 모듈을 안 적었음"),
         _syntax_section("web_async", "await 없는 async 핸들러",
-                        layers.check_web_async_no_await, (files,), web, _need_layer("web")),
+                        layers.check_web_async_no_await, (files,), web, _need_layer("web"), "python"),
         _entry("ssl_bypass", "전역 SSL 패치 호출 위치", layers.check_ssl_bypass_location(files),
                files and profile.symbol("ssl_bypass"), _need_symbol("ssl_bypass")),
         _syntax_section("routes_error", "라우트 에러 응답 형식",
                         layers.check_routes_error_response, (files,),
                         _under(files, "routes") and profile.symbol("error_response"),
-                        _need_symbol("error_response")),
+                        _need_symbol("error_response"), "python"),
         _ui_entry("raw_fetch", "공용 래퍼 없는 fetch", lint, ui_files, NO_UI),
         _ui_entry("hex_literal", "프론트 색 리터럴", lint, ui_files, NO_UI),
         _ui_entry("responsive", "폰을 깨뜨리는 고정 폭", lint, ui_files, NO_UI),
@@ -208,7 +212,7 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
                (_under(files, "routes") or _under(files, "web")) and ui_files,
                NO_UI if not ui_files else _need_layer("routes")),
         _syntax_section("undefined_const", "미정의 모듈 상수",
-                        core.check_undefined_module_constants, (files,), files, NO_PY),
+                        core.check_undefined_module_constants, (files,), files, NO_PY, "python"),
     ]
 
 

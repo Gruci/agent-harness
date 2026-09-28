@@ -81,4 +81,5 @@
 | `kernel/workspace.py` | `Finding` 과 종료 시점 작업공간 판정(보드·git 원격·목업·과업 산출물) | 〃 — 새 Stop 판정은 `Finding` 을 돌려주고 채널은 어댑터가 맡는다 |
 | `kernel/harness_setup.py` | 공용 하네스의 파일·스킬·훅 연결 진단 | 설치와 업그레이드 후 같은 진단을 사용한다 |
 | `kernel/codex_permissions.py` | Codex 전역 자율 실행 설정과 지침 병합 | 초기화 진입점에서 재사용하며 관련 없는 설정을 보존한다 |
+| `kernel/facts.py` | 파일 하나의 구문 사실(함수·import·최상위 이름)과 언어별 분석기 선택 | 게이트와 `pack_check` 는 `ast` 나 tree-sitter 를 직접 열지 않는다 |
 | `tests/harness_test_support.py` | 테스트별 임시 루트와 자동 정리, workboard 과업 파일 픽스처 | 하네스 테스트는 임시 디렉터리 수명 관리와 보드 픽스처를 재구현하지 않는다 |
