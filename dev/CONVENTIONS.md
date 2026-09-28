@@ -27,12 +27,12 @@
 | # | 주제 | 정본 | 근거·예외 |
 |---|------|------|-----------|
 | F1 | 데이터 fetch | `useApi`(TanStack Query 래퍼) 단일 — raw fetch 금지 | 첫 구현 시 useApi 훅부터 만든다 |
-| F2 | 색상 | hex 리터럴 금지 — `constants/colors.ts` 상수 또는 CSS var. **예외 = colors.ts 자신·CSS 파일** | 게이트 |
+| F2 | 색상 | hex 리터럴 금지 — 토큰 파일(`CHECK_PATHS["ui_tokens"]`) 상수 또는 CSS var. **예외 = 토큰 파일 자신·CSS 파일** | 게이트 |
 | F3 | 투명도 | 문자열 접합(`+'99'`) 금지 — `hexAlpha()` 헬퍼 | 첫 구현 시 생성 |
 | F4 | 차트 래퍼 | `charts/` 래퍼 경유(기본 옵션 자동 주입). raw 차트 라이브러리 직생성 금지 | |
 | F5 | 사용자 노출 텍스트 | 한국어. 결측=`'-'`. 로딩=`'불러오는 중…'`. 이모지 금지(문서화된 예외만) | |
 | F6 | 컴포넌트 배치 | 페이지 전용=`components/<page>/`, 2페이지+ 공용=`components/common/` | |
-| F7 | 수치 표시 | 표시 변환은 `utils/format.ts` 계열 — 페이지 로컬 fmt 재구현 금지 | |
+| F7 | 수치 표시 | 표시 변환은 공용 포맷 모듈 계열 — 페이지 로컬 fmt 재구현 금지 | 첫 구현 시 생성·공용 헬퍼 표에 등재 |
 | F8 | 대형 payload 섹션 | 첫 뷰포트 밖 수백 KB 섹션은 지연 마운트(CodeSection 패턴, placeholder minHeight 필수) | 필요 시 도입 |
 
 ## 데이터셋 표시 규약
@@ -67,7 +67,7 @@
 |---|------|------|
 | R1 | **화면/로직 분리** — `.tsx` 컴포넌트는 표시(JSX)만. 데이터 가공·계산·조건 분기 로직은 `hooks/`·`utils/` 순수 TS 함수로 분리 | RN 전환 시 hooks/utils는 그대로 이동, 화면만 재작성 |
 | R2 | **디자인 토큰 TS 정본** — 색·간격·타이포·z-index 값은 `constants/` TS 상수가 정본, CSS `:root` 변수는 상수에서 파생(동기 유지) | 토큰 값은 RN StyleSheet에서 그대로 재사용 |
-| R3 | **브라우저 전용 API 직접 호출 금지** — `window.`·`document.`·`localStorage` 등은 `utils/platform.ts` 래퍼 경유 (첫 필요 시 생성). 불가피하면 `// web-ok: 사유` (검사 20) | RN엔 브라우저 API가 없다 — 래퍼 한 파일만 교체하면 이식 끝 |
+| R3 | **브라우저 전용 API 직접 호출 금지** — `window.`·`document.`·`localStorage` 등은 플랫폼 래퍼 경유 (첫 필요 시 생성, 프로파일 `ALLOWLIST["ui_platform"]` 에 등록). 불가피하면 `// web-ok: 사유` (검사 20) | RN엔 브라우저 API가 없다 — 래퍼 한 파일만 교체하면 이식 끝 |
 | R4 | **라우팅 접점 최소화** — 라우터(react-router 등) import·페이지 이동 호출은 `pages/` 레벨에서만. 하위 컴포넌트에는 콜백 prop으로 전달 | 라우터는 전환 시 통째 교체 대상 — 접점이 적을수록 싸다 |
 
 ## 공용 헬퍼 레지스트리 (동일 목적 재구현 금지 — 신설 전 이 표 확인)

@@ -72,7 +72,7 @@ greenfield 에서 그림이 없으면 `[SKIP] 아직 없음` 이다. growing 이
 
 ## 델타 — 구조가 바뀌는 plan
 
-컴포넌트·의존 방향이 바뀌는 과업은 plan 에 아키텍처 델타를 적는다. 정본을 먼저 고치고 `python -X utf8 -m kernel.diagram compare <base.json> <head.json> docs/tasks/arch_delta.html` 로 before·delta·after 를 만든다. base 는 `git show HEAD:docs/architecture/<이름>.architecture.json` 을 스크래치에 받은 것이다. 승인자는 코드가 아니라 그림으로 "이 변경이 구조를 어디로 미는가"를 본다. 완료 시 델타 HTML 은 research·plan 과 같은 archive 폴더로 간다. 안 바뀌면 "미발동" 한 줄이다.
+컴포넌트·의존 방향이 바뀌는 과업은 plan 에 아키텍처 델타를 적는다. 정본을 먼저 고치고 `python -X utf8 -m kernel.diagram compare <base> <head> docs/tasks/arch_delta.html` 로 before·delta·after 를 만든다. `<base>` 는 `git show HEAD:<정본 경로>` 로 고치기 전 정본을 스크래치에 받은 JSON, `<head>` 는 고친 정본이다. 승인자는 코드가 아니라 그림으로 "이 변경이 구조를 어디로 미는가"를 본다. 완료 시 델타 HTML 은 research·plan 과 같은 archive 폴더로 간다. 안 바뀌면 "미발동" 한 줄이다.
 
 ## 뷰어가 이미 하는 것 — 작성 비용 0
 

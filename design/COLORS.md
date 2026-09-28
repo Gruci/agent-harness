@@ -1,9 +1,9 @@
 # design/COLORS.md — 색상 시스템
 
-> 담는 것: 각 색이 무슨 의미이고 어디에 쓰는지. 담지 않는 것: 색상 값 자체(정본은 `frontend/src/constants/colors.ts`와 CSS 변수)·차트 계열색(→ `design/CHARTS.md`). 읽는 시점: 새 색을 쓰거나 기존 색의 의미가 헷갈릴 때.
+> 담는 것: 각 색이 무슨 의미이고 어디에 쓰는지. 담지 않는 것: 색상 값 자체(정본은 프로파일 `CHECK_PATHS["ui_tokens"]` 가 가리키는 토큰 파일과 CSS 변수)·차트 계열색(→ `design/CHARTS.md`). 읽는 시점: 새 색을 쓰거나 기존 색의 의미가 헷갈릴 때.
 
 아직 디자인 토큰이 없다. 첫 UI 작업 시 이 문서를 채운다.
-> **규칙: 색상 정본은 `frontend/src/constants/colors.ts` + CSS `:root` 변수 — 이 MD는 의미·사용처만 서술 (값 손사본 금지, drift 원인).**
+> **규칙: 색상 정본은 토큰 파일(`CHECK_PATHS["ui_tokens"]`) + CSS `:root` 변수 — 이 MD는 의미·사용처만 서술 (값 손사본 금지, drift 원인).**
 
 ## 정해야 할 것 (첫 UI 작업 시 사용자와 확정)
 
@@ -36,6 +36,6 @@
 
 ## 규칙 (확정분)
 
-- hex 하드코딩 금지 — `constants/colors.ts` 상수 또는 CSS var (게이트)
-- 투명도는 `hexAlpha()` 헬퍼(첫 구현 시 `constants/colors.ts` 옆에 생성) — 문자열 접합(`+'99'`) 금지
+- hex 하드코딩 금지 — 토큰 파일 상수 또는 CSS var (게이트)
+- 투명도는 `hexAlpha()` 헬퍼(첫 구현 시 토큰 파일 옆에 생성) — 문자열 접합(`+'99'`) 금지
 - 두 페이지 이상 쓰는 색은 반드시 중앙 상수로 승격
