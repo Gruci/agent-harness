@@ -3,150 +3,26 @@
 매처는 셸을 실행하는 툴을 전부 담는다 — `Bash` 만 걸면 같은 `git worktree add` 가 `PowerShell`
 툴로 빠져나간다(원류 프로젝트 2026-08-06 실측).
 
-`git worktree list` 로 누가 무엇을 잡고 있는지 알 수 없었다. 이름이 브랜치와 갈리기까지 한다.
-보드에는 `#sid:` 가 있는데 worktree 쪽에 연결고리가 없어 둘을 조인할 수 없다 — 그래서
-"다들 쓰고 있나 보다"로 추측하게 된다.
-
-서식은 `worktrees/<범위>--<sid8>` 다. 범위를 앞에 두는 이유는 사람이 목록에서 먼저 읽는 것이
-"무엇"이고 "누구"는 조인 키이기 때문이다. 자리가 레포 루트 `worktrees/` 인 이유는 에이전트
-중립이다 — 보드(`workboard/`)와 같은 원칙이고, `.claude/` 밑이면 Codex 가 남의 전용 폴더에
-체크아웃을 만들게 된다.
-
-## EnterWorktree(name) 생성은 차단한다
-
-그 툴은 생성 위치가 `.claude/worktrees/` 로 고정이라(스키마 명세) 루트 규약과 항상 어긋난다.
-생성은 `git worktree add` 로 하고, 진입만 `EnterWorktree(path=...)` 로 한다 — path 진입은
-위치 무관이다.
-
-## 왜 Stop 이 아니라 생성 시점인가
-
-이미 만들어진 것을 뒤늦게 지적하면 개명해야 하는데, 세션이 그 안에 서 있으면 디렉토리 이동이
-실패한다. 남의 worktree 까지 잡으면 종료 데드락이다. 만들기 **전에** 막으면 개명 상황 자체가
-없고, 내 호출에만 발화하므로 다른 세션에 영향이 없다. 기존 worktree 는 건드리지 않는다.
-
-## 판정 불능
-
-세션 식별자를 못 구하면 exit 1(비차단 경고)이다. 하네스가 자기 상태를 모르는 것은 규칙 위반이
-아니라 오작동이고, 그것으로 worktree 생성을 막으면 격리 자체가 불가능해진다.
+판정과 설계 근거는 `kernel/worktree.py` 다 — Codex 진입점(`kernel/hook.py --event PreToolUse`)이
+같은 판정을 돈다. 여기는 페이로드 → 판정 → stderr·trace·exit 만 맡는다.
 """
-import re
-import shlex
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _hookio import read_hook_payload, record, segments  # noqa: E402
+from _hookio import emit, read_hook_payload  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-# 보드는 공유 체크아웃 한 곳이다(`kernel.workboard.board_dir`). 커널을 못 읽으면 범위 일치
-# 검사만 접는다 — 이름·자리 검사는 보드 없이도 성립한다.
+# 커널을 못 읽으면 판정 자체가 없다 — 하네스 오작동은 규칙 위반이 아니라 비차단 경고다.
 try:
-    from kernel.workboard import board_dir, task_files  # noqa: E402
-    BOARD_DIR: Path | None = board_dir()
-except Exception:
-    BOARD_DIR = None
-
-SID_LEN = 8
-WORKTREE_ADD = re.compile(r"\bgit\b.*\bworktree\s+add\b")
-
-
-def session_id8(payload: dict) -> str | None:
-    """`session_id` 우선, 없으면 transcript 파일명에서. 둘 다 없으면 None."""
-    session_id = str(payload.get("session_id") or "")
-    if len(session_id) >= SID_LEN:
-        return session_id[:SID_LEN]
-    stem = Path(str(payload.get("transcript_path") or "")).stem
-    return stem[:SID_LEN] if len(stem) >= SID_LEN else None
-
-
-def offending_name(name: str, sid8: str) -> str | None:
-    """서식을 안 지킨 worktree 이름. 지켰으면 None."""
-    if not name:
-        return None
-    return None if name.endswith(f"--{sid8}") else name
-
-
-def my_scope(sid8: str) -> str | None:
-    """내 `#sid` 가 든 workboard 파일의 범위 이름(= 파일 stem). 없으면 None."""
-    if BOARD_DIR is None:
-        return None
-    return next((path.stem for path, text in task_files(BOARD_DIR) if f"#sid:{sid8}" in text), None)
-
-
-def scope_mismatch(name: str, sid8: str) -> str | None:
-    """worktree 이름 앞부분이 내 workboard 범위와 다른가 — 다르면 기대한 이름을 돌려준다.
-
-    맞추면 `ls workboard/` 와 `git worktree list` 가 눈으로 바로 조인된다(`#sid` 를
-    대조할 필요가 없다). 범위 이름은 보드에서 이미 정했으므로 새로 지을 것도 없다.
-
-    **내 보드 파일이 없으면 검사하지 않는다.** 보드 등록이 프로토콜상 worktree 보다 먼저라
-    정상 경로에서는 늘 있지만, 순서를 바꾼 예외 상황에서 막으면 손쓸 방법이 사라진다.
-    """
-    scope = my_scope(sid8)
-    if scope is None or not name.endswith(f"--{sid8}"):
-        return None
-    return None if name[: -len(f"--{sid8}")] == scope else f"{scope}--{sid8}"
-
-
-def wrong_location(token: str) -> str | None:
-    """생성 경로의 부모 세그먼트가 `worktrees` 가 아니면 기대 경로를 돌려준다.
-
-    `.claude/worktrees/` 도 받지 않는다 — 에이전트 중립 원칙으로 자리는 루트 `worktrees/` 하나다.
-    부모 이름만 보므로 외부 디스크의 `<어딘가>/worktrees/<이름>` 은 통과한다(외부 worktree 는
-    프로토콜이 허용해 왔다).
-    """
-    parts = PurePosixPath(token.replace("\\", "/")).parts
-    if len(parts) >= 2 and parts[-2] == "worktrees" and (len(parts) < 3 or parts[-3] != ".claude"):
-        return None
-    return f"worktrees/{parts[-1]}"
-
-
-def worktree_add_path(command: str) -> str | None:
-    """`git worktree add` 가 만들려는 경로 토큰. 생성 명령이 아니면 None.
-
-    `list`·`remove`·`move` 는 생성이 아니라 통과다. 옵션과 `-b <브랜치>` 값을 걷어낸 첫 인자가
-    경로다 — 브랜치명을 경로로 오독하면 정상 호출이 막힌다.
-
-    **조각의 머리에서만 찾는다.** 문자열 전체를 훑으면 커밋 메시지 heredoc 안에 적힌
-    `git worktree add ...` 같은 산문을 명령으로 오독한다 — 이 훅이 자기 커밋을 막았다.
-    heredoc 본문은 따옴표가 아니라 shlex 가 그대로 낱말로 쪼개므로, `git`·`worktree`·`add` 가
-    나란히 서 있는지만 봐서는 안 갈린다. 자리로 갈라야 한다.
-    같은 부류를 `check_bash_write.py` 의 링크 판정도 앞 3토큰 제한으로 막는다.
-    """
-    if not WORKTREE_ADD.search(command):
-        return None
-    try:
-        # posix 모드는 백슬래시를 이스케이프로 먹는다 — Windows 경로가 뭉개져 판정이
-        # 통째로 틀린다. 쪼개기 전에 구분자를 정규화한다.
-        tokens = shlex.split(command.replace("\\", "/"), posix=True)
-    except ValueError:
-        return None
-    for segment in segments(tokens):
-        # `git worktree add` 는 조각의 **머리 세 칸**이다. 뒤쪽에 나오면 인자거나 산문이다.
-        head = segment[:3]
-        if len(head) < 3 or head[1] != "worktree" or head[2] != "add":
-            continue
-        if Path(head[0]).name not in ("git", "git.exe"):
-            continue                    # 백틱이 붙은 `` `git `` 같은 산문 조각을 배제한다
-        return _first_path(segment[3:])
-    return None
-
-
-def _first_path(rest: list[str]) -> str | None:
-    """옵션과 `-b <브랜치>` 값을 걷어낸 첫 인자."""
-    skip_next = False
-    for token in rest:
-        if skip_next:
-            skip_next = False
-            continue
-        if token in ("-b", "-B", "--reason"):
-            skip_next = True
-            continue
-        if token.startswith("-"):
-            continue
-        return token
-    return None
+    from kernel.workboard import board_dir  # noqa: E402
+    from kernel.worktree import (enter_worktree_violation, name_violation,  # noqa: E402
+                                 session_id8, worktree_add_path)
+except Exception as exc:
+    print(f"[WORKTREE NAME] 커널을 못 읽어 이름 검사를 건너뛴다({exc.__class__.__name__}) — kernel/worktree.py 를 점검하라.",
+          file=sys.stderr)
+    sys.exit(1)
 
 
 def main() -> None:
@@ -165,61 +41,21 @@ def main() -> None:
         # `path` 는 기존 worktree 진입이라 생성이 아니다 — 진입은 위치 무관으로 허용된다.
         if tool_input.get("path") or not tool_input.get("name"):
             sys.exit(0)
-        suffix = f"--{sid8}" if sid8 else "--<sid8>"
-        print(
-            "[WORKTREE NAME] EnterWorktree 생성은 `.claude/worktrees/` 고정이라 루트 규약과 어긋난다.\n"
-            "생성과 진입을 나눠라:\n"
-            f"  git worktree add worktrees/<범위>{suffix} -b <브랜치> origin/<기본브랜치>\n"
-            f"  EnterWorktree(path=\"worktrees/<범위>{suffix}\")\n"
-            "(정본: workboard/README.md 작업 격리)",
-            file=sys.stderr,
-        )
-        record("check_worktree_name", "worktree_name", sid=sid8 or "", msg="EnterWorktree 생성")
+        emit(enter_worktree_violation(sid8), sid8 or "")
         sys.exit(2)
 
     token = worktree_add_path(tool_input.get("command") or "")
     if not token:
         sys.exit(0)
-    name = Path(token).name
-
     if sid8 is None:
         print("[WORKTREE NAME] 세션 식별자를 못 구했다 — 이름 검사를 건너뛴다. 훅을 점검하라.",
               file=sys.stderr)
         sys.exit(1)
 
-    if offending_name(name, sid8) is not None:
-        print(
-            f"[WORKTREE NAME] worktree 이름에 세션 식별자가 없다 — `{name}` → `{name}--{sid8}`.\n"
-            "`git worktree list` 만으로 누가 무엇을 잡고 있는지 보여야 하고, 그 키가 보드의 #sid 다.\n"
-            "(정본: workboard/README.md)",
-            file=sys.stderr,
-        )
-        record("check_worktree_name", "worktree_name", sid=sid8, msg=f"sid 접미 없음 {name}")
-        sys.exit(2)
-
-    expected = scope_mismatch(name, sid8)
-    if expected is not None:
-        print(
-            f"[WORKTREE NAME] 이름이 내 과업 범위와 다르다 — `{name}` → `{expected}`.\n"
-            "worktree 이름은 workboard 범위 이름을 그대로 쓴다. 그래야 `ls workboard/` 와\n"
-            "`git worktree list` 가 눈으로 바로 조인된다.\n"
-            "(정본: workboard/README.md)",
-            file=sys.stderr,
-        )
-        record("check_worktree_name", "worktree_name", sid=sid8, msg=f"범위 불일치 {name}")
-        sys.exit(2)
-
-    misplaced = wrong_location(token)
-    if misplaced is not None:
-        print(
-            f"[WORKTREE NAME] worktree 자리가 규약 밖이다 — `{token}` → `{misplaced}`.\n"
-            "자리는 레포 루트 `worktrees/` 다(에이전트 중립).\n"
-            "(정본: workboard/README.md 작업 격리)",
-            file=sys.stderr,
-        )
-        record("check_worktree_name", "worktree_name", sid=sid8, msg=f"자리 규약 밖 {token}")
-        sys.exit(2)
-
+    found = name_violation(token, sid8, board_dir())
+    if found is not None:
+        emit(found, sid8)
+        sys.exit(2)                     # 차단 — 직접 관측(만들려는 경로가 규약 밖이다)
     sys.exit(0)
 
 

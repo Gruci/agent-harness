@@ -1,45 +1,31 @@
 """Stop hook — docs/tasks/mockup/ 에 목업이 남아있으면 세션 종료를 막는다.
 
-목업은 사용자에게 보여주고 판단을 받는 게 존재 이유다. 판단이 끝나면 갈 곳이 정해지는데,
-그 시점이 "다음에"로 밀리면 죽은 시안이 쌓인다(원류 프로젝트 실태 4건).
-
-행선지는 채택 여부가 가른다 — 채택분은 `docs/tasks/archive/<작업>/` 로 옮겨 plan·research 와
-같은 자리에 남기고, 반려분은 지운다. 채택된 시안은 "왜 이 화면이 이렇게 생겼나"의 유일한
-기록이라 archive 가 받아야 한다.
-
-추적 여부를 보지 않고 디렉토리를 직접 스캔한다. 목업은 대개 untracked 라 `git ls-files`
-기반 게이트로는 잡히지 않는다.
-
-예외: `wip_` 접두 파일은 차단하지 않는다 — 판단이 세션을 넘겨 이어지는 검토 중 시안까지
-막으면 세션 종료가 불가능해진다. 전역 스위치가 아니라 파일 단위 명시라, 접두 없는 잔존
-(판단 끝난 시안 방치)은 여전히 잡힌다. 채택 확정 시 접두를 떼고 archive 로 옮긴다.
+판정과 설계 근거(행선지·직접 스캔·`wip_` 예외)는 `kernel/workspace.py` 다 — Codex Stop
+(`kernel/hook.py`)이 같은 판정을 돈다. 여기는 stderr·trace·exit 만 맡는다.
+커널을 못 읽으면 판정을 못 해 통과하되 stderr 로 고지한다.
 """
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _hookio import payload_sid, record  # noqa: E402
+from _hookio import emit, payload_sid  # noqa: E402
 
-MOCKUP_DIR = Path(__file__).resolve().parents[2] / "docs" / "tasks" / "mockup"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+try:
+    from kernel.workspace import mockup_residue  # noqa: E402
+except Exception as exc:
+    print(f"[MOCKUP RESIDUE] 커널을 못 읽어 판정을 건너뛴다({exc.__class__.__name__}) — kernel/workspace.py 를 점검하라.",
+          file=sys.stderr)
+    sys.exit(0)
 
 
 def main() -> None:
-    if not MOCKUP_DIR.is_dir():
+    found = mockup_residue()
+    if found is None:
         sys.exit(0)
-
-    residue = sorted(p for p in MOCKUP_DIR.rglob("*")
-                     if p.is_file() and not p.name.startswith("wip_"))
-    if not residue:
-        sys.exit(0)
-
-    record("check_mockup_residue", "mockup_residue", sid=payload_sid(), msg=f"{len(residue)}건")
-    # Stop 훅 차단 사유는 stderr 로 내보내야 Claude 에게 전달된다(stdout 은 무시됨).
-    print(f"[MOCKUP RESIDUE] docs/tasks/mockup/ 에 목업 {len(residue)}건이 남아있습니다.", file=sys.stderr)
-    for path in residue:
-        print(f"  {path.relative_to(MOCKUP_DIR.parents[2]).as_posix()}", file=sys.stderr)
-    print("판단이 끝난 목업은 비우고 종료하세요 — 채택분은 docs/tasks/archive/<작업>/ 로 옮기고", file=sys.stderr)
-    print("반려분은 지웁니다. 검토가 세션을 넘겨 이어지면 wip_ 접두를 붙입니다.", file=sys.stderr)
-    sys.exit(2)
+    emit(found, payload_sid())
+    sys.exit(2)                         # 차단 — 직접 관측(파일이 실제로 거기 있다)
 
 
 if __name__ == "__main__":

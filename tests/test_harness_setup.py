@@ -50,6 +50,9 @@ class HarnessSetupTests(TemporaryRootTestCase):
             command = f'python "$(git rev-parse --show-toplevel)/kernel/hook.py" --agent codex --event {event}'
             codex[event] = [{"hooks": [{"type": "command", "command": command,
                                        "commandWindows": command}]}]
+        pre = 'python "$(git rev-parse --show-toplevel)/kernel/hook.py" --agent codex --event PreToolUse'
+        codex["PreToolUse"] = [{"matcher": "Bash", "hooks": [{"type": "command", "command": pre,
+                                                              "commandWindows": pre}]}]
         self.write(".claude/settings.json", json.dumps({"hooks": claude, "custom": "keep"}))
         self.write(".codex/hooks.json", json.dumps({"hooks": codex, "custom": "keep"}))
 
@@ -83,6 +86,17 @@ class HarnessSetupTests(TemporaryRootTestCase):
         code, output = self.diagnose()
         self.assertNotEqual(code, 0)
         self.assertIn("Stop", output)
+
+    def test_codex_pretooluse_bash_wiring_required(self) -> None:
+        self.complete_install()
+        path = self.root / ".codex/hooks.json"
+        config = json.loads(path.read_text())
+        del config["hooks"]["PreToolUse"]
+        self.write(".codex/hooks.json", json.dumps(config))
+        code, output = self.diagnose()
+        self.assertNotEqual(code, 0)
+        self.assertIn("PreToolUse Bash", output)
+        self.assertNotIn(".claude/settings.json: PreToolUse", output)
 
     def test_missing_graph_contract_or_processor_fails(self) -> None:
         self.complete_install()

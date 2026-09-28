@@ -38,6 +38,15 @@ def record(*args: object, **kwargs: object) -> None:
         pass
 
 
+def emit(finding: object, sid: str = "") -> None:
+    """커널 판정(`kernel.workspace.Finding`)을 stderr 와 trace 로 옮긴다. exit 는 래퍼가 낸다 —
+    단계(차단 2·경고 1)가 훅 파일에 글자로 남아야 규칙 지도(`kernel/diagram/rules.py`)가 읽는다."""
+    for msg in getattr(finding, "trace", ()):
+        record(finding.hook, finding.kind, sid=sid, msg=msg)
+    # Stop·PreToolUse 훅의 사유는 stderr 로 내보내야 모델에게 전달된다(stdout 은 무시된다).
+    print(finding.message, file=sys.stderr)
+
+
 SEPARATORS = (";", "|", "||", "&&", "&")
 
 

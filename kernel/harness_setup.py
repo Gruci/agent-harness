@@ -87,8 +87,14 @@ def _check_hooks(root: Path, agent: str, problems: list[str]) -> None:
         return
     if config.get("disableAllHooks"):
         problems.append(f"{rel}: disableAllHooks disables the required checks")
-    for event, filename in (("PostToolUse", "check_file_rules"), ("Stop", "check_coding_rules")):
+    required = [("PostToolUse", "check_file_rules"), ("Stop", "check_coding_rules")]
+    if agent == "codex":
+        # Claude runs the worktree naming gate through its own .claude/hooks wrapper.
+        required.append(("PreToolUse", ""))
+    for event, filename in required:
         tools = ("Edit", "Write", "MultiEdit") if event == "PostToolUse" else ("",)
+        if event == "PreToolUse":
+            tools = ("Bash",)
         if agent == "codex" and event == "PostToolUse":
             tools += ("apply_patch",)
         wrapper = f".claude/hooks/{filename}.py"

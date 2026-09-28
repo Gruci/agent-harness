@@ -76,7 +76,9 @@
 
 | 모듈 | 제공 | 소비 도메인 |
 |------|------|------------|
-| `kernel/hook.py` | 런타임 입력 정규화와 저장·종료 검사 | 양쪽 훅은 검사 실행을 재구현하지 않는다 |
+| `kernel/hook.py` | 런타임 입력 정규화와 저장·종료 검사, Codex 의 worktree 게이트와 작업공간 Stop 묶음 | 양쪽 훅은 검사 실행을 재구현하지 않는다 |
+| `kernel/worktree.py` | worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정 | Claude 래퍼와 Codex 진입점이 같은 판정을 쓴다. 문구도 여기가 정본이다 |
+| `kernel/workspace.py` | `Finding` 과 종료 시점 작업공간 판정(보드·git 원격·목업·과업 산출물) | 〃 — 새 Stop 판정은 `Finding` 을 돌려주고 채널은 어댑터가 맡는다 |
 | `kernel/harness_setup.py` | 공용 하네스의 파일·스킬·훅 연결 진단 | 설치와 업그레이드 후 같은 진단을 사용한다 |
 | `kernel/codex_permissions.py` | Codex 전역 자율 실행 설정과 지침 병합 | 초기화 진입점에서 재사용하며 관련 없는 설정을 보존한다 |
-| `tests/harness_test_support.py` | 테스트별 임시 루트와 자동 정리 | 하네스 설치 테스트는 임시 디렉터리 수명 관리를 재구현하지 않는다 |
+| `tests/harness_test_support.py` | 테스트별 임시 루트와 자동 정리, workboard 과업 파일 픽스처 | 하네스 테스트는 임시 디렉터리 수명 관리와 보드 픽스처를 재구현하지 않는다 |

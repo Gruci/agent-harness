@@ -1,6 +1,20 @@
 {
   "description": "Shared harness gates. Review and trust these hooks in the Codex runtime before use.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
+            "commandWindows": "python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
+            "timeout": 30,
+            "statusMessage": "Checking worktree naming"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit|apply_patch",

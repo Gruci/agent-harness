@@ -5,8 +5,8 @@
     "title": "훅별 규칙 지도 — 무엇이 언제 무엇을 검사하나",
     "quality_profile": "showcase",
     "repository": {
-      "url": "https://github.com/Gruci/claude-web-harness",
-      "revision": "865ae0b03068004e314609e6c19b541d80fd15b9"
+      "url": "https://github.com/Gruci/web-harness",
+      "revision": "242f2762d3a50be0603c8f9e990857c8c2839400"
     },
     "views": [
       {

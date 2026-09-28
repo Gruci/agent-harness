@@ -1,0 +1,305 @@
+"""kernel/worktree.py — worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정.
+
+Claude 훅(`.claude/hooks/check_worktree_name.py`·`check_worktree_residue.py`)과 Codex 진입점
+(`kernel/hook.py`)이 같은 판정을 쓴다. 페이로드 파싱·exit·출력 JSON 은 어댑터 몫이고 여기는
+판정과 문구만 둔다 — 결과는 `kernel.workspace.Finding` 한 가지 모양이다.
+
+## 이름·자리 규약 — 왜 생성 시점에 막나
+
+`git worktree list` 로 누가 무엇을 잡고 있는지 알 수 없었다. 이름이 브랜치와 갈리기까지 한다.
+보드에는 `#sid:` 가 있는데 worktree 쪽에 연결고리가 없어 둘을 조인할 수 없다 — 그래서
+"다들 쓰고 있나 보다"로 추측하게 된다.
+
+서식은 `worktrees/<범위>--<sid8>` 다. 범위를 앞에 두는 이유는 사람이 목록에서 먼저 읽는 것이
+"무엇"이고 "누구"는 조인 키이기 때문이다. 자리가 레포 루트 `worktrees/` 인 이유는 에이전트
+중립이다 — 보드(`workboard/`)와 같은 원칙이고, `.claude/` 밑이면 Codex 가 남의 전용 폴더에
+체크아웃을 만들게 된다.
+
+이미 만들어진 것을 뒤늦게 지적하면 개명해야 하는데, 세션이 그 안에 서 있으면 디렉토리 이동이
+실패한다. 남의 worktree 까지 잡으면 종료 데드락이다. 만들기 **전에** 막으면 개명 상황 자체가
+없고, 내 호출에만 발화하므로 다른 세션에 영향이 없다. 기존 worktree 는 건드리지 않는다.
+
+Claude 의 `EnterWorktree(name)` 생성은 차단한다 — 그 툴은 생성 위치가 `.claude/worktrees/` 로
+고정이라(스키마 명세) 루트 규약과 항상 어긋난다. 생성은 `git worktree add` 로 하고, 진입만
+`EnterWorktree(path=...)` 로 한다. Codex 에는 그 툴이 없어 `git worktree add` 만 대상이다.
+
+세션 식별자를 못 구하면 어댑터가 비차단 경고를 낸다. 하네스가 자기 상태를 모르는 것은 규칙
+위반이 아니라 오작동이고, 그것으로 worktree 생성을 막으면 격리 자체가 불가능해진다.
+
+## 죽은 worktree 판정 — 세 조건을 모두 만족할 때만
+
+"머지 후 worktree remove → branch -d" 규칙이 산문으로만 있으면 흘러내린다. 원류 프로젝트
+실태: 머지가 끝난 worktree 4개(최고령 4일)가 쌓여 `git worktree list` 로 "지금 누가 뭘
+잡고 있나"를 못 읽었다 — 이름 접미 `--<sid8>` 을 강제한 이유가 그 조인인데, 죽은 것이
+섞이면 무의미해진다.
+
+갓 판 worktree 와 머지 끝난 worktree 는 둘 다 기본 브랜치의 조상이고 자기 커밋이 0개라
+그것만으로는 안 갈린다. 갈라주는 것은 **push 이력**이다.
+
+1. `branch.<브랜치>.merge` 가 **자기 이름**(`refs/heads/<브랜치>`)이다 = `push -u` 로 한 번이라도
+   올렸다. **`.remote` 유무로 가르면 안 된다** — `git worktree add -b X origin/<기본>` 은 시작점을
+   upstream 으로 자동 등록해 `remote=origin, merge=refs/heads/<기본>` 을 남긴다. 그걸 push 이력으로
+   읽으면 아래 셋이 전부 참이 되어 **갓 판 worktree 가 통째로 "머지 완료"** 가 된다. 실측으로
+   확인했다 — 만든 직후 `remote=origin`, origin ref 없음, 기본 브랜치의 조상 참. 갓 판 브랜치의
+   `merge` 는 기본 브랜치를 가리키므로 여기서 걸러진다.
+2. `refs/remotes/origin/<브랜치>` 가 없다 = 머지되어 원격에서 삭제됐다.
+   PR 이 열려 있는 동안은 있으므로 작업 중엔 안 걸린다.
+   **미탐 조건**: 원격 자동삭제(deleteBranchOnMerge)가 없는 레포에서는 이 조건이 영영 거짓이라
+   잔존을 못 잡는다 — 오탐(작업 중인 것을 지우라고 함)이 없음을 우선한 선택이다.
+3. 브랜치가 원격 기본 브랜치의 조상이다 = 실제로 머지됐다.
+   push 후 머지 없이 버린 브랜치는 여기서 걸러진다 — 남의 미머지 작업을 지우라고 하면 안 된다.
+
+`git worktree list --porcelain` 의 lock 줄은 PID 를 싣는다. 그 프로세스가 살아있으면 남의
+세션이 그 안에 서 있다는 뜻이라 건너뛴다. 반대로 PID 가 죽은 lock 은 건너뛰지 않는다 —
+크래시 잔해를 살아있는 것으로 치면 이 게이트가 잡아야 할 바로 그 경우가 영구 면제된다.
+
+판정 불능이면(git 실패·기본 브랜치 미상) 통과시킨다. 하네스 오작동으로 종료를 막으면 복구
+수단이 그 세션이라 잠긴다.
+
+잔존 판정은 전부 **git 상태 추론**이라 경고 단계다(`Finding.block=False`). 직접 관측이 아니라
+틀릴 수 있고 실제로 틀렸다 — 차단이면 잘못된 지시를 따르거나 세션이 잠기거나 둘 중 하나다.
+검출을 끄면 잔해가 안 보이므로 끄는 대신 단계를 낮춘다. 정본은 `dev/HARNESS.md` 「단계」다.
+"""
+
+from __future__ import annotations
+
+import re
+import shlex
+import subprocess
+from pathlib import Path, PurePosixPath
+
+from kernel.context import default_branch, git_output
+from kernel.workboard import task_files
+from kernel.workspace import Finding
+
+# 테스트가 가짜 git 으로 갈아끼우는 자리 — 판정 함수는 이 이름으로만 git 을 부른다.
+_git = git_output
+
+SID_LEN = 8
+WORKTREE_ADD = re.compile(r"\bgit\b.*\bworktree\s+add\b")
+SEPARATORS = (";", "|", "||", "&&", "&")
+_LOCK_PID = re.compile(r"\(pid (\d+)\)")
+
+HOOK_NAME = "check_worktree_name"
+HOOK_RESIDUE = "check_worktree_residue"
+
+
+def segments(tokens: list[str]) -> list[list[str]]:
+    """셸 구분자로 끊은 명령 조각들. 조각의 머리만 봐야 `echo "git commit"` 처럼 인자로 들어간
+    문자열을 명령으로 오독하지 않는다. `.claude/hooks/_hookio.segments` 와 같은 판정이다 —
+    `check_bash_write.py` 가 커널 없이도 살아야 해서 한 벌을 따로 둔다.
+    """
+    found: list[list[str]] = [[]]
+    for token in tokens:
+        if token in SEPARATORS:
+            found.append([])
+        else:
+            found[-1].append(token)
+    return [segment for segment in found if segment]
+
+
+def session_id8(payload: dict) -> str | None:
+    """`session_id` 우선, 없으면 transcript 파일명에서. 둘 다 없으면 None."""
+    session_id = str(payload.get("session_id") or "")
+    if len(session_id) >= SID_LEN:
+        return session_id[:SID_LEN]
+    stem = Path(str(payload.get("transcript_path") or "")).stem
+    return stem[:SID_LEN] if len(stem) >= SID_LEN else None
+
+
+def offending_name(name: str, sid8: str) -> str | None:
+    """서식을 안 지킨 worktree 이름. 지켰으면 None."""
+    if not name:
+        return None
+    return None if name.endswith(f"--{sid8}") else name
+
+
+def my_scope(sid8: str, board: Path | None) -> str | None:
+    """내 `#sid` 가 든 workboard 파일의 범위 이름(= 파일 stem). 보드가 없으면 None."""
+    if board is None:
+        return None
+    return next((path.stem for path, text in task_files(board) if f"#sid:{sid8}" in text), None)
+
+
+def scope_mismatch(name: str, sid8: str, board: Path | None) -> str | None:
+    """worktree 이름 앞부분이 내 workboard 범위와 다른가 — 다르면 기대한 이름을 돌려준다.
+
+    맞추면 `ls workboard/` 와 `git worktree list` 가 눈으로 바로 조인된다(`#sid` 를
+    대조할 필요가 없다). 범위 이름은 보드에서 이미 정했으므로 새로 지을 것도 없다.
+
+    **내 보드 파일이 없으면 검사하지 않는다.** 보드 등록이 프로토콜상 worktree 보다 먼저라
+    정상 경로에서는 늘 있지만, 순서를 바꾼 예외 상황에서 막으면 손쓸 방법이 사라진다.
+    """
+    scope = my_scope(sid8, board)
+    if scope is None or not name.endswith(f"--{sid8}"):
+        return None
+    return None if name[: -len(f"--{sid8}")] == scope else f"{scope}--{sid8}"
+
+
+def wrong_location(token: str) -> str | None:
+    """생성 경로의 부모 세그먼트가 `worktrees` 가 아니면 기대 경로를 돌려준다.
+
+    `.claude/worktrees/` 도 받지 않는다 — 에이전트 중립 원칙으로 자리는 루트 `worktrees/` 하나다.
+    부모 이름만 보므로 외부 디스크의 `<어딘가>/worktrees/<이름>` 은 통과한다(외부 worktree 는
+    프로토콜이 허용해 왔다).
+    """
+    parts = PurePosixPath(token.replace("\\", "/")).parts
+    if len(parts) >= 2 and parts[-2] == "worktrees" and (len(parts) < 3 or parts[-3] != ".claude"):
+        return None
+    return f"worktrees/{parts[-1]}"
+
+
+def worktree_add_path(command: str) -> str | None:
+    """`git worktree add` 가 만들려는 경로 토큰. 생성 명령이 아니면 None.
+
+    `list`·`remove`·`move` 는 생성이 아니라 통과다. 옵션과 `-b <브랜치>` 값을 걷어낸 첫 인자가
+    경로다 — 브랜치명을 경로로 오독하면 정상 호출이 막힌다.
+
+    **조각의 머리에서만 찾는다.** 문자열 전체를 훑으면 커밋 메시지 heredoc 안에 적힌
+    `git worktree add ...` 같은 산문을 명령으로 오독한다 — 이 판정이 자기 커밋을 막았다.
+    heredoc 본문은 따옴표가 아니라 shlex 가 그대로 낱말로 쪼개므로, `git`·`worktree`·`add` 가
+    나란히 서 있는지만 봐서는 안 갈린다. 자리로 갈라야 한다.
+    같은 부류를 `check_bash_write.py` 의 링크 판정도 앞 3토큰 제한으로 막는다.
+    """
+    if not WORKTREE_ADD.search(command):
+        return None
+    try:
+        # posix 모드는 백슬래시를 이스케이프로 먹는다 — Windows 경로가 뭉개져 판정이
+        # 통째로 틀린다. 쪼개기 전에 구분자를 정규화한다.
+        tokens = shlex.split(command.replace("\\", "/"), posix=True)
+    except ValueError:
+        return None
+    for segment in segments(tokens):
+        # `git worktree add` 는 조각의 **머리 세 칸**이다. 뒤쪽에 나오면 인자거나 산문이다.
+        head = segment[:3]
+        if len(head) < 3 or head[1] != "worktree" or head[2] != "add":
+            continue
+        if Path(head[0]).name not in ("git", "git.exe"):
+            continue                    # 백틱이 붙은 `` `git `` 같은 산문 조각을 배제한다
+        return _first_path(segment[3:])
+    return None
+
+
+def _first_path(rest: list[str]) -> str | None:
+    """옵션과 `-b <브랜치>` 값을 걷어낸 첫 인자."""
+    skip_next = False
+    for token in rest:
+        if skip_next:
+            skip_next = False
+            continue
+        if token in ("-b", "-B", "--reason"):
+            skip_next = True
+            continue
+        if token.startswith("-"):
+            continue
+        return token
+    return None
+
+
+def enter_worktree_violation(sid8: str | None) -> Finding:
+    """`EnterWorktree(name)` 생성 — 항상 규약 밖이라 조건 없이 차단 문구를 돌려준다."""
+    suffix = f"--{sid8}" if sid8 else "--<sid8>"
+    return Finding(HOOK_NAME, "worktree_name", True, (
+        "[WORKTREE NAME] EnterWorktree 생성은 `.claude/worktrees/` 고정이라 루트 규약과 어긋난다.\n"
+        "생성과 진입을 나눠라:\n"
+        f"  git worktree add worktrees/<범위>{suffix} -b <브랜치> origin/<기본브랜치>\n"
+        f"  EnterWorktree(path=\"worktrees/<범위>{suffix}\")\n"
+        "(정본: workboard/README.md 작업 격리)"), ("EnterWorktree 생성",))
+
+
+def name_violation(token: str, sid8: str, board: Path | None) -> Finding | None:
+    """`git worktree add <token>` 이 규약 밖이면 차단 finding. 순서는 접미 → 범위 → 자리다."""
+    name = Path(token).name
+    if offending_name(name, sid8) is not None:
+        return Finding(HOOK_NAME, "worktree_name", True, (
+            f"[WORKTREE NAME] worktree 이름에 세션 식별자가 없다 — `{name}` → `{name}--{sid8}`.\n"
+            "`git worktree list` 만으로 누가 무엇을 잡고 있는지 보여야 하고, 그 키가 보드의 #sid 다.\n"
+            "(정본: workboard/README.md)"), (f"sid 접미 없음 {name}",))
+    expected = scope_mismatch(name, sid8, board)
+    if expected is not None:
+        return Finding(HOOK_NAME, "worktree_name", True, (
+            f"[WORKTREE NAME] 이름이 내 과업 범위와 다르다 — `{name}` → `{expected}`.\n"
+            "worktree 이름은 workboard 범위 이름을 그대로 쓴다. 그래야 `ls workboard/` 와\n"
+            "`git worktree list` 가 눈으로 바로 조인된다.\n"
+            "(정본: workboard/README.md)"), (f"범위 불일치 {name}",))
+    misplaced = wrong_location(token)
+    if misplaced is not None:
+        return Finding(HOOK_NAME, "worktree_name", True, (
+            f"[WORKTREE NAME] worktree 자리가 규약 밖이다 — `{token}` → `{misplaced}`.\n"
+            "자리는 레포 루트 `worktrees/` 다(에이전트 중립).\n"
+            "(정본: workboard/README.md 작업 격리)"), (f"자리 규약 밖 {token}",))
+    return None
+
+
+def _alive(pid: int) -> bool:
+    """그 PID 가 살아있나. 판정 불능이면 살아있다고 본다(남의 세션을 함부로 죽은 것 취급하지 않는다)."""
+    try:
+        done = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                              capture_output=True, text=True, errors="replace", timeout=15)
+    except Exception:
+        return True
+    return str(pid) in done.stdout
+
+
+def parse_worktrees(porcelain: str) -> list[dict]:
+    """`git worktree list --porcelain` → [{path, branch, lock_pid}]. 메인 체크아웃은 뺀다.
+
+    메인은 **첫 레코드**로 가른다(git 계약). 파일 경로로 가르면 안 된다 — 이 판정은 worktree
+    안에서도 돌고 그때 ROOT 는 그 worktree 라, 자기 자신을 메인으로 빼고 진짜 메인을
+    검사 대상에 넣는 역전이 난다.
+    """
+    trees: list[dict] = []
+    cur: dict = {}
+    for line in porcelain.splitlines():
+        if line.startswith("worktree "):
+            if cur:
+                trees.append(cur)
+            cur = {"path": line[len("worktree "):], "branch": None, "lock_pid": None}
+        elif line.startswith("branch refs/heads/"):
+            cur["branch"] = line[len("branch refs/heads/"):]
+        elif line.startswith("locked"):
+            found = _LOCK_PID.search(line)
+            cur["lock_pid"] = int(found.group(1)) if found else None
+    if cur:
+        trees.append(cur)
+    return [t for t in trees[1:] if t["branch"]]
+
+
+def is_dead(branch: str, base: str) -> bool:
+    """머지가 끝나 존재 이유가 사라진 브랜치인가. 판정 근거는 모듈 머리 참조."""
+    upstream = (_git("config", "--get", f"branch.{branch}.merge") or "").strip()
+    if upstream != f"refs/heads/{branch}":
+        return False                                    # push 이력 없음 = 작업 전이거나 작업 중
+    if _git("show-ref", "--verify", "--quiet", f"refs/remotes/origin/{branch}") is not None:
+        return False                                    # 원격에 살아있음 = PR 진행 중
+    return _git("merge-base", "--is-ancestor", f"refs/heads/{branch}", f"origin/{base}") is not None
+
+
+def dead_worktrees() -> list[dict]:
+    """일이 끝난 worktree 목록. 판정 불능(git 실패·기본 브랜치 미상)이면 빈 목록 = 통과."""
+    porcelain = _git("worktree", "list", "--porcelain")
+    if porcelain is None:
+        return []
+    base = default_branch()
+    if base is None:
+        return []
+    residue = []
+    for tree in parse_worktrees(porcelain):
+        if tree["lock_pid"] is not None and _alive(tree["lock_pid"]):
+            continue                                    # 남의 세션이 그 안에 서 있다
+        if is_dead(tree["branch"], base):
+            residue.append(tree)
+    return residue
+
+
+def worktree_residue() -> Finding | None:
+    """Stop 판정 ⑮ — 머지 끝난 worktree 가 남아 있으면 경고 finding."""
+    residue = dead_worktrees()
+    if not residue:
+        return None
+    lines = [f"[WORKTREE RESIDUE] 일이 끝난 worktree {len(residue)}건이 남아있습니다."]
+    for tree in residue:
+        lines.append(f"  {Path(tree['path']).name}  [{tree['branch']}] — 머지 완료·원격 삭제됨")
+    lines.append("`git worktree remove <경로>` → `git branch -d <브랜치>` → 보드 행 제거 순서로 정리한 후 종료하세요.")
+    lines.append("(순서가 계약이다 — worktree 가 점유 중인 브랜치는 로컬 삭제가 거부된다)")
+    return Finding(HOOK_RESIDUE, "worktree_residue", False, "\n".join(lines), (f"{len(residue)}건",))

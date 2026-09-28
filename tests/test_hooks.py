@@ -1,11 +1,15 @@
-"""tests/test_hooks.py — 훅 판정 함수의 행동 테스트.
+"""tests/test_hooks.py — `.claude/hooks/` 훅 판정 함수의 행동 테스트.
 
 훅은 러너 밖에서 돌아 골든 대조가 안 닿는다. 그런데 훅의 오판은 게이트 오탐보다 비싸다 —
 세션을 잠그거나 작업 중인 worktree 를 지우라고 요구한다. 실제로 그 둘이 연달아 났다
 (`dev/LESSONS.md` §19). 그래서 판정 함수만 따로 잡아둔다.
 
-  worktree 잔해   갓 판 worktree 를 잔해로 뒤집지 않는가
   격리 밖 링크    실사고 경로를 잡고 산문·정상 링크는 통과시키는가
+  보드 데이터     파일=행 계약과 브랜치 필드, 겹침 판정
+  UI 카피·워크플로 추출기와 `agent()` model 판정
+
+worktree·작업공간 판정은 커널로 옮겨졌다 — `tests/test_workspace.py` 가 그 모듈을 직접 잡는다.
+여기는 아직 `.claude/hooks/` 가 정본인 훅만 파일로 읽는다.
 
 실행: `python -X utf8 tests/test_hooks.py`
 """
@@ -14,10 +18,14 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
+
+from harness_test_support import TASK_TEXT, fake_board
 
 ROOT = Path(__file__).resolve().parents[1]
 HOOKS = ROOT / ".claude" / "hooks"
+sys.path.insert(0, str(ROOT))
 
 
 def _load(name: str):
@@ -27,73 +35,6 @@ def _load(name: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-# 중첩 def 금지(검사 2)라 가짜 git 을 모듈 레벨에 둔다. `_UPSTREAM` 이 케이스를 가른다.
-_UPSTREAM = ""
-
-
-def _fake_git(*args: str) -> str | None:
-    """worktree 잔해 판정이 묻는 세 질문만 답한다 — 나머지 둘은 항상 '잔해 쪽'이다."""
-    if args[0] == "config":
-        return _UPSTREAM                          # branch.<X>.merge 값
-    if args[0] == "show-ref":
-        return None                               # origin 에 없다
-    if args[0] == "merge-base":
-        return ""                                 # 기본 브랜치의 조상이다
-    return None
-
-
-def test_fresh_worktree_not_dead() -> None:
-    """`git worktree add -b X origin/main` 이 남기는 upstream 은 push 이력이 아니다.
-
-    시작점을 upstream 으로 자동 등록하므로 `branch.X.remote` 는 갓 판 브랜치에도 있다.
-    그것을 push 이력으로 읽으면 나머지 두 조건(원격 ref 없음·기본 브랜치의 조상)이 자동으로
-    참이라, worktree 를 만든 그 순간부터 "머지 완료, 지워라"가 된다.
-    """
-    global _UPSTREAM
-    residue = _load("check_worktree_residue")
-    residue._git = _fake_git
-
-    _UPSTREAM = "refs/heads/main\n"               # 갓 판 것 — upstream 이 기본 브랜치다
-    assert residue.is_dead("feat/x", "main") is False, "갓 판 worktree 를 잔해로 판정했다"
-
-    _UPSTREAM = "refs/heads/feat/x\n"             # push -u 이력 — upstream 이 자기 이름이다
-    assert residue.is_dead("feat/x", "main") is True, "진짜 잔해를 놓쳤다"
-
-    _UPSTREAM = ""                                # upstream 없음 = 로컬 전용 브랜치
-    assert residue.is_dead("feat/x", "main") is False
-
-
-def test_alive_no_nameerror() -> None:
-    """`_alive` 가 실제로 실행 가능한가 — import 누락이면 NameError 가 `except` 에 삼켜져
-    lock 걸린 worktree 가 영구 면제된다(2026-09-07 실측: `import subprocess` 누락)."""
-    import os
-    residue = _load("check_worktree_residue")
-    assert residue._alive(os.getpid()) is True, "살아있는 자기 PID 를 죽었다고 판정했다"
-
-
-def test_worktree_rel_strip() -> None:
-    """worktree 안 파일의 상대경로는 접두를 벗겨야 한다 — 안 벗기면 경로 기반 게이트가 전부 오탐한다."""
-    sys.path.insert(0, str(ROOT))
-    from kernel.context import ROOT as KROOT, _rel
-    inside = KROOT / "worktrees" / "feat-x--12345678" / "orders" / "a.py"
-    assert _rel(inside) == "orders/a.py", "루트 worktrees/ 접두를 못 벗겼다"
-    assert _rel(KROOT / "orders" / "a.py") == "orders/a.py"
-    assert _rel(KROOT / "workboard" / "x.md") == "workboard/x.md", "보드 파일을 worktree 로 오인"
-
-
-def test_worktree_location() -> None:
-    """자리 규약 — 루트 `worktrees/` 통과, `.claude/worktrees/` 와 임의 자리는 기대 경로 제시."""
-    naming = _load("check_worktree_name")
-    assert naming.wrong_location("worktrees/feat-x--12345678") is None
-    assert naming.wrong_location("D:/repo/worktrees/feat-x--12345678") is None, "절대경로 정상 자리를 막았다"
-    assert naming.wrong_location(".claude/worktrees/feat-x--12345678") == "worktrees/feat-x--12345678", \
-        ".claude/ 밑 자리를 통과시켰다"
-    assert naming.wrong_location("feat-x--12345678") == "worktrees/feat-x--12345678", "루트 직생성을 통과시켰다"
-    assert naming.worktree_add_path(
-        "git worktree add worktrees/feat-x--12345678 -b feat/x origin/main"
-    ) == "worktrees/feat-x--12345678", "경로 토큰을 못 읽었다"
 
 
 def test_outbound_link() -> None:
@@ -117,122 +58,47 @@ def test_outbound_link() -> None:
         assert gate.outbound_link(command) is None, f"통과해야 하는데 막음: {label}"
 
 
-# workboard 과업 파일 픽스처 — 깨지면 잡는 것: 파일=행 계약·브랜치 오인·겹침 판정·이름 조인.
-_TASK = (
-    "- 범위: admin-report-viewers\n"
-    "- 과업: feat/report-viewers #sid:abcd1234\n"
-    "- 손대는 곳:\n"
-    "  - frontend/src/components/admin/salesStatus/*\n"
-    "  - docs/tasks/plan_x.md\n"
-    "- 상태: 진행\n"
-)
-
-
-def _fake_board(base: Path) -> Path:
-    board = base / "workboard"
-    board.mkdir()
-    (board / "admin-report-viewers.md").write_text(_TASK, encoding="utf-8")
-    (board / "README.md").write_text("# 서식\n- 과업: feat/example #sid:deadbeef\n",
-                                     encoding="utf-8")
-    return board
-
-
 def test_workboard_file_is_one_row() -> None:
     """파일 하나가 행 하나 — README 는 서식 설명이지 과업이 아니고, 디렉토리가 없으면 빈 보드다.
 
     이 계약이 깨지면 잔존 검사가 영영 안 돌거나(영구 busy) 훅이 예외로 죽는다(fail-open 위반).
     """
-    import tempfile
-    lock = _load("check_editing_lock")
+    from kernel.workboard import active_rows
     with tempfile.TemporaryDirectory() as tmp:
-        board = _fake_board(Path(tmp))
+        board = fake_board(Path(tmp))
         (board / "issues-quarter.md").write_text(
             "- 과업: fix/quarter #sid:99999999\n- 상태: 진행\n", encoding="utf-8")
-        rows = lock.active_rows(board)
+        rows = active_rows(board)
         assert len(rows) == 2, f"README 를 빼고 과업 파일 수만큼 나와야 한다: {rows}"
         assert all("example" not in row for row in rows), "README 를 과업으로 셌다"
-        assert lock.active_rows(Path(tmp) / "nope") == [], "없는 디렉토리는 빈 보드여야 한다"
+        assert active_rows(Path(tmp) / "nope") == [], "없는 디렉토리는 빈 보드여야 한다"
 
 
 def test_branch_comes_from_task_field() -> None:
     """브랜치는 `과업:` 필드에서 — `손대는 곳` 의 `docs/tasks/*` 는 브랜치 접두와 형태가 같다."""
-    import tempfile
-    lock = _load("check_editing_lock")
+    from kernel.workboard import active_rows, branch_of
     with tempfile.TemporaryDirectory() as tmp:
-        (row,) = lock.active_rows(_fake_board(Path(tmp)))
-        assert lock.branch_of(row) == "feat/report-viewers", \
-            f"과업 필드가 아니라 다른 데서 집었다: {lock.branch_of(row)}"
+        (row,) = active_rows(fake_board(Path(tmp)))
+        assert branch_of(row) == "feat/report-viewers", \
+            f"과업 필드가 아니라 다른 데서 집었다: {branch_of(row)}"
 
 
 def test_workboard_overlap() -> None:
     """겹침 판정 — 내 과업 무경고(소음화 방지) · 남의 과업 경고(방어 사멸 방지) · 무관 파일 무경고."""
-    import tempfile
     overlap = _load("check_workboard_overlap")
     from kernel.workboard import touch_globs
-    globs = touch_globs(_TASK)
+    globs = touch_globs(TASK_TEXT)
     assert globs == ["frontend/src/components/admin/salesStatus/*", "docs/tasks/plan_x.md"], \
         f"다음 필드(- 상태:)를 글로브로 먹었다: {globs}"
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        overlap.BOARD_DIR = _fake_board(root)
+        overlap.BOARD_DIR = fake_board(root)
         overlap.ROOT = root
         target = root / "frontend/src/components/admin/salesStatus/X.tsx"
         assert overlap.overlaps(target, "abcd1234") == [], "자기 과업에 경고가 떴다"
         hits = overlap.overlaps(target, "ffffffff")
         assert hits and "admin-report-viewers" in hits[0], f"남의 글로브를 놓쳤다: {hits}"
         assert overlap.overlaps(root / "db/core.py", "ffffffff") == [], "무관 파일에 경고가 떴다"
-
-
-def test_worktree_name_matches_scope() -> None:
-    """worktree 이름 앞부분 = 내 workboard 범위 — 어긋나면 기대 이름, 보드 파일이 없으면 skip.
-
-    보드 등록이 worktree 보다 먼저지만, 순서를 바꾼 예외 상황에서 막으면 손쓸 방법이 없다.
-    """
-    import tempfile
-    naming = _load("check_worktree_name")
-    with tempfile.TemporaryDirectory() as tmp:
-        naming.BOARD_DIR = _fake_board(Path(tmp))
-        assert naming.scope_mismatch("admin-report-viewers--abcd1234", "abcd1234") is None
-        assert naming.scope_mismatch("report-viewers--abcd1234", "abcd1234") \
-            == "admin-report-viewers--abcd1234", "범위 불일치를 통과시켰다"
-        assert naming.scope_mismatch("anything--00000000", "00000000") is None, \
-            "보드 파일 없는 세션의 생성을 막았다"
-
-
-def test_worktree_add_only_at_command_head() -> None:
-    """인용문 안의 `git worktree add` 는 명령이 아니다.
-
-    문자열 전체를 훑던 판정이 커밋 메시지 heredoc 안의 산문을 명령으로 읽어 자기 커밋을 막았다.
-    `outbound_link` 가 앞 3토큰 제한으로 막는 것과 같은 부류다 — 명령인지 인자인지는 자리가 정한다.
-    """
-    naming = _load("check_worktree_name")
-    # 실제로 이 훅을 터뜨린 명령이다. heredoc 본문은 따옴표가 아니라 shlex 가 그대로 낱말로
-    # 쪼개므로 `git`·`worktree`·`add` 가 나란히 선다 — 인접성 검사로는 안 갈리고 자리로만 갈린다.
-    heredoc_prose = (
-        "git commit -q -F - <<'EOF'\n"
-        "feat(harness): 역이식\n\n"
-        "잔해 훅이 갓 판 worktree 를 뒤집었다. `git worktree add -b X origin/main`\n"
-        "이 시작점을 upstream 으로 자동 등록해서 remote 가 갓 판 브랜치에도 있다.\n"
-        "EOF"
-    )
-    real = [
-        ("git worktree add worktrees/feat-x--16aa3fa6 -b feat/x origin/main",
-         "feat-x--16aa3fa6"),
-        ("git worktree add -b feat/x worktrees/topic--abcd1234 origin/main",
-         "topic--abcd1234"),
-        ("cd /repo && git worktree add worktrees/z--abcd1234", "z--abcd1234"),
-    ]
-    prose = [
-        (heredoc_prose, "커밋 메시지 heredoc 안 산문 — 실제 사고 케이스"),
-        ('git commit -m "git worktree add -b X origin/main 설명"', "인용문 안"),
-        ("echo git worktree add foo > notes.txt", "echo 인자"),
-        ("git worktree list", "생성이 아닌 하위명령"),
-        ("git worktree remove worktrees/a", "제거"),
-    ]
-    for command, expected in real:
-        assert Path(naming.worktree_add_path(command) or "").name == expected, f"정상 생성을 못 읽었다: {command}"
-    for command, label in prose:
-        assert naming.worktree_add_path(command) is None, f"명령으로 오독: {label}"
 
 
 def test_auto_merge() -> None:
@@ -242,19 +108,6 @@ def test_auto_merge() -> None:
     assert gate.auto_merge("gh pr checks 12 ; gh pr merge 12 --auto --squash") is True
     assert gate.auto_merge("gh pr merge 12 --merge") is False, "일반 머지를 막았다"
     assert gate.auto_merge('git commit -m "gh pr merge --auto 설명"') is False, "산문을 명령으로 오독"
-
-
-def test_task_residue_fresh() -> None:
-    """방금 만든 산출물은 검출하지 않는다 — 보드 행 없는 계획 단계 세션을 유예가 덮는다."""
-    import time
-    residue = _load("check_task_residue")
-    fake = ROOT / "docs" / "BACKLOG.md"            # 실존 파일이면 무엇이든 mtime 조작 없이 fresh
-    assert residue._is_fresh(fake, time.time()) in (True, False)   # 판정이 죽지 않는다
-    assert residue._is_fresh(fake, fake.stat().st_mtime + 60) is True, "1분 전 파일을 잔해로 판정"
-    assert residue._is_fresh(fake, fake.stat().st_mtime + residue.FRESH_SEC + 1) is False, \
-        "하루 지난 파일을 fresh 로 판정"
-    assert residue._is_fresh(ROOT / "no-such-file.md", time.time()) is True, \
-        "stat 실패는 fresh(막지 않는다) 여야 한다"
 
 
 def test_ui_copy_extract() -> None:
@@ -308,28 +161,6 @@ def test_workflow_model_required() -> None:
     assert missing == [2] and unknown == [], "정의부에 model 없는 식별자 opts 는 위반이어야 한다"
 
 
-def test_task_residue_survives_kernel_failure() -> None:
-    """커널을 못 읽어도 잔존 검사는 돈다 — 예전엔 다른 훅의 최상위 `sys.exit(0)` 에 통째로 끝났다."""
-    import os
-    import tempfile
-    residue = _load("check_task_residue")
-    saved = sys.modules.get("kernel.workboard")
-    sys.modules["kernel.workboard"] = None         # 이 이름의 임포트가 ImportError 가 된다
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            plan = Path(tmp) / "plan_old.md"
-            plan.write_text("x", encoding="utf-8")
-            os.utime(plan, (0, 0))                 # 유예(24시간)를 넘긴 산출물
-            residue.TASK_DIR = Path(tmp)
-            assert residue.board_is_busy() is False, "커널 실패를 '보드 비었음'으로 보지 않았다"
-            assert residue.residue() == [plan], "커널 실패에 잔존 검사가 꺼졌다"
-    finally:
-        if saved is None:
-            sys.modules.pop("kernel.workboard", None)
-        else:
-            sys.modules["kernel.workboard"] = saved
-
-
 def test_record_never_raises() -> None:
     """관찰 기록은 커널이 없어도 예외를 안 낸다 — 기록 실패가 차단을 죽이면 안 된다."""
     hookio = _load("_hookio")
@@ -345,14 +176,9 @@ def test_record_never_raises() -> None:
 
 
 def demo() -> None:
-    for check in (test_fresh_worktree_not_dead, test_alive_no_nameerror,
-                  test_worktree_rel_strip, test_worktree_location, test_outbound_link,
-                  test_workboard_file_is_one_row, test_branch_comes_from_task_field,
-                  test_workboard_overlap, test_worktree_name_matches_scope,
-                  test_worktree_add_only_at_command_head,
-                  test_auto_merge, test_task_residue_fresh, test_ui_copy_extract,
-                  test_workflow_model_required, test_task_residue_survives_kernel_failure,
-                  test_record_never_raises):
+    for check in (test_outbound_link, test_workboard_file_is_one_row, test_branch_comes_from_task_field,
+                  test_workboard_overlap, test_auto_merge, test_ui_copy_extract,
+                  test_workflow_model_required, test_record_never_raises):
         check()
         print(f"  [OK] {check.__name__}")
     print("훅 행동 테스트 전건 통과")

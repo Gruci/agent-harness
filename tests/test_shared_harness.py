@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -50,6 +51,18 @@ class SharedHookTests(unittest.TestCase):
         feature_map.generate(self.root)
         subprocess.run(["git", "add", "-A"], cwd=self.root, check=True,
                        capture_output=True)
+        # The shared Stop gate now blocks a checkout without origin; a bare repo stands in.
+        origin = Path(self.temp.name) / "origin.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, capture_output=True)
+        subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=self.root, check=True,
+                       capture_output=True)
+
+    def shell_command(self, event: str) -> dict:
+        return json.loads((REPO / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"][event][0]["hooks"][0]
+
+    def bash_payload(self, command: str) -> dict[str, object]:
+        return {"cwd": str(self.root), "session_id": "abcdef1234", "tool_name": "Bash",
+                "tool_input": {"command": command}}
 
     def hook(self, event: str, payload: object, agent: str = "codex") -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -106,6 +119,59 @@ class SharedHookTests(unittest.TestCase):
         result = self.hook("Stop", {"cwd": str(self.root)})
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {})
+
+    def test_codex_stop_blocks_without_origin(self) -> None:
+        subprocess.run(["git", "remote", "remove", "origin"], cwd=self.root, check=True, capture_output=True)
+        result = self.hook("Stop", {"cwd": str(self.root), "session_id": "abcdef1234"})
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("[GIT REMOTE]", result.stderr)
+
+    def test_codex_stop_blocks_stale_task_artifact(self) -> None:
+        tasks = self.root / "docs" / "tasks"
+        tasks.mkdir(parents=True)
+        plan = tasks / "plan_x.md"
+        plan.write_text("# plan\n", encoding="utf-8")
+        os.utime(plan, (0, 0))
+        result = self.hook("Stop", {"cwd": str(self.root), "session_id": "abcdef1234"})
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("[TASK RESIDUE]", result.stderr)
+        self.assertIn("plan_x.md", result.stderr)
+
+    def test_codex_stop_mockup_residue_respects_wip_prefix(self) -> None:
+        mockup = self.root / "docs" / "tasks" / "mockup"
+        mockup.mkdir(parents=True)
+        (mockup / "a.html").write_text("<p>a</p>", encoding="utf-8")
+        blocked = self.hook("Stop", {"cwd": str(self.root), "session_id": "abcdef1234"})
+        self.assertEqual(blocked.returncode, 2, blocked.stderr)
+        self.assertIn("[MOCKUP RESIDUE]", blocked.stderr)
+        (mockup / "a.html").rename(mockup / "wip_a.html")
+        passed = self.hook("Stop", {"cwd": str(self.root), "session_id": "abcdef1234"})
+        self.assertEqual(passed.returncode, 0, passed.stderr)
+        self.assertEqual(json.loads(passed.stdout), {})
+
+    def test_codex_pretooluse_blocks_worktree_outside_contract(self) -> None:
+        cases = (
+            ("git worktree add .claude/worktrees/x--abcdef12", 2, "worktrees/x--abcdef12"),
+            ("git worktree add worktrees/x", 2, "x--abcdef12"),
+            ("git worktree add worktrees/x--abcdef12 -b feat/x", 0, ""),
+            ("ls worktrees", 0, ""),
+        )
+        for command, code, expected in cases:
+            with self.subTest(command=command):
+                result = self.hook("PreToolUse", self.bash_payload(command))
+                self.assertEqual(result.returncode, code, result.stderr)
+                if code == 0:
+                    self.assertEqual(json.loads(result.stdout), {})
+                else:
+                    self.assertIn("[WORKTREE NAME]", result.stderr)
+                    self.assertIn(expected, result.stderr)
+
+    def test_codex_pretooluse_without_session_warns(self) -> None:
+        payload = self.bash_payload("git worktree add worktrees/x")
+        payload.pop("session_id")
+        result = self.hook("PreToolUse", payload)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("세션 식별자", result.stderr)
 
     def test_approved_component_edit_refreshes_map_without_new_question(self) -> None:
         source = self.root / "approved-change.py"
@@ -240,8 +306,16 @@ class SharedHookTests(unittest.TestCase):
         self.assertEqual(stop.returncode, 2, stop.stderr)
         self.assertIn("검사 불능", stop.stderr)
 
+    def run_configured(self, event: str, cwd: Path, payload: object) -> subprocess.CompletedProcess:
+        entry = self.shell_command(event)
+        if sys.platform == "win32":
+            command = ["powershell", "-NoProfile", "-Command", entry["commandWindows"]]
+        else:
+            command = ["sh", "-c", entry["command"]]
+        return subprocess.run(command, cwd=cwd, input=json.dumps(payload), capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=30)
+
     def test_configured_shell_commands_from_nested_cwd(self) -> None:
-        config = json.loads((REPO / ".codex" / "hooks.json").read_text(encoding="utf-8"))
         nested = self.root / "nested"
         nested.mkdir()
         bad = self.write_code("nested/bad.py", "VALUE = 1\n")
@@ -251,17 +325,25 @@ class SharedHookTests(unittest.TestCase):
                 bad.write_text("def outer():\n    def hidden():\n        return 1\n", encoding="utf-8")
             for event in ("PostToolUse", "Stop"):
                 with self.subTest(event=event, broken=broken):
-                    entry = config["hooks"][event][0]["hooks"][0]
-                    if sys.platform == "win32":
-                        command = ["powershell", "-NoProfile", "-Command", entry["commandWindows"]]
-                    else:
-                        command = ["sh", "-c", entry["command"]]
-                    result = subprocess.run(command, cwd=nested, input=json.dumps(payload),
-                                            capture_output=True, text=True, encoding="utf-8",
-                                            errors="replace", timeout=30)
+                    result = self.run_configured(event, nested, payload)
                     self.assertEqual(result.returncode, 2 if broken else 0, result.stderr)
                     if not broken:
                         self.assertEqual(json.loads(result.stdout), {})
+
+    def test_configured_pretooluse_command_from_nested_cwd(self) -> None:
+        nested = self.root / "nested"
+        nested.mkdir()
+        for command, code in (("git worktree add .claude/worktrees/x--abcdef12", 2),
+                              ("git worktree add worktrees/x--abcdef12", 0)):
+            with self.subTest(command=command):
+                payload = self.bash_payload(command)
+                payload["cwd"] = str(nested)
+                result = self.run_configured("PreToolUse", nested, payload)
+                self.assertEqual(result.returncode, code, result.stderr)
+                if code == 0:
+                    self.assertEqual(json.loads(result.stdout), {})
+                else:
+                    self.assertIn("worktrees/x--abcdef12", result.stderr)
 
 
 if __name__ == "__main__":

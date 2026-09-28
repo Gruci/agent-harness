@@ -2,6 +2,11 @@
 
 PostToolUse reports violations after writes. Stop checks the full checkout,
 including untracked source files. Each runtime retains its own tool policy.
+
+Codex also routes PreToolUse(Bash) here for the worktree naming contract and runs the
+workspace Stop judgments (board, origin, worktree, mockup, task artifacts) from
+kernel.workspace. Claude keeps one wrapper per judgment in .claude/hooks, so the
+Codex-only branches below never change a Claude verdict.
 """
 
 from __future__ import annotations
@@ -191,6 +196,66 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str) -> int:
     return code
 
 
+def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> int:
+    """Codex PreToolUse(Bash): block a `git worktree add` outside the naming contract.
+
+    Same judgment and wording as the Claude hook; only `git worktree add` is in scope
+    because Codex has no EnterWorktree tool. Unknown session id degrades to a warning
+    (exit 1): a harness that cannot identify itself must not stop isolation.
+    """
+    from kernel import trace, workboard, worktree
+
+    tool_input = payload.get("tool_input")
+    command = tool_input.get("command") if isinstance(tool_input, dict) else None
+    token = worktree.worktree_add_path(command if isinstance(command, str) else "")
+    if not token:
+        return 0
+    sid8 = worktree.session_id8(payload)
+    if sid8 is None:
+        print("[WORKTREE NAME] 세션 식별자를 못 구했다 — 이름 검사를 건너뛴다. 훅을 점검하라.",
+              file=sys.stderr)
+        return 1
+    found = worktree.name_violation(token, sid8, workboard.board_dir())
+    if found is None:
+        return 0
+    trace.TRACE = root / "harness_trace.jsonl"
+    for msg in found.trace:
+        trace.record(found.hook, found.kind, sid=sid8, msg=msg)
+    print(found.message, file=sys.stderr)
+    return 2
+
+
+def workspace_verdict(findings: list[object]) -> tuple[int, str]:
+    """Fold workspace findings into a Codex Stop result: (exit code, systemMessage).
+
+    A blocking finding goes to stderr with exit 2 and drags the warnings along, since a
+    blocked turn continues and stderr is what the model reads. Warnings alone return
+    exit 0 with the text for `{"systemMessage": ...}`, the only warning channel Codex has.
+    """
+    blocking = [f for f in findings if getattr(f, "block", False)]
+    warnings = [f for f in findings if not getattr(f, "block", False)]
+    if blocking:
+        for finding in blocking + warnings:
+            print(finding.message, file=sys.stderr)
+        return 2, ""
+    return 0, "\n".join(finding.message for finding in warnings)
+
+
+def workspace_findings(root: Path, sid: str) -> list[object]:
+    """Run the shared Stop judgments and record each one; observation never blocks."""
+    from kernel import trace, workspace
+
+    findings = workspace.stop_findings(sid)
+    try:
+        trace.TRACE = root / "harness_trace.jsonl"
+        for finding in findings:
+            for msg in finding.trace:
+                trace.record(finding.hook, finding.kind, sid=sid, msg=msg)
+    except Exception:
+        pass
+    return list(findings)
+
+
 def refresh_projection(root: Path) -> None:
     """The hook processor regenerates maps; validation gates remain read-only."""
     from kernel import component_graph, feature_map, graph_workflow
@@ -208,7 +273,7 @@ def refresh_projection(root: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", choices=("claude", "codex"), required=True)
-    parser.add_argument("--event", choices=("PostToolUse", "Stop"), required=True)
+    parser.add_argument("--event", choices=("PreToolUse", "PostToolUse", "Stop"), required=True)
     args = parser.parse_args(argv)
     try:
         payload = read_payload()
@@ -219,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
         payload = {}
     cwd = Path(str(payload.get("cwd") or Path.cwd())).resolve()
     sid = str(payload.get("session_id") or "")
+    system_message = ""
     try:
         root = checkout_root(cwd)
         if root != Path(__file__).resolve().parents[1]:
@@ -235,9 +301,19 @@ def main(argv: list[str] | None = None) -> int:
                 raise RuntimeError("대상 체크아웃의 훅 검사 불능")
             return result.returncode
         sys.path.insert(0, str(root))  # Direct script launch starts with kernel/ on sys.path.
+        if args.event == "PreToolUse":
+            code = worktree_gate(root, payload, sid)
+            if code == 0 and args.agent == "codex":
+                print("{}")
+            return code
         paths = untracked_paths(root) if args.event == "Stop" else edited_paths(payload, cwd)
         refresh_projection(root)
         code = run_checks(root, paths, args.event, sid)
+        if args.event == "Stop" and args.agent == "codex":
+            verdict, system_message = workspace_verdict(workspace_findings(root, sid))
+            code = max(code, verdict)
+            if code and system_message:
+                print(system_message, file=sys.stderr)  # A blocked turn reads stderr, not JSON.
         if args.event == "PostToolUse":
             warned = board_overlaps(root, paths, sid)
             if warned:
@@ -252,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"검사 불능: {exc}", file=sys.stderr)
         return 2 if args.event == "Stop" else 1
     if code == 0 and args.agent == "codex":
-        print("{}")
+        print(json.dumps({"systemMessage": system_message}, ensure_ascii=False) if system_message else "{}")
     return code
 
 
