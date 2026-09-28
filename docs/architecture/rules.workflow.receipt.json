@@ -4,9 +4,9 @@
   "kind": "workflow",
   "source": "docs/architecture/rules.workflow.json",
   "output": "docs/architecture/rules.workflow.html",
-  "spec_sha256_lf": "49457b2118e2f5f4595d9b40a6f009f413ce43550959a4ec8b1975518c73cfb6",
-  "revision": "242f2762d3a50be0603c8f9e990857c8c2839400",
-  "delivered_at": "2026-09-28T09:32:36",
+  "spec_sha256_lf": "032d521ffebf51f2bc66064ef061945b0ab6ba19f4e00e2ab29f608f3302851c",
+  "revision": "e1bb9e83a14190f863df5e3bb9c4a143a8834ad7",
+  "delivered_at": "2026-09-28T09:54:36",
   "validation": {
     "checksPassed": 9,
     "checkCount": 9,
@@ -23,11 +23,11 @@
     "input": "D:\\0.Python\\web-harness\\docs\\architecture\\rules.workflow.json",
     "output": "D:\\0.Python\\web-harness\\docs\\architecture\\rules.workflow.html",
     "specification": {
-      "sha256": "6cf8cd8add2833a1bd09198e87de237e21961c67417528a9d101cc92a1fc659b",
+      "sha256": "e8deaab55407920ada1ff5c17ba36947438770a04b7da5b42ff7a069197f4f76",
       "bytes": 19907
     },
     "artifact": {
-      "sha256": "0fc9a356687c8c8d0cc74f70787ce5485ba0a04444b1111f7c50a01fd6e8a02e",
+      "sha256": "77e85383fc5734cd66d98b7ca0b9e57943fe3ce8d1f0d4df7acb3f5005b09735",
       "bytes": 855469
     },
     "validation": {
