@@ -48,6 +48,8 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - Existing approval of a concrete proposal remains valid; record it and continue without repeating the same approval request.
 - Runtime filesystem or sandbox approvals are separate from task approval. Request only access actually required by a failed operation; never weaken global permissions as an implementation shortcut.
 - At implementation start, check `workboard/` and create a task file named after the change scope, tagged `#sid:<session id first 8>`. If the scope already has a file, join it (add items) or stack on its branch instead of opening a duplicate.
+- Implement in your own worktree (`worktrees/<scope>--<sid8>`, protocol in `workboard/README.md`). The shared PreToolUse hook blocks edits in the main checkout and any edit before your `#sid` task file exists; the exemptions are `workboard/**`, `docs/tasks/**`, and edits that change at most one line.
+- Inside a worktree the save and stop gates only notify with a `[WIP]` message. Before `git push`, `gh pr create`, `gh pr merge`, or `git merge` the hook runs `python -X utf8 -m kernel.runner --verify` in that checkout and blocks unless it exits 0.
 - Preserve unrelated edits. Never commit, revert, clean, reset, or delete them.
 - Use task-suffixed document names when another session may be active: `docs/tasks/research_<task>.md` and `docs/tasks/plan_<task>.md`.
 - Archive both documents under `docs/tasks/archive/YYYY-MM-DD-<task>/` in the same turn implementation completes, then delete your task file from `workboard/`.

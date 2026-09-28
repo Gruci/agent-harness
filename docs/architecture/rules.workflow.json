@@ -6,7 +6,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "c37b7b600574f43de105341c3245551b56beb273"
+      "revision": "0000000000000000000000000000000000000000"
     },
     "views": [
       {
@@ -28,7 +28,7 @@
         "focus": [
           "pretooluse-context_diet",
           "pretooluse-bash_write",
-          "pretooluse-worktree_name",
+          "pretooluse-pretool",
           "pretooluse-workflow_script",
           "subagentstop-agent_return",
           "stop-git_remote",
@@ -247,16 +247,16 @@
       ]
     },
     {
-      "id": "pretooluse-worktree_name",
+      "id": "pretooluse-pretool",
       "lane": "pretooluse",
       "col": 3,
       "type": "security",
-      "label": "worktree_name",
-      "sublabel": "EnterWorktree|Bash|PowerShel",
+      "label": "pretool",
+      "sublabel": "Edit|Write|MultiEdit|Noteboo",
       "width": 140,
       "sources": [
         {
-          "path": ".claude/hooks/check_worktree_name.py",
+          "path": ".claude/hooks/check_pretool.py",
           "label": "훅"
         }
       ]
@@ -478,13 +478,13 @@
       "to": "pretooluse-workboard_overlap"
     },
     {
-      "id": "pretooluse-workboard_overlap--pretooluse-worktree_name",
+      "id": "pretooluse-workboard_overlap--pretooluse-pretool",
       "from": "pretooluse-workboard_overlap",
-      "to": "pretooluse-worktree_name"
+      "to": "pretooluse-pretool"
     },
     {
-      "id": "pretooluse-worktree_name--pretooluse-workflow_script",
-      "from": "pretooluse-worktree_name",
+      "id": "pretooluse-pretool--pretooluse-workflow_script",
+      "from": "pretooluse-pretool",
       "to": "pretooluse-workflow_script"
     },
     {
@@ -571,7 +571,7 @@
         "context_diet: PreToolUse(Read) hook — 대용량 파일 통읽기 기계 차단 (컨텍스트 가드 ①).",
         "bash_write: PreToolUse(Bash|PowerShell) 훅 — 셸 명령이 깨면 안 되는 계약 4종을 사전 차단.",
         "workboard_overlap: PreToolUse(Edit|Write) hook — 남이 잡은 곳을 건드리면 알린다.",
-        "worktree_name: PreToolUse(EnterWorktree|Bash|PowerShell) 훅 — 새 worktree 의 이름·자리 규약을 강제.",
+        "pretool: Claude PreToolUse adapter — 편집 가드·worktree 이름·나올 때 검사를 kernel.hook 에 위임한다.",
         "workflow_script: PreToolUse(Workflow) 훅 — 워크플로우 스크립트의 `agent()` 에 model 미지정을 차단."
       ]
     },

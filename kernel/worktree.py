@@ -1,7 +1,7 @@
 """kernel/worktree.py — worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정.
 
-Claude 훅(`.claude/hooks/check_worktree_name.py`·`check_worktree_residue.py`)과 Codex 진입점
-(`kernel/hook.py`)이 같은 판정을 쓴다. 페이로드 파싱·exit·출력 JSON 은 어댑터 몫이고 여기는
+Claude 훅(`.claude/hooks/check_pretool.py`·`check_worktree_residue.py`)과 Codex 진입점
+(`kernel/hook.py` → `kernel/pretool.py`)이 같은 판정을 쓴다. 페이로드 파싱·exit·출력 JSON 은 어댑터 몫이고 여기는
 판정과 문구만 둔다 — 결과는 `kernel.workspace.Finding` 한 가지 모양이다.
 
 ## 이름·자리 규약 — 왜 생성 시점에 막나
@@ -80,7 +80,7 @@ WORKTREE_ADD = re.compile(r"\bgit\b.*\bworktree\s+add\b")
 SEPARATORS = (";", "|", "||", "&&", "&")
 _LOCK_PID = re.compile(r"\(pid (\d+)\)")
 
-HOOK_NAME = "check_worktree_name"
+HOOK_NAME = "check_pretool"
 HOOK_RESIDUE = "check_worktree_residue"
 
 

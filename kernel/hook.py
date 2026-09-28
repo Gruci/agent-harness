@@ -3,10 +3,13 @@
 PostToolUse reports violations after writes. Stop checks the full checkout,
 including untracked source files. Each runtime retains its own tool policy.
 
-Codex also routes PreToolUse(Bash) here for the worktree naming contract and runs the
-workspace Stop judgments (board, origin, worktree, mockup, task artifacts) from
-kernel.workspace. Claude keeps one wrapper per judgment in .claude/hooks, so the
-Codex-only branches below never change a Claude verdict.
+PreToolUse is shared by both runtimes and dispatched in kernel/pretool.py (isolation guard,
+worktree naming, exit gate). Inside a linked worktree the save and stop gates still run
+but only notify (`[WIP]`); blocking resumes at the exit gate before push/PR/merge.
+
+Codex also runs the workspace Stop judgments (board, origin, worktree, mockup, task
+artifacts) from kernel.workspace. Claude keeps one wrapper per judgment in .claude/hooks,
+so the Codex-only branches below never change a Claude verdict.
 """
 
 from __future__ import annotations
@@ -14,10 +17,15 @@ from __future__ import annotations
 import argparse
 import codecs
 import fnmatch
+import io
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import TextIO
+
+WIP_HEAD = ("[WIP] 합칠 때 막힐 항목 — worktree 안에서는 막지 않는다. "
+            "push·PR 전 `python -X utf8 -m kernel.runner --verify` 가 exit 0 이어야 나간다.")
 
 def checkable(path: Path) -> bool:
     """Use the same configured source patterns as full and save checks."""
@@ -149,15 +157,20 @@ def board_overlaps(root: Path, paths: list[Path], sid: str) -> list[str]:
         return []
 
 
-def run_checks(root: Path, paths: list[Path], event: str, sid: str) -> int:
-    """Run file checks plus the Stop full gate, preserving failure severity."""
+def run_checks(root: Path, paths: list[Path], event: str, sid: str, out: TextIO | None = None) -> int:
+    """Run file checks plus the Stop full gate, preserving failure severity.
+
+    `out` receives every message (stderr by default); a worktree caller passes a buffer so
+    the same verdict can be re-emitted as a `[WIP]` notice instead of a block.
+    """
+    out = sys.stderr if out is None else out
     jobs: list[list[str]] = []
     code = 0
     decision_messages: list[str] = []
     for path in paths:
         legacy = check_file(root, path)
         if legacy:
-            print(legacy, file=sys.stderr)
+            print(legacy, file=out)
             record_result(root, event, sid, legacy)
             code = 2
         elif path.is_file() and checkable(path):
@@ -173,7 +186,7 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str) -> int:
             )
         except (subprocess.TimeoutExpired, OSError) as exc:
             message = f"검사 불능: {type(exc).__name__}"
-            print(message, file=sys.stderr)
+            print(message, file=out)
             record_result(root, event, sid, "", message)
             code = max(code, 2 if event == "Stop" else 1)
             continue
@@ -186,45 +199,31 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str) -> int:
             continue
         failure = "[FAIL]" in result.stdout
         message = "게이트 위반 — 수정 후 재검증하라." if failure else "검사 불능 — 검사기 자체를 점검하라."
-        print(message, file=sys.stderr)
-        print(result.stdout + result.stderr, file=sys.stderr)
+        print(message, file=out)
+        print(result.stdout + result.stderr, file=out)
         record_result(root, event, sid, result.stdout, "" if failure else message)
         code = max(code, 2 if failure or event == "Stop" else 1)
     from kernel import graph_notifications
     for notice in graph_notifications.report(root, decision_messages, sid):
-        print("[DECISION] " + json.dumps(notice, ensure_ascii=False), file=sys.stderr)
+        print("[DECISION] " + json.dumps(notice, ensure_ascii=False), file=out)
     return code
 
 
-def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> int:
-    """Codex PreToolUse(Bash): block a `git worktree add` outside the naming contract.
+def wip_checks(root: Path, paths: list[Path], event: str, sid: str, agent: str) -> tuple[int, str]:
+    """Inside a worktree the gates judge but do not block: (exit, Codex systemMessage).
 
-    Same judgment and wording as the Claude hook; only `git worktree add` is in scope
-    because Codex has no EnterWorktree tool. Unknown session id degrades to a warning
-    (exit 1): a harness that cannot identify itself must not stop isolation.
+    Claude reads exit 1 + stderr as a user-facing notice; Codex has only the systemMessage
+    channel for a non-blocking message. Trace records still land, so the retro sees them.
     """
-    from kernel import trace, workboard, worktree
-
-    tool_input = payload.get("tool_input")
-    command = tool_input.get("command") if isinstance(tool_input, dict) else None
-    token = worktree.worktree_add_path(command if isinstance(command, str) else "")
-    if not token:
-        return 0
-    sid8 = worktree.session_id8(payload)
-    if sid8 is None:
-        print("[WORKTREE NAME] 세션 식별자를 못 구했다 — 이름 검사를 건너뛴다. 훅을 점검하라.",
-              file=sys.stderr)
-        return 1
-    cwd = payload.get("cwd")
-    found = worktree.name_violation(token, sid8, workboard.board_dir(),
-                                    Path(cwd) if isinstance(cwd, str) and cwd else None)
-    if found is None:
-        return 0
-    trace.TRACE = root / "harness_trace.jsonl"
-    for msg in found.trace:
-        trace.record(found.hook, found.kind, sid=sid8, msg=msg)
-    print(found.message, file=sys.stderr)
-    return 2
+    buffer = io.StringIO()
+    code = run_checks(root, paths, event, sid, buffer)
+    if code == 0:
+        return 0, ""
+    text = WIP_HEAD + "\n" + buffer.getvalue().rstrip()
+    if agent == "claude":
+        print(text, file=sys.stderr)
+        return 1, ""
+    return 0, text
 
 
 def workspace_verdict(findings: list[object]) -> tuple[int, str]:
@@ -291,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
         root = checkout_root(cwd)
         if root != Path(__file__).resolve().parents[1]:
             # Inserting sys.path cannot rebind an already imported kernel package.
+            if not (root / "kernel" / "hook.py").is_file():
+                raise RuntimeError("대상 체크아웃에 kernel/hook.py 가 없다")
             result = subprocess.run(
                 [sys.executable, "-X", "utf8", "-m", "kernel.hook",
                  "--agent", args.agent, "--event", args.event], cwd=root,
@@ -299,23 +300,27 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
-            if result.returncode not in (0, 2):
+            if result.returncode not in (0, 1, 2):
                 raise RuntimeError("대상 체크아웃의 훅 검사 불능")
-            return result.returncode
+            return result.returncode          # 1 is a notice ([WIP], overlap) — pass it through
         sys.path.insert(0, str(root))  # Direct script launch starts with kernel/ on sys.path.
         if args.event == "PreToolUse":
-            code = worktree_gate(root, payload, sid)
+            from kernel import pretool
+            code, system_message = pretool.pretool_gate(root, payload, sid, args.agent)
             if code == 0 and args.agent == "codex":
-                print("{}")
+                print(json.dumps({"systemMessage": system_message}, ensure_ascii=False) if system_message else "{}")
             return code
         paths = untracked_paths(root) if args.event == "Stop" else edited_paths(payload, cwd)
         refresh_projection(root)
-        code = run_checks(root, paths, args.event, sid)
+        from kernel import isolation
+        if isolation.in_worktree(root) or (paths and all(isolation.in_worktree(p) for p in paths)):
+            code, system_message = wip_checks(root, paths, args.event, sid, args.agent)
+        else:
+            code = run_checks(root, paths, args.event, sid)
         if args.event == "Stop" and args.agent == "codex":
-            verdict, system_message = workspace_verdict(workspace_findings(root, sid))
+            verdict, stop_message = workspace_verdict(workspace_findings(root, sid))
             code = max(code, verdict)
-            if code and system_message:
-                print(system_message, file=sys.stderr)  # A blocked turn reads stderr, not JSON.
+            system_message = "\n".join(part for part in (system_message, stop_message) if part)
         if args.event == "PostToolUse":
             warned = board_overlaps(root, paths, sid)
             if warned:
@@ -325,6 +330,8 @@ def main(argv: list[str] | None = None) -> int:
                 for line in warned:
                     print(f"  {line}", file=sys.stderr)
                 code = max(code, 1)
+        if code and system_message:
+            print(system_message, file=sys.stderr)  # A blocked turn reads stderr, not JSON.
     except Exception as exc:
         # A broken executable profile is an infrastructure error, not a violation.
         print(f"검사 불능: {exc}", file=sys.stderr)

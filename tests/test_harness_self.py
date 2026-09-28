@@ -41,7 +41,7 @@ HOOKS = REPO / ".claude" / "hooks"
 TEXT_SUFFIXES = (".py", ".md", ".ts", ".tsx", ".txt", ".json", ".gitignore", ".toml", ".cfg")
 
 # 페이로드로 판정하는 훅만. Stop 훅 중 전량 검사를 도는 것은 페이로드와 무관해 뺀다.
-PAYLOAD_HOOKS = ("check_file_rules", "check_bash_write", "check_worktree_name",
+PAYLOAD_HOOKS = ("check_file_rules", "check_bash_write", "check_pretool",
                  "check_workflow_script", "check_context_diet", "check_agent_return",
                  "check_context_growth", "check_editing_lock")
 

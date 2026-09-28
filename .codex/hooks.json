@@ -3,14 +3,14 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
             "commandWindows": "python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
-            "timeout": 30,
-            "statusMessage": "Checking worktree naming"
+            "timeout": 180,
+            "statusMessage": "Isolation gate (edit guard, worktree naming, exit verify)"
           }
         ]
       }

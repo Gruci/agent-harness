@@ -117,13 +117,13 @@
         ]
       },
       {
-        "matcher": "EnterWorktree|Bash|PowerShell",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|EnterWorktree|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_worktree_name.py\"",
-            "timeout": 15,
-            "statusMessage": "Worktree name gate"
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_pretool.py\"",
+            "timeout": 180,
+            "statusMessage": "Isolation gate (edit guard · worktree name · exit verify)"
           }
         ]
       },

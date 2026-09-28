@@ -74,7 +74,7 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 - **plan 승인 전 구현 절대 금지.** 구체적인 제안과 범위를 이미 승인받았다면 그 근거를 plan에 기록하고 진행한다.
 - 같은 범위의 승인을 반복해서 요구하지 않는다.
 - 구현 완료 즉시 같은 턴에 `docs/tasks/archive/YYYY-MM-DD-{작업명}/`으로 `git mv`한다. "나중에 정리"는 오지 않는다.
-- **"깃에 올려라"** = `git push origin HEAD` 한 번에 실행. 중간 확인 없음. 단 exit 0과 출력을 확인하기 전에 "올렸다"고 선언하지 않는다. 원격에 PR·CI가 있는 프로젝트는 `workboard/README.md` 「완료」의 push→PR→CI→merge 분기를 따른다.
+- **"깃에 올려라"** = `git push origin HEAD` 한 번에 실행. 중간 확인 없음. 단 exit 0과 출력을 확인하기 전에 "올렸다"고 선언하지 않는다. 훅 ⑧-7이 push 직전 `--verify`를 먼저 돌린다 — 실패면 push가 나가지 않으니 그 출력을 고치고 다시 올린다. 원격에 PR·CI가 있는 프로젝트는 `workboard/README.md` 「완료」의 push→PR→CI→merge 분기를 따른다.
 
 **🚫 허락 구하기 금지** — 사용자에게 질문하는 지점은 **딱 두 곳**이다. 0단계 범위 인터뷰와 plan 승인 대기. 컴포넌트 분류 제안은 plan 의 「분류 제안」 행에 실어 plan 승인 때 함께 받는다. plan 밖에서 `[DECISION]` 이 나오면 그 변경만 보류하고 사용자에게 알린 뒤 독립 작업을 계속한다(정본: `dev/workflows/feature-workflow.md`). 그 외 전 구간은 자율 진행 후 결과만 보고한다. "이렇게 해도 될까요"류의 중간 확인은 금지다.
 
@@ -95,7 +95,7 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 6. **DB 변경 전 `dev/DATA_MODEL.md` 먼저** — 불변 속성은 차원 한 곳에 두고 팩트는 denormalize하지 말고 JOIN한다. §9
 7. **디버깅은 단일 가설과 최소 변경, 3회 실패 시 STOP** — 증거와 함께 사용자에게 보고한다. §10
 8. **research·plan 생략 금지** — 예외 기준은 「4단계」 첫 줄 하나다. "간단해 보인다"는 생략 근거가 아니다. §4 §0
-9. **병렬 체제에서 구현·커밋은 자기 worktree에서만** — 첫 편집 전에 브랜치와 경로를 확인하고, 아니면 멈춘다. 프로토콜 정본은 `workboard/README.md`다.
+9. **구현·커밋은 자기 worktree에서만** — 세션 수와 무관하다. 메인 체크아웃 편집과 보드 미등록 편집은 훅 ⑧-6이 막는다(예외: `workboard/`·`docs/tasks/`·바뀐 줄 1줄 이하). worktree 안에서는 게이트가 `[WIP]`로 알리기만 하고, push·PR 직전 ⑧-7이 그 체크아웃의 `--verify` exit 0을 요구한다. 프로토콜 정본은 `workboard/README.md`다. §25
 
 ---
 
@@ -113,14 +113,14 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 
 ## 코딩·편집 원칙
 
-**편집 잠금** — 3단계 시작 시 `workboard/`를 확인하고 자기 과업 파일을 등록한다(파일명 = 수정 범위, git 비추적). 같은 범위가 이미 있으면 새로 파지 말고 합류하거나 쌓는다. 서식과 `#sid`와 착수 라우팅·병렬 프로토콜의 정본은 `workboard/README.md`다.
+**편집 잠금** — 3단계 시작 시 `workboard/`를 확인하고 자기 과업 파일을 등록한 뒤 worktree를 판다(파일명 = 수정 범위, git 비추적). 등록 전에는 예외 경로 밖 편집이 막힌다. 같은 범위가 이미 있으면 새로 파지 말고 합류하거나 쌓는다. 서식과 `#sid`와 착수 라우팅·병렬 프로토콜의 정본은 `workboard/README.md`다.
 
 **리서치(1단계)** — 파일명과 시그니처만 훑지 않는다. 내부 로직과 데이터 흐름과 모듈 의존성까지 본다. 소스 수정은 절대 금지다.
 
 **계획(2단계) 필수 항목의 정본은 [공통 기능 변경 절차](dev/workflows/feature-workflow.md)다.** 접근 방식과 실제 코드 스니펫과 정확한 파일 경로 위에 파일 설계표와 반응형 설계표와 행동 검증 테스트와 병렬 후보와 아키텍처 델타가 전부 있어야 plan이다. 없으면 구현 중에 게이트를 만난다 — 계획하지 않은 것을 구현하다 만나는 게이트는 마찰이지 방어가 아니다.
 **No Placeholders** — "TBD"나 "나중에 구현"이나 "위와 유사하게"나 정의되지 않은 참조가 있으면 plan 실패다.
 
-**구현(3단계)** — plan Todo를 순서대로 실행하고 완료마다 체크한다. 모든 Todo가 끝날 때까지 멈추지 않는다. 타입체크와 테스트를 지속적으로 돌린다. 완료 근거는 `python -X utf8 -m kernel.runner --verify` exit 0 뿐이다 — `[TOOL]` 과 결정 대기(exit 3)는 완료가 아니다.
+**구현(3단계)** — plan Todo를 순서대로 실행하고 완료마다 체크한다. 모든 Todo가 끝날 때까지 멈추지 않는다. 타입체크와 테스트를 지속적으로 돌린다. 완료 근거는 `python -X utf8 -m kernel.runner --verify` exit 0 뿐이다 — `[TOOL]` 과 결정 대기(exit 3)는 완료가 아니다. push·PR·merge 직전에 훅 ⑧-7이 같은 검사를 그 체크아웃에서 다시 돌리므로 worktree 안의 `[WIP]` 알림은 합치기 전에 비운다.
 
 **단순성 우선** — Code Ladder와 근본 원인 수정과 비타협 안전의 전문은 `.claude/hooks/code-master.md`가 SessionStart에 주입한다. 요청 범위를 넘는 기능과 단일 사용 추상화와 불가능한 시나리오의 에러 핸들링은 만들지 않는다. `debt:` 부채는 월 1회 `/code-debt`로 수확한다.
 

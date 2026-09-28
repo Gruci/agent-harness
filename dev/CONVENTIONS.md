@@ -76,7 +76,9 @@
 
 | 모듈 | 제공 | 소비 도메인 |
 |------|------|------------|
-| `kernel/hook.py` | 런타임 입력 정규화와 저장·종료 검사, Codex 의 worktree 게이트와 작업공간 Stop 묶음 | 양쪽 훅은 검사 실행을 재구현하지 않는다 |
+| `kernel/hook.py` | 런타임 입력 정규화와 저장·종료 검사, worktree 안 `[WIP]` 강등, Codex 작업공간 Stop 묶음 | 양쪽 훅은 검사 실행을 재구현하지 않는다 |
+| `kernel/pretool.py` | PreToolUse 분기 — 판정을 exit 코드와 런타임 채널로 옮긴다 | Claude 래퍼 `check_pretool.py` 와 Codex 진입점이 같이 쓴다 |
+| `kernel/isolation.py` | 편집 전 격리 가드(메인 체크아웃·보드 등록·1줄 예외)와 합치기 전 `--verify` 검사 | 〃 — 예외 경로와 합치는 명령 목록의 정본이다 |
 | `kernel/worktree.py` | worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정 | Claude 래퍼와 Codex 진입점이 같은 판정을 쓴다. 문구도 여기가 정본이다 |
 | `kernel/workspace.py` | `Finding` 과 종료 시점 작업공간 판정(보드·git 원격·목업·과업 산출물) | 〃 — 새 Stop 판정은 `Finding` 을 돌려주고 채널은 어댑터가 맡는다 |
 | `kernel/harness_setup.py` | 공용 하네스의 파일·스킬·훅 연결 진단 | 설치와 업그레이드 후 같은 진단을 사용한다 |

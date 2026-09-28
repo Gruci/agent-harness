@@ -17,7 +17,13 @@ REPO = Path(__file__).resolve().parents[1]
 PROFILE = "PROFILE_SCHEMA = 1\nARCH = 'headless'\nLANG = 'python'\nLINTERS = ()\nCHECK_PATHS = {}\n"
 
 
-class SharedHookTests(unittest.TestCase):
+class SharedHookFixture(unittest.TestCase):
+    """A real temporary checkout with an approved graph, a bare origin, and hook helpers.
+
+    Test modules subclass this; it declares no tests itself. `tests/test_isolation_hooks.py`
+    reuses it for the PreToolUse guard and the worktree notice path.
+    """
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -79,6 +85,32 @@ class SharedHookTests(unittest.TestCase):
         feature_map.generate(self.root)
         return path
 
+    def run_configured(self, event: str, cwd: Path, payload: object) -> subprocess.CompletedProcess:
+        entry = self.shell_command(event)
+        if sys.platform == "win32":
+            command = ["powershell", "-NoProfile", "-Command", entry["commandWindows"]]
+        else:
+            command = ["sh", "-c", entry["command"]]
+        return subprocess.run(command, cwd=cwd, input=json.dumps(payload), capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=30)
+
+    def linked_worktree(self) -> Path:
+        subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test",
+                        "commit", "-qm", "fixture"], cwd=self.root, check=True)
+        work = Path(self.temp.name) / "external worktree"
+        subprocess.run(["git", "worktree", "add", "--detach", str(work)],
+                       cwd=self.root, check=True, capture_output=True)
+        return work
+
+    def register_task(self, sid8: str = "abcdef12") -> None:
+        board = self.root / "workboard"
+        board.mkdir(exist_ok=True)
+        (board / "kernel-fixture.md").write_text(
+            f"- 범위: kernel-fixture\n- 과업: feat/fixture #sid:{sid8}\n- 손대는 곳:\n  - kernel/*\n- 상태: 진행\n",
+            encoding="utf-8")
+
+
+class SharedHookTests(SharedHookFixture):
     def test_patch_checks_every_file_including_untracked(self) -> None:
         self.write_code("good.py", "VALUE = 1\n")
         bad = self.write_code("한글 bad.py", "def outer():\n    def hidden():\n        return 1\n    return hidden()\n")
@@ -223,23 +255,24 @@ class SharedHookTests(unittest.TestCase):
         self.assertIn("[DECISION]", result.stderr)
         self.assertIn("closures", result.stderr)
 
-    def test_external_worktree_uses_its_profile(self) -> None:
-        subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test",
-                        "commit", "-qm", "fixture"], cwd=self.root, check=True)
-        work = Path(self.temp.name) / "external worktree"
-        subprocess.run(["git", "worktree", "add", "--detach", str(work)],
-                       cwd=self.root, check=True, capture_output=True)
+    def test_external_worktree_uses_its_profile_and_only_notifies(self) -> None:
+        work = self.linked_worktree()
         (work / "harness_profile.py").write_text(
             PROFILE + "LEGACY_PATHS = (('/retired/', '.py'),)\n", encoding="utf-8")
         retired = work / "retired"
         retired.mkdir()
         (retired / "old.py").write_text("VALUE = 1\n", encoding="utf-8")
-        result = self.hook("PostToolUse", {
-            "cwd": str(work), "tool_input": {"file_path": "retired/old.py"}})
-        self.assertEqual(result.returncode, 2, result.stderr)
+        payload = {"cwd": str(work), "tool_input": {"file_path": "retired/old.py"}}
+        result = self.hook("PostToolUse", payload, "claude")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("[WIP]", result.stderr)
         self.assertIn("레거시", result.stderr)
         self.assertTrue((work / "harness_trace.jsonl").exists())
         self.assertFalse((self.root / "harness_trace.jsonl").exists())
+        codex = self.hook("PostToolUse", payload)
+        self.assertEqual(codex.returncode, 0, codex.stderr)
+        message = json.loads(codex.stdout)["systemMessage"]
+        self.assertTrue(message.startswith("[WIP]") and "레거시" in message, message)
 
     def test_outside_checkout_is_rejected(self) -> None:
         outside = Path(self.temp.name) / "outside.py"
@@ -305,15 +338,6 @@ class SharedHookTests(unittest.TestCase):
         self.assertEqual(write.returncode, 1, write.stderr)
         self.assertEqual(stop.returncode, 2, stop.stderr)
         self.assertIn("검사 불능", stop.stderr)
-
-    def run_configured(self, event: str, cwd: Path, payload: object) -> subprocess.CompletedProcess:
-        entry = self.shell_command(event)
-        if sys.platform == "win32":
-            command = ["powershell", "-NoProfile", "-Command", entry["commandWindows"]]
-        else:
-            command = ["sh", "-c", entry["command"]]
-        return subprocess.run(command, cwd=cwd, input=json.dumps(payload), capture_output=True,
-                              text=True, encoding="utf-8", errors="replace", timeout=30)
 
     def test_configured_shell_commands_from_nested_cwd(self) -> None:
         nested = self.root / "nested"

@@ -10,6 +10,11 @@ from pathlib import Path
 ADAPTERS = ("feature-workflow", "full-feature", "impeccable", "code-audit", "code-debt",
             "code-trim", "md-audit", "review-loop", "test")
 WORKFLOW_REF = re.compile(r"dev/workflows/[A-Za-z0-9_-]+\.md")
+# (event, Claude wrapper stem, tools that must reach the shared entry point). Codex adds apply_patch
+# to the tool-scoped events. PreToolUse carries the isolation guard and the exit gate for both.
+REQUIRED_HOOKS = (("PostToolUse", "check_file_rules", ("Edit", "Write", "MultiEdit")),
+                  ("Stop", "check_coding_rules", ("",)),
+                  ("PreToolUse", "check_pretool", ("Edit", "Write", "Bash")))
 
 
 def _read(root: Path, rel: str, problems: list[str]) -> str:
@@ -87,15 +92,8 @@ def _check_hooks(root: Path, agent: str, problems: list[str]) -> None:
         return
     if config.get("disableAllHooks"):
         problems.append(f"{rel}: disableAllHooks disables the required checks")
-    required = [("PostToolUse", "check_file_rules"), ("Stop", "check_coding_rules")]
-    if agent == "codex":
-        # Claude runs the worktree naming gate through its own .claude/hooks wrapper.
-        required.append(("PreToolUse", ""))
-    for event, filename in required:
-        tools = ("Edit", "Write", "MultiEdit") if event == "PostToolUse" else ("",)
-        if event == "PreToolUse":
-            tools = ("Bash",)
-        if agent == "codex" and event == "PostToolUse":
+    for event, filename, tools in REQUIRED_HOOKS:
+        if agent == "codex" and event != "Stop":
             tools += ("apply_patch",)
         wrapper = f".claude/hooks/{filename}.py"
         if agent == "claude":

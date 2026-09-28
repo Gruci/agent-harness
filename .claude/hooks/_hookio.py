@@ -1,7 +1,7 @@
 """훅 stdin 리더와 git 조회 — EOF에 의존하지 않는다.
 
-git 헬퍼가 여기 있는 이유는 두 Stop 훅이 같은 조회를 하기 때문이다. 훅마다 따로 두면
-기본 브랜치 감지 같은 판정이 두 벌이 되고, 한쪽만 고치는 순간 두 훅의 판정이 갈린다.
+git 헬퍼가 여기 있는 이유는 커널 없이도 살아야 하는 훅(`check_ui_copy`·`git_staleness`)이
+기본 브랜치를 같은 판정으로 감지하기 위해서다. 커널 쪽 한 벌은 `kernel/context.py` 다.
 
 
 json.load(sys.stdin)은 stdin을 EOF까지 읽는다: CC가 페이로드를 준 뒤 파이프를 닫아준다는

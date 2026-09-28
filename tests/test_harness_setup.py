@@ -41,18 +41,19 @@ class HarnessSetupTests(TemporaryRootTestCase):
             self.write(f".claude/skills/{name}/SKILL.md", reference)
         claude = {}
         codex = {}
-        for event, filename in (("PostToolUse", "check_file_rules"),
-                                ("Stop", "check_coding_rules")):
+        matchers = {"PostToolUse": "Edit|Write|MultiEdit", "Stop": "",
+                    "PreToolUse": "Edit|Write|MultiEdit|NotebookEdit|EnterWorktree|Bash|PowerShell"}
+        for event, filename in (("PostToolUse", "check_file_rules"), ("Stop", "check_coding_rules"),
+                                ("PreToolUse", "check_pretool")):
             self.write(f".claude/hooks/{filename}.py", "from kernel.hook import main\n")
-            claude[event] = [{"matcher": "Edit|Write|MultiEdit" if event == "PostToolUse" else "",
+            claude[event] = [{"matcher": matchers[event],
                               "hooks": [{"type": "command", "command":
                                          f'python "$(git rev-parse --show-toplevel)/.claude/hooks/{filename}.py"'}]}]
             command = f'python "$(git rev-parse --show-toplevel)/kernel/hook.py" --agent codex --event {event}'
-            codex[event] = [{"hooks": [{"type": "command", "command": command,
-                                       "commandWindows": command}]}]
-        pre = 'python "$(git rev-parse --show-toplevel)/kernel/hook.py" --agent codex --event PreToolUse'
-        codex["PreToolUse"] = [{"matcher": "Bash", "hooks": [{"type": "command", "command": pre,
-                                                              "commandWindows": pre}]}]
+            codex_matcher = {"PostToolUse": "Edit|Write|MultiEdit|apply_patch", "Stop": "",
+                             "PreToolUse": "Bash|apply_patch|Edit|Write"}[event]
+            codex[event] = [{"matcher": codex_matcher, "hooks": [{"type": "command", "command": command,
+                                                                  "commandWindows": command}]}]
         self.write(".claude/settings.json", json.dumps({"hooks": claude, "custom": "keep"}))
         self.write(".codex/hooks.json", json.dumps({"hooks": codex, "custom": "keep"}))
 
@@ -97,6 +98,27 @@ class HarnessSetupTests(TemporaryRootTestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("PreToolUse Bash", output)
         self.assertNotIn(".claude/settings.json: PreToolUse", output)
+
+    def test_claude_pretooluse_wiring_required(self) -> None:
+        self.complete_install()
+        path = self.root / ".claude/settings.json"
+        config = json.loads(path.read_text())
+        del config["hooks"]["PreToolUse"]
+        self.write(".claude/settings.json", json.dumps(config))
+        code, output = self.diagnose()
+        self.assertNotEqual(code, 0)
+        self.assertIn(".claude/settings.json: PreToolUse Edit", output)
+        self.assertNotIn(".codex/hooks.json: PreToolUse", output)
+
+    def test_codex_pretooluse_edit_wiring_required(self) -> None:
+        self.complete_install()
+        path = self.root / ".codex/hooks.json"
+        self.write(".codex/hooks.json", path.read_text().replace("Bash|apply_patch|Edit|Write", "Bash"))
+        code, output = self.diagnose()
+        self.assertNotEqual(code, 0)
+        self.assertIn(".codex/hooks.json: PreToolUse apply_patch", output)
+        self.assertIn(".codex/hooks.json: PreToolUse Edit", output)
+        self.assertNotIn(".codex/hooks.json: PreToolUse Bash", output)
 
     def test_missing_graph_contract_or_processor_fails(self) -> None:
         self.complete_install()

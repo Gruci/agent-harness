@@ -15,8 +15,8 @@ Impeccable은 수정하지 않는 벤더 자산 한 벌을 두 어댑터가 함�
 |---|---|
 | 검사 판정 | `kernel/runner.py`가 양쪽에 같은 결과를 낸다 |
 | 저장·종료 실행 | `kernel/hook.py`가 입력과 오류 등급을 공통 처리한다 |
-| Claude 연결 | 기존 저장·종료 Python 훅이 공통 진입점을 호출한다 |
-| Codex 연결 | `.codex/hooks.json`이 Bash 실행 전과 patch 후와 Stop에 공통 진입점을 호출한다 |
+| Claude 연결 | 저장·종료 Python 훅과 PreToolUse 래퍼(`check_pretool.py`)가 공통 진입점을 호출한다 |
+| Codex 연결 | `.codex/hooks.json`이 Bash·apply_patch·Edit·Write 실행 전과 patch 후와 Stop에 공통 진입점을 호출한다 |
 | 설치 진단 | `python -X utf8 harness_install.py --check-agents`로 누락과 배선 불일치를 검사한다 |
 
 Codex에서는 프로젝트와 새 훅 정의를 런타임에서 신뢰해야 실행된다.
@@ -46,15 +46,16 @@ Codex patch의 모든 추가·수정·이동 대상은 payload의 작업 디렉�
 종료 시에는 git 추적 파일과 아직 추가하지 않은 소스를 함께 검사한다.
 사용자 결정 대기는 완료가 아니며 Stop은 질문 후 정상적으로 턴을 끝낼 수 있다.
 다른 worktree를 검사할 때는 그 체크아웃의 프로파일과 커널을 사용한다.
+링크드 worktree 안에서는 저장·종료 검사가 판정만 하고 막지 않는다 — `[WIP]` 머리로 합칠 때 막힐 목록을 알린다(Claude exit 1, Codex systemMessage). 차단은 나올 때 검사(⑧-7)가 push·PR·merge 직전에 돌려받는다.
 
 공용화가 모든 도구 정책의 동일한 강제를 뜻하지 않는다.
 셸 편집의 즉시 검사가 없는 경로도 종료 시 전체 검사를 통과해야 한다.
 
-### 작업공간 판정 공유 — worktree 이름과 종료 시점 잔존 검사
+### 작업공간 판정 공유 — worktree 이름·격리 가드·나올 때 검사와 종료 시점 잔존 검사
 
-worktree 이름·자리(⑧-2)와 종료 시점의 작업공간 검사(⑫~⑰)는 판정이 한 벌이다.
-정본은 `kernel/worktree.py`(이름·자리·범위·머지 끝난 worktree)와 `kernel/workspace.py`(보드·git 원격·목업·과업 산출물)다.
-Claude 훅은 페이로드·stderr·trace·exit 만 맡는 래퍼이고, Codex 는 `kernel/hook.py` 가 PreToolUse(Bash)와 Stop 에서 같은 판정을 부른다.
+worktree 이름·자리(⑧-2)·격리 가드(⑧-6)·나올 때 검사(⑧-7)와 종료 시점의 작업공간 검사(⑫~⑰)는 판정이 한 벌이다.
+정본은 `kernel/worktree.py`(이름·자리·범위·머지 끝난 worktree)·`kernel/isolation.py`(메인 체크아웃·보드 등록·1줄 예외·합치는 명령)·`kernel/workspace.py`(보드·git 원격·목업·과업 산출물)다.
+Claude 훅은 페이로드·stderr·trace·exit 만 맡는 래퍼이고, Codex 는 `kernel/hook.py` 가 PreToolUse(Bash·apply_patch·Edit·Write)와 Stop 에서 같은 판정을 부른다. PreToolUse 분기는 `kernel/pretool.py` 다.
 단계(차단·경고)는 판정이 정하고 채널만 런타임이 다르다.
 
 | 런타임 | 차단 | 경고 |
@@ -62,7 +63,7 @@ Claude 훅은 페이로드·stderr·trace·exit 만 맡는 래퍼이고, Codex �
 | Claude | exit 2 + stderr | exit 1 + stderr — 사용자 화면에만 |
 | Codex | exit 2 + stderr | exit 0 + `{"systemMessage": …}` — 차단이 섞인 턴에는 stderr 에 덧붙인다 |
 
-Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다.
+Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Codex 편집 가드는 apply_patch 의 대상 경로와 `+`·`-` 줄 수로 판정한다.
 도구 사용 전 권한과 나머지 Claude 전용 보조 훅(SessionStart·Read 다이어트·셸 쓰기·워크플로·UI 카피)은 런타임별로 유지한다.
 
 ## 구조
@@ -100,16 +101,19 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다.
 | ⑧ | PreToolUse(Read) | `check_context_diet.py` | 추정 토큰 초과인데 분할 없음 | **차단** |
 | ⑧-1 | PreToolUse(Bash·PowerShell) | `check_bash_write.py` | 셸로 소스 쓰기·판정 exit 삼킴·병렬 중 공유 트리 git 변경 | **차단** |
 | ⑧-3 | 〃 | `check_bash_write.py` | 트리 밖·의존성 디렉토리를 잇는 junction·symlink 생성 | **차단** |
-| ⑧-2 | PreToolUse(EnterWorktree·Bash·PowerShell) | `check_worktree_name.py` — 판정 `kernel/worktree.py`, Codex 공유 | 새 worktree 이름에 `--<sid8>` 접미 없음 | **차단** |
-| ⑧-2 | 〃 | `check_worktree_name.py` — 판정 `kernel/worktree.py`, Codex 공유 | worktree 이름 앞부분이 내 workboard 범위와 다름 (내 보드 파일 있을 때만) | **차단** |
+| ⑧-2 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit·EnterWorktree·Bash·PowerShell) | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | 새 worktree 이름에 `--<sid8>` 접미 없음, 또는 `EnterWorktree(name)` 생성 | **차단** |
+| ⑧-2 | 〃 | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | worktree 이름 앞부분이 내 workboard 범위와 다름 (내 보드 파일 있을 때만) | **차단** |
+| ⑧-6 | 〃 | `check_pretool.py` — 판정 `kernel/isolation.py`, Codex 공유 | 메인 체크아웃에서 구현 파일 편집 (예외 `workboard/`·`docs/tasks/`·바뀐 줄 1줄 이하) | **차단** + worktree 생성·진입 명령 |
+| ⑧-6 | 〃 | 〃 | 내 `#sid` 과업 파일 없이 편집 (예외 같음 — 등록 자체는 막지 않는다) | **차단** + 보드 서식 |
+| ⑧-7 | 〃 | `check_pretool.py` — 판정 `kernel/isolation.py`, Codex 공유 | `git push`·`gh pr create`·`gh pr merge`·`git merge` 직전 그 체크아웃의 `--verify` 가 exit 0 아님 (`[TOOL]`·`[DECISION]`·러너 실행 불능 포함) | **차단** + 위반 목록 |
 | ⑧-4 | PreToolUse(Workflow) | `check_workflow_script.py` | 스크립트의 `agent()` 에 model 미지정 | **차단** |
 | ⑧-5 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit) | `check_workboard_overlap.py` | 다른 과업의 `손대는 곳` 글로브에 걸리는 파일을 편집 | 경고 (추론) — exit 0 JSON. `systemMessage` 로 사용자에게, `additionalContext` 로 모델에게 넘긴다. 후자는 문서화된 필드지만 실측 확인은 아직이다 |
-| ⑨ | PostToolUse(Edit·Write·MultiEdit) | `check_file_rules.py` | 저장한 파일이 게이트 위반 | **차단** |
+| ⑨ | PostToolUse(Edit·Write·MultiEdit) | `check_file_rules.py` | 저장한 파일이 게이트 위반 | **차단** — worktree 안에서는 `[WIP]` 경고 |
 | ⑩ | PostToolUse(Edit·Write·MultiEdit) | `impeccable/scripts/hook.mjs` | 항상 | 통과 (UI 리마인더) |
 | ⑪ | SubagentStop | `check_agent_return.py` | 반환이 임계 초과 | **차단** |
 | ⑫ | Stop | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | `workboard/` 에 자기 `#sid` 과업 파일이 **머지 후에도** 잔존 (진행 중은 통과) | 경고 (추론) |
 | ⑫-1 | 〃 | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | 주인 없는 과업 파일 — 머지됐고 브랜치가 origin·로컬 양쪽에 없음 | 경고 (추론) |
-| ⑬ | Stop | `check_coding_rules.py` | 전 게이트 위반 잔존 | **차단** |
+| ⑬ | Stop | `check_coding_rules.py` | 전 게이트 위반 잔존 | **차단** — worktree 안에서는 `[WIP]` 경고 |
 | ⑭ | Stop | `check_git_remote.py` — 판정 `kernel/workspace.py`, Codex 공유 | GitHub 원격 미설정 | **차단** + 만들 명령 제시 |
 | ⑮ | Stop | `check_worktree_residue.py` — 판정 `kernel/worktree.py`, Codex 공유 | 머지 끝난 worktree 잔존 — upstream 이 자기 브랜치일 때만 push 이력으로 센다 | 경고 (추론) + 정리 순서 제시 |
 | ⑯ | Stop | `check_mockup_residue.py` — 판정 `kernel/workspace.py`, Codex 공유 | `docs/tasks/mockup/` 에 판단 끝난 시안 잔존 | **차단** (`wip_` 예외) |
@@ -125,8 +129,9 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다.
 
 | 단계 | 근거 | 해당 훅 |
 |------|------|---------|
-| **차단**(2) | **직접 관측** — 검사기가 실제로 위반을 뱉었거나 파일이 실제로 거기 있다 | ⑧ ⑧-1 ⑧-2 ⑧-3 ⑧-4 ⑨ ⑪ ⑬ ⑭ ⑯ ⑰ |
+| **차단**(2) | **직접 관측** — 검사기가 실제로 위반을 뱉었거나 파일이 실제로 거기 있다 | ⑧ ⑧-1 ⑧-2 ⑧-3 ⑧-4 ⑧-6 ⑧-7 ⑨ ⑪ ⑬ ⑭ ⑯ ⑰ |
 | **경고**(1) | **추론** — git 상태로 "끝났을 것"을 추측하거나, 사람이 적은 글로브로 겹침을 짚거나, LLM 이 문구를 판정한다 | ⑫ ⑫-1 ⑮ ⑱ — ⑧-5 는 같은 급이지만 PreToolUse 라 exit 0 JSON 으로 낸다 |
+| **경고**(1) | **작업 중** — 링크드 worktree 안의 직접 관측. 고칠 시점이 합칠 때라 알림(`[WIP]`)까지고, 차단은 ⑧-7 이 그 시점에 돌려받는다 | ⑨ ⑬ (worktree 안) |
 | **통과**(0) | 판정 불능 · **모델이 지금 고칠 수 없는 조건** | 전부 |
 
 커널 게이트가 "확실한 위반만 잡는다(오탐 0)"로 지키는 선을, 훅에서는 **끄는 대신 단계를 낮춰**
@@ -187,6 +192,8 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다.
 | `MAX_LINES` | 400 | `kernel/gates/core.py` | 파일 단일 책임 하한선 |
 | `MAX_FUNC_LINES` | 80 | 〃 | 파일 상한이 못 보는 축 — 함수 단일 책임 |
 | `FRESH_SEC` | 86,400 | `kernel/workspace.py` | 계획 단계(보드 행 없음) 세션의 갓 쓴 산출물 유예 — 하루 지연은 오독 방지 목적을 안 흔든다 |
+| `MAX_FREE_LINES` | 1 | `kernel/isolation.py` | 오탈자·설정값 1줄 예외의 기계 판정 — 줄 수만 보고 파일 종류는 보지 않는다(사용자 지정) |
+| `VERIFY_TIMEOUT_SEC` | 120 | 〃 | 나올 때 검사의 전량 러너 여유 — 이 레포에서 7초 안팎. 초과는 통과가 아니라 차단이다 |
 
 토큰 추정식은 ASCII 4자당 1토큰, 그 외 1자당 1토큰이다. 한글이 UTF-8 3바이트라 바이트로
 재면 3배 과대평가된다.
