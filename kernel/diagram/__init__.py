@@ -122,6 +122,19 @@ def validate(kind: str, source: Path) -> dict[str, object]:
     return _run(["validate", kind, str(source), "--repo-root", str(ROOT)])
 
 
+def _portable(engine: dict[str, object]) -> dict[str, object]:
+    """엔진이 돌려준 입력·출력 경로를 레포 상대로. 영수증은 커밋되므로 체크아웃 위치가 새면 안 된다."""
+    fixed = dict(engine)
+    for key in ("input", "output"):
+        value = fixed.get(key)
+        if isinstance(value, str) and Path(value).is_absolute():
+            try:
+                fixed[key] = Path(value).resolve().relative_to(ROOT.resolve()).as_posix()
+            except ValueError:
+                fixed[key] = Path(value).name
+    return fixed
+
+
 def deliver(kind: str, source: Path, output: Path | None = None) -> dict[str, object]:
     """렌더 + 하네스 영수증. 엔진이 실패하면 영수증을 쓰지 않는다 — 이전 것이 남는다."""
     target = output or output_path(source)
@@ -139,7 +152,7 @@ def deliver(kind: str, source: Path, output: Path | None = None) -> dict[str, ob
         "revision": _head_revision(),
         "delivered_at": datetime.now().isoformat(timespec="seconds"),
         "validation": receipt.get("validation"),
-        "engine": receipt,
+        "engine": _portable(receipt),
     }
     receipt_path(source).write_text(json.dumps(wrapped, ensure_ascii=False, indent=2) + "\n",
                                     encoding="utf-8")

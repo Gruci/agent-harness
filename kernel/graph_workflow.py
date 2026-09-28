@@ -39,14 +39,19 @@ def _proposal_path(root: Path, identifier: str) -> Path:
     return root / DIRECTORY / (identifier + ".json")
 
 
+def _identity(base: str, target: str) -> str:
+    """Content-only identity. A checkout path must not enter it — moving or re-cloning the
+    repository would otherwise invalidate every recorded user decision."""
+    return hashlib.sha256("\n".join((base, target)).encode()).hexdigest()
+
+
 def read(root: Path, identifier: str) -> dict:
     proposal = json.loads(_proposal_path(root, identifier).read_text(encoding="utf-8"))
-    if proposal["id"] != identifier or proposal["repository"] != str(root.resolve()):
+    if proposal["id"] != identifier:
         raise ValueError("proposal identity mismatch")
     if component_graph.digest(proposal["candidate"]) != proposal["proposed_graph_hash"]:
         raise ValueError("proposal changed after presentation; propose again")
-    identity = "\n".join(proposal[key] for key in ("repository", "base_graph_hash", "proposed_graph_hash"))
-    if hashlib.sha256(identity.encode()).hexdigest() != identifier:
+    if _identity(proposal["base_graph_hash"], proposal["proposed_graph_hash"]) != identifier:
         raise ValueError("proposal base changed; propose again")
     return proposal
 
@@ -58,12 +63,12 @@ def propose(root: Path, candidate: dict, rationale: str, task_id: str) -> dict:
         raise ValueError("; ".join(errors))
     if not rationale.strip():
         raise ValueError("a concrete rationale is required")
-    repository, base, target = str(root.resolve()), current_hash(root), component_graph.digest(candidate)
-    identifier = hashlib.sha256("\n".join((repository, base, target)).encode()).hexdigest()
+    base, target = current_hash(root), component_graph.digest(candidate)
+    identifier = _identity(base, target)
     path = _proposal_path(root, identifier)
     if path.exists():
         return read(root, identifier)
-    proposal = {"id": identifier, "repository": repository, "base_graph_hash": base,
+    proposal = {"id": identifier, "base_graph_hash": base,
                 "proposed_graph_hash": target, "candidate": candidate, "rationale": rationale,
                 "task_id": task_id, "state": "awaiting_user", "notification": "queued"}
     _write(path, proposal)
@@ -80,14 +85,14 @@ def notify(root: Path, identifier: str) -> dict:
     """Return an agent-facing request; stdout alone is not proof of user display."""
     proposal = read(root, identifier)
     return {"type": "needs_decision", "id": identifier, "rationale": proposal["rationale"],
-            "proposal": str(_proposal_path(root, identifier)),
+            "proposal": f"{DIRECTORY}/{identifier}.json",
             "action": "Show the classification and graph delta to the user; ask approve, revise or defer."}
 
 
 def decide(root: Path, identifier: str, choice: str, response: str, conversation_ref: str) -> dict:
     """Record the actual user response; this function does not ask on their behalf."""
     proposal = read(root, identifier)
-    record = {key: proposal[key] for key in ("repository", "base_graph_hash", "proposed_graph_hash")}
+    record = {key: proposal[key] for key in ("base_graph_hash", "proposed_graph_hash")}
     record.update(proposal_id=identifier, actor="user", choice=choice,
                   response=response, conversation_ref=conversation_ref)
     errors = graph_approval.validate(record, proposal)

@@ -215,7 +215,9 @@ def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> int:
         print("[WORKTREE NAME] 세션 식별자를 못 구했다 — 이름 검사를 건너뛴다. 훅을 점검하라.",
               file=sys.stderr)
         return 1
-    found = worktree.name_violation(token, sid8, workboard.board_dir())
+    cwd = payload.get("cwd")
+    found = worktree.name_violation(token, sid8, workboard.board_dir(),
+                                    Path(cwd) if isinstance(cwd, str) and cwd else None)
     if found is None:
         return 0
     trace.TRACE = root / "harness_trace.jsonl"

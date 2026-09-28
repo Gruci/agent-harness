@@ -67,6 +67,24 @@ class GraphWorkflowTests(TemporaryRootTestCase):
         graph["revision"] += 1
         self.assertTrue(flow.check_approval(self.root, graph))
 
+    def test_approval_survives_moving_the_checkout(self) -> None:
+        """A recorded user decision is about graph content, not where the clone lives."""
+        import shutil
+        import tempfile
+        from pathlib import Path
+        flow = self.workflow()
+        graph = example_graph()
+        proposal = flow.propose(self.root, graph, "orders classification", "task")
+        flow.decide(self.root, proposal["id"], "approve", "이 분류로 진행해", "conversation:turn-2")
+        flow.apply(self.root, proposal["id"])
+        stored = (self.root / "docs/architecture/proposals" / (proposal["id"] + ".json")).read_text(encoding="utf-8")
+        self.assertNotIn(json.dumps(str(self.root.resolve()))[1:-1], stored, "absolute checkout path persisted")
+        with tempfile.TemporaryDirectory() as other:
+            moved = Path(other) / "moved clone"
+            shutil.copytree(self.root, moved)
+            self.assertEqual(flow.check_approval(moved, graph), [])
+            self.assertIn("docs/architecture/proposals/", flow.notify(moved, proposal["id"])["proposal"])
+
     def test_concurrent_graph_change_rejects_stale_approval(self) -> None:
         flow = self.workflow()
         proposal = flow.propose(self.root, example_graph(), "orders", "task")

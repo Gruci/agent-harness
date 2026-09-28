@@ -136,17 +136,25 @@ def scope_mismatch(name: str, sid8: str, board: Path | None) -> str | None:
     return None if name[: -len(f"--{sid8}")] == scope else f"{scope}--{sid8}"
 
 
-def wrong_location(token: str) -> str | None:
-    """생성 경로의 부모 세그먼트가 `worktrees` 가 아니면 기대 경로를 돌려준다.
+def wrong_location(token: str, cwd: Path | None = None, shared_root: Path | None = None) -> str | None:
+    """자리가 공유 체크아웃 루트 기준 상대경로 `worktrees/<이름>` 이 아니면 기대 경로를 돌려준다.
 
-    `.claude/worktrees/` 도 받지 않는다 — 에이전트 중립 원칙으로 자리는 루트 `worktrees/` 하나다.
-    부모 이름만 보므로 외부 디스크의 `<어딘가>/worktrees/<이름>` 은 통과한다(외부 worktree 는
-    프로토콜이 허용해 왔다).
+    자리는 레포 루트 `worktrees/` 하나로 **상대경로 고정**이다. 보드(`workboard/`)와 같은 원칙이다.
+    - 절대경로·외부 디스크·`~`·`..` 는 받지 않는다. 경로가 체크아웃 위치를 품으면 clone 을 옮기는
+      순간 규약이 깨지고, 다른 디스크의 worktree 는 `git worktree list` 와 보드의 조인에서 빠진다.
+    - `.claude/worktrees/` 도 받지 않는다(에이전트 중립).
+    - 상대 토큰은 명령의 cwd 기준으로 풀리므로, cwd 가 공유 루트가 아니면 worktree 안에 worktree 가
+      생긴다. cwd·공유 루트를 알면 둘이 같아야 통과다. 모르면(판정 불능) 토큰 모양만 본다.
     """
-    parts = PurePosixPath(token.replace("\\", "/")).parts
-    if len(parts) >= 2 and parts[-2] == "worktrees" and (len(parts) < 3 or parts[-3] != ".claude"):
-        return None
-    return f"worktrees/{parts[-1]}"
+    normalized = token.replace("\\", "/")
+    name = PurePosixPath(normalized).name
+    expected = f"worktrees/{name}"
+    parts = [part for part in PurePosixPath(normalized).parts if part != "."]
+    if normalized.startswith(("/", "~")) or re.match(r"^[A-Za-z]:", normalized) or parts != ["worktrees", name]:
+        return expected
+    if cwd is not None and shared_root is not None and cwd.resolve() != shared_root.resolve():
+        return expected
+    return None
 
 
 def worktree_add_path(command: str) -> str | None:
@@ -207,8 +215,12 @@ def enter_worktree_violation(sid8: str | None) -> Finding:
         "(정본: workboard/README.md 작업 격리)"), ("EnterWorktree 생성",))
 
 
-def name_violation(token: str, sid8: str, board: Path | None) -> Finding | None:
-    """`git worktree add <token>` 이 규약 밖이면 차단 finding. 순서는 접미 → 범위 → 자리다."""
+def name_violation(token: str, sid8: str, board: Path | None,
+                   cwd: Path | None = None) -> Finding | None:
+    """`git worktree add <token>` 이 규약 밖이면 차단 finding. 순서는 접미 → 범위 → 자리다.
+
+    공유 루트는 보드의 부모다(`kernel.workboard.board_dir` 가 git common dir 로 계산한다).
+    """
     name = Path(token).name
     if offending_name(name, sid8) is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
@@ -222,11 +234,14 @@ def name_violation(token: str, sid8: str, board: Path | None) -> Finding | None:
             "worktree 이름은 workboard 범위 이름을 그대로 쓴다. 그래야 `ls workboard/` 와\n"
             "`git worktree list` 가 눈으로 바로 조인된다.\n"
             "(정본: workboard/README.md)"), (f"범위 불일치 {name}",))
-    misplaced = wrong_location(token)
+    shared_root = board.parent if board is not None else None
+    misplaced = wrong_location(token, cwd, shared_root)
     if misplaced is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
             f"[WORKTREE NAME] worktree 자리가 규약 밖이다 — `{token}` → `{misplaced}`.\n"
-            "자리는 레포 루트 `worktrees/` 다(에이전트 중립).\n"
+            "자리는 공유 체크아웃 루트의 상대경로 `worktrees/<이름>` 하나로 고정이다.\n"
+            "절대경로·외부 디스크·다른 worktree 안은 받지 않는다. 공유 루트에서 실행한다:\n"
+            f"  git worktree add {misplaced} -b <브랜치> origin/<기본브랜치>\n"
             "(정본: workboard/README.md 작업 격리)"), (f"자리 규약 밖 {token}",))
     return None
 

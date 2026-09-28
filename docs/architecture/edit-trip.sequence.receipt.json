@@ -20,8 +20,8 @@
     "ok": true,
     "command": "deliver",
     "type": "sequence",
-    "input": "C:\\dev_project\\claude-web-harness\\docs\\architecture\\edit-trip.sequence.json",
-    "output": "C:\\dev_project\\claude-web-harness\\docs\\architecture\\edit-trip.sequence.html",
+    "input": "docs/architecture/edit-trip.sequence.json",
+    "output": "docs/architecture/edit-trip.sequence.html",
     "specification": {
       "sha256": "57b361ddcfd024936dfd6c9a4082d662726c1ea11710398cc3812f9821613e4f",
       "bytes": 5310

@@ -88,13 +88,34 @@ def test_worktree_rel_strip() -> None:
 
 
 def test_worktree_location() -> None:
-    """자리 규약 — 루트 `worktrees/` 통과, `.claude/worktrees/` 와 임의 자리는 기대 경로 제시."""
+    """자리 규약 — 공유 루트 기준 상대 `worktrees/<이름>` 만 통과. 나머지는 기대 경로 제시."""
     from kernel import worktree as naming
-    assert naming.wrong_location("worktrees/feat-x--12345678") is None
-    assert naming.wrong_location("D:/repo/worktrees/feat-x--12345678") is None, "절대경로 정상 자리를 막았다"
-    assert naming.wrong_location(".claude/worktrees/feat-x--12345678") == "worktrees/feat-x--12345678", \
-        ".claude/ 밑 자리를 통과시켰다"
-    assert naming.wrong_location("feat-x--12345678") == "worktrees/feat-x--12345678", "루트 직생성을 통과시켰다"
+    expected = "worktrees/feat-x--12345678"
+    assert naming.wrong_location(expected) is None
+    assert naming.wrong_location("./worktrees/feat-x--12345678") is None
+    for token, label in (
+        ("D:/repo/worktrees/feat-x--12345678", "드라이브 절대경로"),
+        ("D:\\repo\\worktrees\\feat-x--12345678", "역슬래시 절대경로"),
+        ("/srv/worktrees/feat-x--12345678", "POSIX 절대경로"),
+        ("~/worktrees/feat-x--12345678", "홈 경로"),
+        ("../worktrees/feat-x--12345678", "상위 탈출"),
+        ("worktrees/sub/feat-x--12345678", "중첩 자리"),
+        (".claude/worktrees/feat-x--12345678", ".claude/ 밑"),
+        (".codex/worktrees/feat-x--12345678", ".codex/ 밑"),
+        ("feat-x--12345678", "루트 직생성"),
+    ):
+        assert naming.wrong_location(token) == expected, f"{label}을 통과시켰다: {token}"
+    with tempfile.TemporaryDirectory() as tmp:
+        shared = Path(tmp)
+        (shared / "worktrees" / "other").mkdir(parents=True)
+        assert naming.wrong_location(expected, shared, shared) is None
+        assert naming.wrong_location(expected, shared / "worktrees" / "other", shared) == expected, \
+            "다른 worktree 안에서의 상대 생성을 통과시켰다"
+        board = shared / "workboard"
+        board.mkdir()
+        found = naming.name_violation(expected, "12345678", board, shared / "worktrees" / "other")
+        assert found is not None and found.block, "공유 루트 밖 cwd 를 통과시켰다"
+        assert naming.name_violation(expected, "12345678", board, shared) is None
     assert naming.worktree_add_path(
         "git worktree add worktrees/feat-x--12345678 -b feat/x origin/main"
     ) == "worktrees/feat-x--12345678", "경로 토큰을 못 읽었다"

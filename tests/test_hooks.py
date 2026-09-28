@@ -175,10 +175,24 @@ def test_record_never_raises() -> None:
             sys.modules["kernel.trace"] = saved
 
 
+def test_trace_paths_are_portable() -> None:
+    """커밋되는 관찰 기록에 체크아웃 위치·사용자 홈이 남지 않는다 — clone 을 옮기면 키가 갈린다."""
+    sys.path.insert(0, str(ROOT))
+    from kernel.context import ROOT as KROOT
+    from kernel.trace import portable
+    inside = KROOT.resolve() / "kernel" / "hook.py"
+    assert portable(str(inside)) == "kernel/hook.py", portable(str(inside))
+    assert portable(f"{inside}:12: 위반") == "kernel/hook.py:12: 위반"
+    home_file = Path.home().resolve() / ".claude" / "x.txt"
+    assert portable(str(home_file)) == "~/.claude/x.txt", portable(str(home_file))
+    assert portable("orders/a.py:3: 위반") == "orders/a.py:3: 위반", "상대경로를 건드렸다"
+
+
 def demo() -> None:
     for check in (test_outbound_link, test_workboard_file_is_one_row, test_branch_comes_from_task_field,
                   test_workboard_overlap, test_auto_merge, test_ui_copy_extract,
-                  test_workflow_model_required, test_record_never_raises):
+                  test_workflow_model_required, test_record_never_raises,
+                  test_trace_paths_are_portable):
         check()
         print(f"  [OK] {check.__name__}")
     print("훅 행동 테스트 전건 통과")

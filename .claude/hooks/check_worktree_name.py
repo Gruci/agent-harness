@@ -52,7 +52,8 @@ def main() -> None:
               file=sys.stderr)
         sys.exit(1)
 
-    found = name_violation(token, sid8, board_dir())
+    cwd = payload.get("cwd")
+    found = name_violation(token, sid8, board_dir(), Path(cwd) if cwd else None)
     if found is not None:
         emit(found, sid8)
         sys.exit(2)                     # 차단 — 직접 관측(만들려는 경로가 규약 밖이다)

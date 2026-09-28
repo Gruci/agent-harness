@@ -52,6 +52,24 @@ def records() -> list[dict[str, str]]:
     return found
 
 
+def portable(text: str) -> str:
+    """커밋되는 기록에서 체크아웃 위치와 사용자 홈을 뺀다.
+
+    레포 안 경로는 레포 상대, 홈 아래는 `~/…` 로 바꾼다. 절대경로가 남으면 clone 위치가
+    바뀔 때 같은 사건이 다른 키가 되어 중복 제거와 집계가 갈리고, 다른 사람 홈 경로가 커밋된다.
+    """
+    from pathlib import Path
+
+    fixed = text
+    for base, label in ((ROOT.resolve(), ""), (Path.home().resolve(), "~/")):
+        for form in {str(base), base.as_posix()}:
+            for sep in ("\\", "/"):
+                fixed = fixed.replace(form + sep, label)
+            if fixed == form:
+                fixed = label.rstrip("/") or "."
+    return fixed.replace("\\", "/") if fixed != text else fixed
+
+
 def _key(item: dict[str, str]) -> tuple[str, ...]:
     return tuple(item.get(name, "") for name in DEDUP_KEYS)
 
@@ -69,8 +87,8 @@ def record(hook: str, kind: str, sid: str = "", gate: str = "",
             "hook": hook,
             "kind": kind,
             "gate": gate,
-            "file": file,
-            "msg": msg[:MAX_MSG_CHARS],
+            "file": portable(file),
+            "msg": portable(msg)[:MAX_MSG_CHARS],
         }
         # debt:매 append 마다 전문을 읽어 중복을 본다. 관찰은 드물고 파일은 작아서 지금은
         # 이게 제일 싸다. 수천 줄이 되면 마지막 N줄만 읽는 것으로 바꾼다.

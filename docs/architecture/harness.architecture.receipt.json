@@ -20,8 +20,8 @@
     "ok": true,
     "command": "deliver",
     "type": "architecture",
-    "input": "C:\\dev_project\\claude-web-harness\\docs\\architecture\\harness.architecture.json",
-    "output": "C:\\dev_project\\claude-web-harness\\docs\\architecture\\harness.architecture.html",
+    "input": "docs/architecture/harness.architecture.json",
+    "output": "docs/architecture/harness.architecture.html",
     "specification": {
       "sha256": "4d2b84458bdd4f34ae43fc1bc9af8e5e8cdf70f123725b4b09d34e0ae3e19060",
       "bytes": 10782

@@ -90,8 +90,10 @@ git worktree add worktrees/<범위>--<sid8> -b <브랜치> <앞-브랜치>
 추가 worktree 가 없고 단일 세션이면 메인 체크아웃에서 작업할 수 있다.
 추가 worktree 가 있으면 공유 메인 체크아웃은 조회용이며 구현은 자기 worktree 에서 한다.
 
-- worktree 자리는 레포 루트 `worktrees/`, **이름은 workboard 범위 이름 + `--<sid8>`** 이다.
-  `ls workboard/` 와 `git worktree list` 가 눈으로 바로 조인되고, `check_worktree_name.py` 가
+- worktree 자리는 **공유 체크아웃 루트 기준 상대경로 `worktrees/<이름>` 하나로 고정**이고,
+  **이름은 workboard 범위 이름 + `--<sid8>`** 이다. 절대경로·외부 디스크·다른 worktree 안은
+  받지 않는다 — 명령은 공유 루트에서 상대경로로 실행한다. `ls workboard/` 와
+  `git worktree list` 가 눈으로 바로 조인되고, `kernel/worktree.py` 가 Claude·Codex 양쪽에서
   생성 시점에 이름·자리를 강제한다(범위 일치는 내 보드 파일이 있을 때만).
 - 생성과 진입은 두 단계다 — 정본 목록은 폴더가 아니라 `git worktree list` 다:
 
@@ -113,7 +115,7 @@ git worktree add worktrees/<범위>--<sid8> -b <브랜치> <앞-브랜치>
   별도 PR 을 만드는 독립 트랙만 별도 worktree 로 격리한다.
 - 실행 중인 워커의 worktree 는 제거하지 않는다. 자동 정리되는 실행 환경에서 독립 트랙을
   쓰면 작업 전에 미추적 표식과 `git worktree lock` 으로 보호한다.
-- 외부 worktree 에서도 해당 체크아웃의 커널을 사용한다.
+- 각 worktree 에서 검사는 그 체크아웃의 커널을 사용한다.
 
 ## 완료
 

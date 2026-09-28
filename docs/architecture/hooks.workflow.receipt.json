@@ -20,8 +20,8 @@
     "ok": true,
     "command": "deliver",
     "type": "workflow",
-    "input": "D:\\0.Python\\web-harness\\docs\\architecture\\hooks.workflow.json",
-    "output": "D:\\0.Python\\web-harness\\docs\\architecture\\hooks.workflow.html",
+    "input": "docs/architecture/hooks.workflow.json",
+    "output": "docs/architecture/hooks.workflow.html",
     "specification": {
       "sha256": "e3f96144b6833cd0f43b19461c95be1b19c70cf4b4b0dc563d29a7162cc65787",
       "bytes": 8562

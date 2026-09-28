@@ -1,6 +1,5 @@
 {
-  "id": "144a5ab4ef593c72fc02495c49ec40b202bed9399361f61a4d8ac16c44e09150",
-  "repository": "C:\\dev_project\\claude-web-harness",
+  "id": "6b7de76edace1901b4833ccbc9c336eeee5f942f2d45c0f735134957e89d2897",
   "base_graph_hash": "absent",
   "proposed_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
   "candidate": {
@@ -73,13 +72,13 @@
   "state": "applied",
   "notification": "delivered",
   "decision": {
-    "repository": "C:\\dev_project\\claude-web-harness",
     "base_graph_hash": "absent",
     "proposed_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
-    "proposal_id": "144a5ab4ef593c72fc02495c49ec40b202bed9399361f61a4d8ac16c44e09150",
+    "proposal_id": "6b7de76edace1901b4833ccbc9c336eeee5f942f2d45c0f735134957e89d2897",
     "actor": "user",
     "choice": "approve",
     "response": "?? ???",
     "conversation_ref": "conversation: approved integrated plan implementation; existing infrastructure scope retained"
-  }
+  },
+  "migrated_from": "144a5ab4ef593c72fc02495c49ec40b202bed9399361f61a4d8ac16c44e09150"
 }
