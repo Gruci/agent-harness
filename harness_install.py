@@ -185,18 +185,71 @@ def print_language_report() -> None:
 
     if not profile.LINTERS:
         print("\n위임할 외부 도구 없음.")
-        return
-    print("\n외부 도구:")
-    for entry in profile.LINTERS:
-        if not isinstance(entry, dict):
-            continue
-        name = str(entry.get("slug") or "?")
-        absent = linters.missing_tool(entry)
-        if absent:
-            print(f"   [없음] {name:<14} {absent} 설치 안 됨 — {entry.get('install', '설치 방법이 적혀 있지 않다')}")
+    else:
+        print("\n외부 도구:")
+        for entry in profile.LINTERS:
+            if not isinstance(entry, dict):
+                continue
+            name = str(entry.get("slug") or "?")
+            absent = linters.missing_tool(entry)
+            if absent:
+                print(f"   [없음] {name:<14} {absent} 설치 안 됨 — {entry.get('install', '설치 방법이 적혀 있지 않다')}")
+            else:
+                print(f"   [있음] {name:<14} {' '.join(entry.get('cmd', []))}")
+        print("\n없는 도구는 해당 검사가 [TOOL] 로 꺼진 채 돈다. 통과로 처리되지는 않는다.")
+    print_stack_report(profile.PACK, [pack for pack in (profile.SERVER, profile.UI) if pack])
+
+
+def requirement_present(entry: dict) -> bool:
+    """REQUIRES 항목의 확인 명령이 exit 0 이면 있는 것이다. 실행 파일이 없거나 응답이 없으면 없는 것이다."""
+    try:
+        return subprocess.run(list(entry["check"]), capture_output=True, timeout=15).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def analyzer_status(pack: dict) -> tuple[str, str]:
+    """(분석기 이름, 상태 한 줄). 팩이 고른 분석기가 지금 이 환경에서 돌 수 있는지를 말한다."""
+    from kernel import lang
+
+    kind = lang.analyzer_kind(pack)
+    if kind == "python":
+        return "표준 ast", "설치 없음"
+    if kind == "treesitter":
+        grammar = lang.grammar_module(pack) or "?"
+        core = "있음" if importlib.util.find_spec("tree_sitter") else "없음"
+        found = "있음" if importlib.util.find_spec(grammar) else "없음"
+        return "tree-sitter", f"tree_sitter {core} · 문법 {grammar} {found}"
+    if kind == "command":
+        command = [str(part) for part in pack.get("ANALYZER_CMD") or ()]
+        found = "있음" if command and (shutil.which(command[0]) or (ROOT / command[0]).is_file()) else "없음"
+        return "외부 분석기", f"{' '.join(command)} — 실행 파일 {found}"
+    return "없음", "구문 사실 게이트가 [TOOL] 로 남는다"
+
+
+def print_stack_report(pack: dict, frameworks: list[dict] | None = None) -> int:
+    """언어팩이 고른 분석기와 언어팩·프레임워크팩 REQUIRES 의 설치 상태를 찍고, 없는 도구 수를 돌려준다.
+
+    설치는 여기서 하지 않는다 — 사용자 환경을 바꾸는 일이라 사용자가 결정한다. 하네스 자신은 아무것도 요구하지 않으므로
+    이 레포에서는 언제나 0 이어야 한다.
+    """
+    name, status = analyzer_status(pack)
+    print(f"\n구문 분석기: {name} — {status}")
+    requires = [entry for source in (pack, *(frameworks or ()))
+                for entry in (source.get("REQUIRES") or ()) if isinstance(entry, dict)]
+    if not requires:
+        print("팩이 요구하는 도구 없음 — 설치 요구 0건.")
+        return 0
+    missing = 0
+    print("팩이 요구하는 도구:")
+    for entry in requires:
+        if requirement_present(entry):
+            print(f"   [있음] {entry['name']:<14} {' '.join(entry['check'])}")
         else:
-            print(f"   [있음] {name:<14} {' '.join(entry.get('cmd', []))}")
-    print("\n없는 도구는 해당 검사가 [TOOL] 로 꺼진 채 돈다. 통과로 처리되지는 않는다.")
+            missing += 1
+            print(f"   [없음] {entry['name']:<14} 설치: {entry['install'] or '설치 안내가 적혀 있지 않다'}")
+    print(f"설치 요구 {missing}건. 설치할지는 사용자가 정한다 — 없는 채로는 그 팩이 1급이 아니다.")
+    return missing
 
 
 def presets() -> list[str]:

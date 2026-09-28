@@ -48,6 +48,9 @@ LOCAL_PACKAGE = "harness_gates"
 
 NO_PY = "검사할 소스 없음"
 NO_UI = "화면 소스 없음"
+# 웹·화면 게이트는 프레임워크팩의 선언을 읽는다. 팩을 안 고르면 조용히 통과하지 않고 이 사유로 [SKIP] 이다.
+NO_SERVER_PACK = "서버 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다"
+NO_UI_PACK = "화면 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다"
 
 
 def _print_style_reports(reports: list[str]) -> None:
@@ -113,6 +116,21 @@ def _syntax_section(slug: str, title: str, check: object, args: tuple,
     return _entry(slug, title, check(*args), ok, need)   # type: ignore[operator]
 
 
+def _framework_section(slug: str, title: str, check: object, args: tuple,
+                       ok: object, need: str, declares: str) -> Section:
+    """서버 프레임워크팩이 판정 방식을 선언했을 때만 도는 검사(13·16). 확인 순서는 N/A, SKIP(팩 미선택),
+    N/A(팩이 그 판정을 선언하지 않음 — 이 프레임워크에서 성립하지 않는다), 그다음이 구문 사실 검사다."""
+    unneeded = profile.not_applicable(slug)
+    if unneeded:
+        return (slug, title, [], ("N/A", unneeded))
+    server = profile.SERVER
+    if server is None:
+        return (slug, title, [], ("SKIP", NO_SERVER_PACK))
+    if not server[declares]:
+        return (slug, title, [], ("N/A", f"{server['NAME']}: 이 프레임워크에서 성립하지 않음"))
+    return _syntax_section(slug, title, check, args, ok, need, "python")
+
+
 def _ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str) -> Section:
     """ESLint 에 맡긴 화면 린터 결과에서 slug 하나의 섹션을 만든다. 확인 순서는 N/A, SKIP(대상·설정 없음), TOOL(eslint 없음), 판정이다."""
     unneeded = profile.not_applicable(slug)
@@ -146,8 +164,12 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
     web = _under(files, "routes")
     vocab = profile.VOCAB
     settings = profile.FILES.get("settings")
-    # 화면 검사 6종(10·17~20·42)은 ESLint 한 번 실행으로 나온다. 규칙 정본은 kernel/eslint.harness.mjs 다.
-    lint = linters.run_ui_lint(ui_files) if ui_files else linters.UiLint({}, "")
+    # 화면 검사 6종(10·17~20·42)은 ESLint 한 번 실행으로 나온다. 규칙 정본은 kernel/eslint.harness.mjs 고,
+    # 파서와 대상 확장자는 화면 프레임워크팩이 준다. 팩이 없으면 돌리지 않고 [SKIP] 이다.
+    ui_ok = ui_files and profile.UI
+    ui_need = NO_UI if not ui_files else NO_UI_PACK
+    lint = linters.run_ui_lint(ui_files) if ui_ok else linters.UiLint({}, "")
+    server_need = NO_UI if not ui_files else NO_SERVER_PACK if not profile.SERVER else _need_layer("routes")
 
     return [
         # 맨 앞에 둔다. 프로파일 형식이 틀리면 아래 검사 전부가 대상 0건으로 조용히 통과하기 때문이다.
@@ -171,23 +193,24 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
         _syntax_section("type_hints", "공개 함수 타입힌트", core.check_type_hints, (files,), files, NO_PY,
                         "types"),
         _entry("secrets", "시크릿 토큰 하드코딩", core.check_secrets(both), both, NO_PY),
-        _ui_entry("ts_any", "TS any 타입", lint, ui_files, NO_UI),
+        _ui_entry("ts_any", "TS any 타입", lint, ui_ok, ui_need),
         _entry("env_access", "설정 밖 환경변수 조회", layers.check_env_access(files),
                files and settings, "설정에 환경변수 모듈을 안 적었음"),
-        _syntax_section("web_async", "await 없는 async 핸들러",
-                        layers.check_web_async_no_await, (files,), web, _need_layer("web"), "python"),
+        _framework_section("web_async", "await 없는 async 핸들러",
+                           layers.check_web_async_no_await, (files,), web, _need_layer("web"), "ASYNC_HANDLER"),
         _entry("ssl_bypass", "전역 SSL 패치 호출 위치", layers.check_ssl_bypass_location(files),
                files and profile.symbol("ssl_bypass"), _need_symbol("ssl_bypass")),
-        _syntax_section("routes_error", "라우트 에러 응답 형식",
-                        layers.check_routes_error_response, (files,),
-                        _under(files, "routes") and profile.symbol("error_response"),
-                        _need_symbol("error_response"), "python"),
-        _ui_entry("raw_fetch", "공용 래퍼 없는 fetch", lint, ui_files, NO_UI),
-        _ui_entry("hex_literal", "프론트 색 리터럴", lint, ui_files, NO_UI),
-        _ui_entry("responsive", "폰을 깨뜨리는 고정 폭", lint, ui_files, NO_UI),
+        _framework_section("routes_error", "라우트 에러 응답 형식",
+                           layers.check_routes_error_response, (files,),
+                           _under(files, "routes") and profile.symbol("error_response"),
+                           _need_symbol("error_response"), "ERROR_STATUS_KWARG"),
+        _ui_entry("raw_fetch", "공용 래퍼 없는 fetch", lint, ui_ok, ui_need),
+        _ui_entry("hex_literal", "프론트 색 리터럴", lint, ui_ok, ui_need),
+        _ui_entry("responsive", "폰을 깨뜨리는 고정 폭", lint, ui_ok, ui_need),
         _ui_entry("browser_api", "브라우저 API 직접 호출", lint,
-                  ui_files and profile.ALLOWLIST["ui_platform"], "설정에 브라우저 API 래퍼를 안 적었음"),
-        _ui_entry("hash_nav", "해시 네비게이션 단일 기전", lint, ui_files, NO_UI),
+                  ui_ok and profile.ALLOWLIST["ui_platform"],
+                  ui_need if not ui_ok else "설정에 브라우저 API 래퍼를 안 적었음"),
+        _ui_entry("hash_nav", "해시 네비게이션 단일 기전", lint, ui_ok, ui_need),
         _entry("ui_logic_tests", "프론트 로직 테스트 짝",
                tests_pairing.check_ui_logic_test_pairing(ui_files), ui_files, NO_UI),
         _entry("ui_component_tests", "프론트 컴포넌트 테스트 짝",
@@ -209,8 +232,8 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
                NO_UI if not ui_files else "배열 동결 파일 미생성 — harness_install.py 가 만든다"),
         _entry("orphan_api", "소비 UI 없는 API 라우트",
                orphan_api.check_orphan_api(files, ui_files),
-               (_under(files, "routes") or _under(files, "web")) and ui_files,
-               NO_UI if not ui_files else _need_layer("routes")),
+               (_under(files, "routes") or _under(files, "web")) and ui_files and profile.SERVER,
+               server_need),
         _syntax_section("undefined_const", "미정의 모듈 상수",
                         core.check_undefined_module_constants, (files,), files, NO_PY, "python"),
     ]

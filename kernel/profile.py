@@ -16,7 +16,7 @@ import importlib.util
 import re
 from typing import Any
 
-from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, arch, lang
+from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, arch, framework, lang
 from kernel.context import ROOT
 
 PROFILE_FILE = "harness_profile.py"
@@ -51,7 +51,7 @@ _MOD = _load()
 # 글자 단위로 쪼개 `startswith(("t","e","s",...))` 가 돼 **소스 대부분이 조용히 검사에서
 # 빠진다.** 둘 다 화면에는 아무 경고도 뜨지 않는다. 그래서 값을 변환(coerce)하기 전에 형식부터 검사한다.
 _KNOWN_NAMES = frozenset({
-    "STAGE", "LANG", "ARCH", "SYNTAX", "SOURCE_EXT", "UI_EXT", "PATTERNS", "NOT_APPLICABLE",
+    "STAGE", "LANG", "ARCH", "FRAMEWORK", "SYNTAX", "SOURCE_EXT", "UI_EXT", "PATTERNS", "NOT_APPLICABLE",
     "LINTERS", "CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "HUBS",
     "HUB_DOMAIN_MD_IMPLICIT", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "HARNESS_MAP",
     "ROOT_FILES", "LEGACY_PATHS", "LESSONS_DOC", "AGENT_MODEL_POLICY", "MAINTENANCE",
@@ -62,7 +62,7 @@ _STR_NAMES = ("STAGE", "LANG", "ARCH", "SYNTAX", "HARNESS_MAP", "LESSONS_DOC", "
 _DICT_NAMES = ("CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "PATTERNS",
                "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY")
 _SEQ_NAMES = ("HUBS", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "ROOT_FILES",
-              "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS")
+              "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS", "FRAMEWORK")
 _SUB_KEYS = {
     "CHECK_PATHS": _CHECK_PATH_KEYS, "FILES": _FILE_KEYS, "SYMBOLS": _SYMBOL_KEYS, "VOCAB": _VOCAB_KEYS,
     "ALLOWLIST": _ALLOWLIST_KEYS, "MD": _MD_KEYS, "SCOPE": ("exclude_all", "exclude_scratch"),
@@ -180,8 +180,25 @@ except ValueError as exc:
 PACK: dict[str, Any] = _PACK
 
 SOURCE_EXT: tuple[str, ...] = _seq("SOURCE_EXT", tuple(_PACK["EXT"]))
-UI_EXT: tuple[str, ...] = _seq("UI_EXT", ("*.tsx", "*.ts"))
 SYNTAX: str | None = getattr(_MOD, "SYNTAX", _PACK["SYNTAX"]) if _MOD else _PACK["SYNTAX"]
+
+# ── 프레임워크 ────────────────────────────────────────────────────────────────
+#
+# 웹·화면 게이트가 어느 프레임워크의 선언을 읽을지 정한다. 역할은 server·ui 둘이고 역할별로 하나씩이다.
+# 선언하지 않으면 그 역할의 게이트는 조용히 통과하는 게 아니라 [SKIP](프레임워크팩 미선택)으로 찍힌다.
+FRAMEWORK: tuple[str, ...] = _seq("FRAMEWORK")
+try:
+    _FRAMEWORKS = framework.load(FRAMEWORK)
+except ValueError as exc:
+    PROFILE_ERRORS.append(f"{PROFILE_FILE}: {exc}")
+    _FRAMEWORKS = framework.unselected()
+
+# 역할별 팩. None 이면 미선택이다. 서버팩은 kernel/gates/orphan_api.py·layers.py 가, 화면팩은 kernel/linters.py 가 읽는다.
+SERVER: dict[str, Any] | None = _FRAMEWORKS["server"]
+UI: dict[str, Any] | None = _FRAMEWORKS["ui"]
+
+# 화면 소스 패턴의 기본값은 화면팩이 준다. 프로파일이 명시하면 그것이 이긴다 — 언어팩의 SOURCE_EXT 와 같은 규칙이다.
+UI_EXT: tuple[str, ...] = _seq("UI_EXT", tuple(UI["UI_EXT"]) if UI else ())
 
 # 언어팩이 준 것 위에 프로파일이 덮어쓴다 — 프로젝트 사정이 언어 관례보다 우선이다.
 PATTERNS: dict[str, str] = dict(_PACK["PATTERNS"])

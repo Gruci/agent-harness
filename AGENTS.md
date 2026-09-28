@@ -32,7 +32,7 @@ Before starting implementation, list `workboard/` for open tasks (one untracked 
 | Any Markdown you write or edit | `dev/MD_STANDARD.md` — three rules and the content test (what belongs in Markdown) |
 | Any new file or function | `dev/CONVENTIONS.md` — decided conventions and helper registry |
 | Product code in any language | `dev/DEVGUIDE.md`, `dev/ARCHITECTURE.md`, and `dev/COMPONENTS.md` |
-| `frontend/` React and TypeScript | `design/DESIGN_GUIDE.md`, then the relevant `design/` sub-document |
+| Screen code under the profile's `CHECK_PATHS["ui"]` | `design/DESIGN_GUIDE.md`, then the relevant `design/` sub-document; stack-specific conventions are the "스택 관례" section of `dev/CONVENTIONS.md` |
 | Database schema, tables, columns | `dev/DATA_MODEL.md` and `dev/NAMING.md` |
 | Screen work of any kind | `design/RESPONSIVE.md` — desktop and mobile are defined together at plan time |
 | Tests | use `$test-cdx`, which routes to `dev/TESTING.md` |
@@ -60,7 +60,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - Before the first product code, select the stack with the user and run [the assembly workflow](dev/workflows/harness-assembly.md).
 - New classifications or boundaries require a concrete proposal to the user and a record of the user's actual response. Routine edits within approved boundaries do not repeat approval.
 - UI uses the selected project stack and approved delivery component. Verify the consuming screen when a feature includes one.
-- Before changing a signature or response shape, trace callers and consumers across DB, API, and React.
+- Before changing a signature or response shape, trace callers and consumers across DB, API, and screen code.
 - Prefer existing helpers, the standard library, native platform features, and installed dependencies. Make surgical changes. Report unrelated dead code without removing it.
 - Architecture and database conventions live in `dev/ARCHITECTURE.md`, `dev/NAMING.md`, `dev/DATA_MODEL.md`, and `dev/CONVENTIONS.md`. `kernel/runner.py` enforces the machine-checkable subset.
 

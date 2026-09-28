@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from kernel import arch, lang, linters
+from kernel import arch, framework, lang, linters
 
 
 class CheckExecutionTests(unittest.TestCase):
@@ -15,7 +15,7 @@ class CheckExecutionTests(unittest.TestCase):
         done = subprocess.CompletedProcess(["eslint"], 2, "[]", "invalid configuration")
         with patch("kernel.linters.ui_eslint_bin", return_value=Path("eslint")), \
                 patch("kernel.linters.subprocess.run", return_value=done):
-            found = linters.eslint_report(Path.cwd(), [], {}, "")
+            found = linters.eslint_report(Path.cwd(), [], {}, "", framework.load_one("react"))
         self.assertTrue(all(found[slug] for slug in linters.UI_SLUGS))
 
     def test_nonzero_without_diagnostics_is_unverified(self):

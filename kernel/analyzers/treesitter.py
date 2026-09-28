@@ -23,16 +23,16 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 
-from kernel import facts
+from kernel import facts, lang
 
 MISSING = "tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치"
 _GO_MODULE = re.compile(r"^\s*module\s+(\S+)", re.M)
 
 
-def _grammar(syntax: str) -> object | None:
+def _grammar(package: str, syntax: str) -> object | None:
     """문법 패키지의 언어 포인터. `tree_sitter_typescript` 처럼 언어별 함수 이름을 쓰는 패키지도 받는다."""
     try:
-        module = importlib.import_module(f"tree_sitter_{syntax}")
+        module = importlib.import_module(package)
     except ImportError:
         return None
     for name in ("language", f"language_{syntax}"):
@@ -84,7 +84,8 @@ def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]
     except ImportError:
         return None, MISSING
     syntax = str(pack["SYNTAX"])
-    grammar = _grammar(syntax)
+    package = lang.grammar_module(dict(pack)) or f"tree_sitter_{syntax}"   # 팩의 GRAMMAR 가 정본이고, 비우면 구문 이름에서 만든다
+    grammar = _grammar(package, syntax)
     if grammar is None:
         return None, f"tree-sitter-{syntax} 문법 미설치 — 초기 설정의 스택 맞춤에서 설치"
     queries = dict(pack.get("QUERIES") or {})   # type: ignore[call-overload]  # lang.load 가 매핑임을 검증했다

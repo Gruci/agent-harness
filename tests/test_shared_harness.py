@@ -320,7 +320,8 @@ class SharedHookTests(SharedHookFixture):
         doc = self.write_code("kernel/guide.md", "# Guide\n")
         sys.path.insert(0, str(REPO))
         from kernel.hook import untracked_paths
-        self.assertEqual(set(untracked_paths(self.root)), {code, doc})
+        shipped_docs = set(self.root.glob("kernel/**/*.md"))   # 커널이 싣는 MD(프레임워크팩 조각 등)는 문서라 대상이다
+        self.assertEqual(set(untracked_paths(self.root)), {code, doc} | shipped_docs)
 
     def test_broken_payload_warns_on_write_but_stop_still_checks(self) -> None:
         write = self.hook("PostToolUse", [])

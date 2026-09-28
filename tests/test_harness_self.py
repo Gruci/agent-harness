@@ -326,9 +326,10 @@ def _ensure_uilint() -> None:
 def test_ui_lint_detects_fixture_violations() -> None:
     """설정 파일이 픽스처 위반 6종을 각각 잡고, 래퍼 정본과 깨끗한 파일은 잡지 않는다."""
     _ensure_uilint()
-    from kernel import linters                # noqa: E402  (_ensure_uilint 가 경로를 넣는다)
+    from kernel import framework, linters     # noqa: E402  (_ensure_uilint 가 경로를 넣는다)
 
-    found = linters.eslint_report(UILINT, [UILINT / "src"], {"browser_api": ["src/platform.ts"]}, "토큰")
+    found = linters.eslint_report(UILINT, [UILINT / "src"], {"browser_api": ["src/platform.ts"]}, "토큰",
+                                  framework.load_one("react"))
     for slug, (path, line) in EXPECTED_UI.items():
         hits = [v for v in found[slug] if v.startswith(f"tests/fixtures/uilint/{path}:{line}:")]
         assert hits, f"{slug}: {path}:{line} 을 못 잡았다 — {found[slug]}"

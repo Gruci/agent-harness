@@ -1,4 +1,9 @@
 exit=3
+[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/ARCHITECTURE.md`
+[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/react.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/react.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
 [OK]   프로파일 형식
 [SKIP] 파일 길이 상한 — 검사할 소스 없음
 [SKIP] 헤더 경로 주석 — 검사할 소스 없음
@@ -32,6 +37,7 @@ exit=3
 [TOOL] 미정의 모듈 상수 — 미선언 구문 분석기가 없어 검사 못 함
 [SKIP] 선언 본문 중복(정본 재구현) — 검사할 소스 없음
 [SKIP] 블록 중복(선언 안 복붙) — 검사할 소스 없음
+[OK]   MD 작성 규칙
 [SKIP] MD 경로 참조 실존 — greenfield — 리포트로만
 [SKIP] 고아 MD(허브 도달 불가) — 설정에 문서 시작점을 안 적었음
 [SKIP] 하네스 지도 대조 — greenfield — HARNESS.md 아직 없음

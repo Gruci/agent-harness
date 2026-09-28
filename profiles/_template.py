@@ -14,6 +14,8 @@ STAGE = "greenfield"
 # 실행 언어가 아니라 개발할 제품의 언어다. 하네스가 Python이어도 제품 언어를 추정하지 않는다.
 LANG: str | None = None
 ARCH: str | None = None
+# 서버·화면 프레임워크팩. 역할별로 최대 하나씩(예: ("fastapi", "react")). 비우면 웹·화면 게이트가 [SKIP] 이다.
+FRAMEWORK: tuple[str, ...] = ()
 COMPONENT_GRAPH = "docs/architecture/components.json"
 
 # LANG 선택 후 언어팩 값을 사용한다. 필요할 때 SOURCE_EXT, SYNTAX, LINTERS를 명시한다.

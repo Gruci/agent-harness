@@ -62,17 +62,23 @@ def _is_async_generator(node: ast.AsyncFunctionDef) -> bool:
     return False
 
 
-def _returns_stream(node: ast.AsyncFunctionDef) -> bool:
+def _returns_stream(node: ast.AsyncFunctionDef, stream_returns: tuple[str, ...]) -> bool:
+    """반환 타입 이름이 서버팩의 스트림 타입으로 끝나는가. 스트림 응답은 await 없이도 정상이다."""
     ann = node.returns
     name = ""
     if isinstance(ann, ast.Name):
         name = ann.id
     elif isinstance(ann, ast.Attribute):
         name = ann.attr
-    return name.endswith("StreamingResponse") or name == "EventSourceResponse"
+    return bool(stream_returns) and name.endswith(stream_returns)
 
 
 def check_web_async_no_await(py_files: list[Path]) -> list[str]:
+    """await 없는 async 핸들러. 판정 방식(`ASYNC_HANDLER`)과 스트림 타입은 서버 프레임워크팩이 선언한다. 러너가 선언 없는 팩을 먼저 거른다."""
+    server = profile.SERVER
+    if server is None or server["ASYNC_HANDLER"] is None:
+        return []
+    stream_returns = tuple(server["STREAM_RETURNS"])
     bad: list[str] = []
     for f in py_files:
         rel = _rel(f)
@@ -84,7 +90,7 @@ def check_web_async_no_await(py_files: list[Path]) -> list[str]:
         for node in ast.walk(tree):
             if not isinstance(node, ast.AsyncFunctionDef):
                 continue
-            if _async_has_await(node) or _is_async_generator(node) or _returns_stream(node):
+            if _async_has_await(node) or _is_async_generator(node) or _returns_stream(node, stream_returns):
                 continue
             bad.append(f"{rel}:{node.lineno}: await 없는 async def '{node.name}' — 동기 def 로 바꿔라")
     return bad
@@ -113,10 +119,12 @@ def check_ssl_bypass_location(py_files: list[Path]) -> list[str]:
 
 
 def check_routes_error_response(py_files: list[Path]) -> list[str]:
-    """에러는 예외로 올린다. 성공 응답용 래퍼(상태코드 없음·2xx)는 위반이 아니다."""
+    """에러는 예외로 올린다. 성공 응답용 래퍼(상태코드 없음·2xx)는 위반이 아니다. 상태를 싣는 키워드 이름은 서버 프레임워크팩이 선언한다."""
     wrapper = profile.symbol("error_response")
-    if not wrapper:
+    server = profile.SERVER
+    if not wrapper or server is None or not server["ERROR_STATUS_KWARG"]:
         return []
+    status_kwarg = server["ERROR_STATUS_KWARG"]
     bad: list[str] = []
     for f in py_files:
         rel = _rel(f)
@@ -133,7 +141,7 @@ def check_routes_error_response(py_files: list[Path]) -> list[str]:
             if name != wrapper:
                 continue
             for kw in node.value.keywords:
-                if kw.arg == "status_code" and isinstance(kw.value, ast.Constant) \
+                if kw.arg == status_kwarg and isinstance(kw.value, ast.Constant) \
                         and isinstance(kw.value.value, int) and kw.value.value >= 400:
                     bad.append(f"{rel}:{node.lineno}: 에러를 {wrapper}(status "
                                f"{kw.value.value}) 로 반환 — 예외로 올려라")

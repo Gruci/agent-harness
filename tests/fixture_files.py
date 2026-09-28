@@ -313,6 +313,7 @@ LANG = "python"
 LINTERS = ()  # External process contracts are tested separately from deterministic golden output.
 
 ARCH = "web_layered"      # 화면+서버 풀스택 — 아무것도 N/A 로 돌리지 않는다
+FRAMEWORK = ("fastapi", "react")   # 서버·화면 프레임워크팩 — 웹·화면 게이트가 이 선언을 읽는다
 
 CHECK_PATHS = {
     "routes": "web/routes",

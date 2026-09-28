@@ -6,8 +6,8 @@
 
 ## 정해야 할 것 (첫 차트 작업 시)
 
-- [ ] 차트 라이브러리 (참고: 원본은 Chart.js + react-chartjs-2)
-- [ ] 래퍼 구조 — `frontend/src/charts/`에 타입별 래퍼(Line/Bar/Doughnut 등)를 두고, 래퍼가 공통 기본값(`CHART_DEFAULTS`)을 자동으로 넣는다
+- [ ] 차트 라이브러리 — 고른 스택의 관례 조각(`dev/CONVENTIONS.md` 「스택 관례」)에 참고 조합이 있으면 그것부터 본다
+- [ ] 래퍼 구조 — 화면 레이어(프로파일 `CHECK_PATHS["ui"]`)의 차트 래퍼 디렉토리에 타입별 래퍼(Line/Bar/Doughnut 등)를 두고, 래퍼가 공통 기본값을 자동으로 넣는다
 - [ ] tooltip/legend 공통 스타일
 
 ## 규칙 (확정분)

@@ -1,9 +1,12 @@
 // kernel/eslint.harness.mjs — 화면 게이트 6종(검사 10·17·18·19·20·42)의 판정 정본.
 //
-// 러너(kernel/linters.py)가 npm 프로젝트(frontend/)를 cwd 로
+// 러너(kernel/linters.py)가 npm 프로젝트(ui 레이어의 첫 세그먼트)를 cwd 로
 //   eslint -c <이 파일> --no-config-lookup --format json <대상>
-// 을 부른다. 규칙은 전부 인라인 플러그인이다 — 외부 규칙 패키지 없이 파서(@typescript-eslint/parser)만
-// 프로젝트 것을 쓴다. 러너는 메시지 앞의 `[slug]` 로 결과를 섹션에 나눈다. 예외 표시 주석(any-ok · px-ok · web-ok)은
+// 을 부른다. 규칙은 전부 인라인 플러그인이다 — 외부 규칙 패키지 없이 파서만 프로젝트 것을 쓴다.
+// 어느 파서인지와 어느 확장자를 볼지는 화면 프레임워크팩(kernel/framework.py)이 선언하고, 러너가 환경변수
+// HARNESS_UI_PARSER · HARNESS_UI_PARSER_OPTIONS · HARNESS_UI_FILES 로 넘긴다. 규칙 본문은 스크립트 AST 기준이라
+// 파서를 바꿔도 그대로 성립한다(Vue SFC 는 vue-eslint-parser 가 스크립트 블록 AST 를 넘긴다).
+// 러너는 메시지 앞의 `[slug]` 로 결과를 섹션에 나눈다. 예외 표시 주석(any-ok · px-ok · web-ok)은
 // 정규식 방식을 쓰던 때와 같다. 면제 목록은 환경변수 HARNESS_UI_ALLOW(slug → cwd 기준 glob)로, 토큰 정본 안내 문구는
 // HARNESS_UI_TOKENS 로 받는다.
 //
@@ -12,7 +15,17 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 const require = createRequire(path.join(process.cwd(), "package.json"));
-const tsParser = require("@typescript-eslint/parser");
+
+const parserName = process.env.HARNESS_UI_PARSER;
+if (!parserName) {
+  throw new Error("HARNESS_UI_PARSER 없음 — 러너(kernel/linters.py)가 화면 프레임워크팩의 ESLINT_PARSER 를 넘긴다");
+}
+const parser = require(parserName);
+const parserOptions = JSON.parse(process.env.HARNESS_UI_PARSER_OPTIONS || "{}");
+const FILES = JSON.parse(process.env.HARNESS_UI_FILES || "[]");
+if (!FILES.length) {
+  throw new Error("HARNESS_UI_FILES 없음 — 러너(kernel/linters.py)가 화면 프레임워크팩의 UI_EXT 를 넘긴다");
+}
 
 const allow = JSON.parse(process.env.HARNESS_UI_ALLOW || "{}");
 const tokensNote = process.env.HARNESS_UI_TOKENS || "토큰 정본 또는 CSS 변수";
@@ -144,13 +157,12 @@ const rules = {
   },
 };
 
-const FILES = ["**/*.ts", "**/*.tsx"];
 const block = (slug, rule) => ({ files: FILES, ignores: allow[slug] || [], rules: { [`harness/${rule}`]: "error" } });
 
 export default [
   {
     files: FILES,
-    languageOptions: { parser: tsParser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
+    languageOptions: { parser, parserOptions },
     plugins: { harness: { rules } },
   },
   block("ts_any", "ts-any"),

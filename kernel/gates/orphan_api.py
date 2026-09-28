@@ -10,8 +10,9 @@
 
 ## 판정
 
-라우트 레이어의 데코레이터에서 경로 리터럴을 모으고, 화면 소스 전체에서 그 문자열이 한 번도
-안 나오면 위반이다.
+라우트 레이어에서 서버 프레임워크팩의 `ROUTE_PATTERN` 으로 경로 리터럴을 모으고, 화면 소스 전체에서
+그 문자열이 한 번도 안 나오면 위반이다. 라우트 선언의 생김새는 프레임워크마다 다르므로(FastAPI 는
+데코레이터, Express 는 `app.get(...)`) 정규식은 커널이 아니라 팩이 준다.
 
 경로 파라미터 앞까지만 비교한다 — 화면은 `/api/etf/${code}` 처럼 조립하므로 전체 문자열로
 비교하면 전부 오탐이 된다. 접두가 너무 짧으면 비교를 건너뛴다(`/` 하나짜리는 어디에나 있다).
@@ -28,18 +29,32 @@ from pathlib import Path
 from kernel import profile
 from kernel.context import READ_ENC, _rel
 
-# `@app.get("/x")` · `@router.post('/y')` 형태. 데코레이터 이름은 무엇이든 받는다.
-_ROUTE_DECORATOR = re.compile(r"""@\w+\.(?:get|post|put|delete|patch)\(\s*["']([^"']+)""")
-
 MIN_PREFIX_LEN = 2
 
 
-def _literal_prefix(route: str) -> str:
-    """경로 파라미터 앞의 고정 부분. 화면이 조립하는 뒤쪽은 비교 대상이 아니다."""
+def literal_prefix(route: str) -> str:
+    """경로 파라미터 앞의 고정 부분. 화면이 조립하는 뒤쪽은 비교 대상이 아니다. `{id}` 와 `:id` 둘 다 파라미터다."""
     return route.split("{")[0].split(":")[0].rstrip("/")
 
 
-def _declared_routes(py_files: list[Path]) -> list[tuple[str, int, str]]:
+def routes_in(text: str, pattern: str) -> list[tuple[int, str]]:
+    """소스 하나에서 (줄번호, 라우트). 팩의 패턴은 그룹 1 로 경로를 잡는다. `pack_check` 도 이 함수로 예제를 판정한다."""
+    route_re = re.compile(pattern)
+    found: list[tuple[int, str]] = []
+    for number, line in enumerate(text.splitlines(), 1):
+        match = route_re.search(line)
+        if match:
+            found.append((number, match.group(1)))
+    return found
+
+
+def consumed(route: str, ui_source: str) -> bool:
+    """화면 소스가 이 라우트를 쓰는가. 접두가 너무 짧으면 비교 불가라 소비로 본다."""
+    prefix = literal_prefix(route)
+    return len(prefix) < MIN_PREFIX_LEN or prefix in ui_source
+
+
+def _declared_routes(py_files: list[Path], pattern: str) -> list[tuple[str, int, str]]:
     """(경로, 줄번호, 라우트) — 라우트 레이어 아래 선언만."""
     prefix = profile.layer("routes") or profile.layer("web")
     if not prefix:
@@ -49,25 +64,23 @@ def _declared_routes(py_files: list[Path]) -> list[tuple[str, int, str]]:
         rel = _rel(path)
         if not rel.startswith(prefix):
             continue
-        for number, line in enumerate(
-                path.read_text(encoding=READ_ENC, errors="replace").splitlines(), 1):
-            found = _ROUTE_DECORATOR.search(line)
-            if found:
-                declared.append((rel, number, found.group(1)))
+        for number, route in routes_in(path.read_text(encoding=READ_ENC, errors="replace"), pattern):
+            declared.append((rel, number, route))
     return declared
 
 
 def check_orphan_api(py_files: list[Path], ui_files: list[Path]) -> list[str]:
-    """소비하는 화면 코드가 없는 라우트."""
-    declared = _declared_routes(py_files)
+    """소비하는 화면 코드가 없는 라우트. 서버팩이 없으면 라우트를 알아볼 수 없어 빈 목록이다 — 러너가 [SKIP] 으로 찍는다."""
+    if profile.SERVER is None:
+        return []
+    declared = _declared_routes(py_files, profile.SERVER["ROUTE_PATTERN"])
     if not declared or not ui_files:
         return []
-    consumed = "\n".join(
+    ui_source = "\n".join(
         path.read_text(encoding=READ_ENC, errors="replace") for path in ui_files)
     orphans: list[str] = []
     for rel, number, route in declared:
-        prefix = _literal_prefix(route)
-        if len(prefix) < MIN_PREFIX_LEN or prefix in consumed:
+        if consumed(route, ui_source):
             continue
         orphans.append(f"{rel}:{number}: `{route}` — 소비하는 화면 코드가 없다. "
                        f"컴포넌트까지가 한 단위다")

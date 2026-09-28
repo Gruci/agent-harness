@@ -14,7 +14,7 @@ description: >
 
 > 담는 것: 프로젝트를 하네스에 연결하는 온보딩 인터뷰 절차. 담지 않는 것: 게이트 각각의 판정 근거(→ `dev/HARNESS.md`)·앱 코드 작성(→ 기능 작업 스킬). 읽는 시점: 새 프로젝트를 시작하거나 `harness_profile.py` 가 없을 때.
 
-**상대가 스택을 모른다고 가정한다.** "FastAPI 쓸래 Django 쓸래"는 답을 아는 사람만 답할 수
+**상대가 스택을 모른다고 가정한다.** "A 쓸래 B 쓸래"처럼 기술 이름만 던지는 질문은 답을 아는 사람만 답할 수
 있는 질문이고, 그걸 물으면 온보딩이 아니라 시험이다. 만들려는 것을 묻고, 언어와 프레임워크가
 미정이면 **후보의 실제 제약을 설명하고 사용자가 고른다.** 절차 정본은
 `dev/workflows/harness-assembly.md` 이고 이 스킬은 그 절차에 도구 호출을 연결한다.
@@ -115,11 +115,8 @@ grep -qx "worktrees/" .git/info/exclude 2>/dev/null || echo "worktrees/" >> .git
 LANG = "go"      # kernel/langs/go.py
 ```
 
-쓸 수 있는 팩은 `python`·`go`·`typescript` 다. 없는 언어면 `kernel/langs/go.py` 를
-본떠 `profiles/lang/<이름>.py` 로 만든다. 같은 언어의 팩이 양쪽에 있으면 프로젝트 쪽이 우선한다. 선언할 것의
-목록은 `kernel/lang.py` 헤더에 있다. 만든 팩이 1급(미검증 항목이 없는 팩)인지는 선언이 아니라
-`python -X utf8 -m kernel.pack_check <이름>` 이 판정한다. `[미검증]` 으로 남은 게이트는
-그 언어에서 돌지 않는다.
+쓸 수 있는 팩은 `--doctor` 첫 줄이 나열한다. 없는 언어는 4-1 의 스택 맞춤에서 템플릿으로 만든다.
+같은 언어의 팩이 양쪽에 있으면 프로젝트 쪽이 우선한다. 선언할 것의 목록은 `kernel/lang.py` 헤더에 있다.
 
 확장자가 안 맞으면 대상이 0건이라 나머지를 아무리 채워도 안 돈다. 그래서 이게 먼저다.
 
@@ -129,12 +126,26 @@ LANG = "go"      # kernel/langs/go.py
 python -X utf8 harness_install.py --doctor
 ```
 
-언어팩이 위임하는 외부 도구(`go vet`·`staticcheck`·`ruff`·`tsc` 등)의 설치 여부를 찍는다.
+언어팩이 위임하는 외부 도구(`go vet`·`staticcheck`·`ruff`·`tsc` 등)와 팩이 `REQUIRES` 로 요구하는 도구, 그리고 구문
+분석기(tree-sitter 문법·외부 분석기 명령)가 지금 이 환경에 있는지 찍는다.
 **도구가 없으면 그 도구를 쓰는 검사는 `[TOOL]` 로 표시되고 꺼진 채 돈다.** 통과로 처리되지는 않지만 커버리지가
 줄어든다. 없으면 설치 명령을 사용자에게 제시하고, 설치할지 물어본다 — 이건 사용자 환경을
-바꾸는 일이라 자율로 하지 않는다.
+바꾸는 일이라 자율로 하지 않는다. 하네스 본체를 개발하는 레포는 아무것도 요구하지 않는다.
 
 빈 폴더였다면 `CHECK_PATHS` 는 첫 코드의 위치가 정해진 뒤 적는다 — 없는 경로를 미리 적으면 검사 대상이 0건인데도 통과로 표시된다.
+
+## 4-1. 스택을 1급으로 맞춘다 — 끝나는 조건은 `pack_check` 출력이다
+
+고른 언어와 프레임워크마다 팩이 게이트를 **실제로** 켜는지 확인한다. 선언을 적은 것만으로는 1급이 아니고,
+판정은 사람이 아니라 `kernel.pack_check` 가 한다. 공통 절차는 `dev/workflows/harness-assembly.md` 「스택 맞춤」이다.
+
+| 순서 | 하는 일 |
+|:--|:--|
+| 팩 확보 | 커널 탑재 팩이 있으면 쓴다. 없으면 `profiles/lang/_template.py`·`profiles/framework/_template.py` 를 복사해 `profiles/lang/<이름>.py`·`profiles/framework/<이름>.py` 로 만들고 쿼리·패턴·FIXTURES 까지 채운다 |
+| 분석기 선택 | tree-sitter 를 설치할 수 있으면 `ANALYZER = "treesitter"` 다. 설치하지 않겠다면 `ANALYZER = "command"` 로 두고, 그 언어 자신의 도구로 FileFacts JSON 을 내는 스크립트를 만든다. 계약은 `kernel/analyzers/command.py` 헤더다 |
+| 설치 제안 | `--doctor` 가 `REQUIRES` 중 없는 것만 설치 안내와 함께 보고한다. 사용자가 동의한 것만 설치한다 |
+| 1급 판정 | `python -X utf8 -m kernel.pack_check <이름>` 이 `[미검증] 0` 이 될 때까지 팩을 고친다 |
+| 보고 | 무엇이 `[1급]` 이고 무엇이 `[N/A]` 이며 왜 그런지 사람 말로 알린다. `[미검증]` 이 남았으면 어느 검사가 안 지켜지는지 말한다. 조용히 끝내지 않는다 |
 
 ## 5. 첫 분류를 제안한다
 

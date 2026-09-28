@@ -242,7 +242,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | 28 | 하네스 지도 | `md_harness_map` | 이 파일과 실물의 어긋남 — 양방향(빠진 실물·지도에만 남은 유령 행) |
 | 29 | 에이전트 모델 정책 | `agent_model` | frontmatter 와 정책표의 드리프트 |
 | 30 | 사고 절 승격 상태 | `lessons_promotion` | 사고를 적고 판단을 미루는 것 |
-| 31 | 소비 UI 없는 API 라우트 | `orphan_api` | 화면이 없어 사용자에겐 존재하지 않는 기능 |
+| 31 | 소비 UI 없는 API 라우트 | `orphan_api` | 화면이 없어 사용자에겐 존재하지 않는 기능 — 라우트 인식은 서버 프레임워크팩의 정규식 |
 | 32 | 미정의 모듈 상수 | `undefined_const` | import 는 통과하고 호출 시점에 터지는 이름 |
 | 33 | MD 함수 참조 실존 | `md_fn_refs` | 개명 후 MD 에 남은 유령 함수 |
 | 34 | 선언 본문 중복 | `dup_decl` | 이름만 갈린 정본 재구현 |
@@ -270,6 +270,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 |---|---|
 | `edit_surface` | 면제·제외 목록이 늘어나는 것. 게이트를 느슨하게 만드는 가장 손쉬운 방법이다 |
 | `archive_not_shipped` | 배포본(master)에 `docs/tasks/archive/` 산출물이 추적되는 것. 로컬 보관은 허용, git 추적만 막는다 — clone 해 간 프로젝트는 자기 archive 를 커밋하는 게 맞으므로 커널이 아니라 여기 산다 |
+| `stack_words` | 문서·에이전트에 스택 이름이 되돌아오는 것. 원칙은 프로파일 키로, 스택 관례는 `kernel/frameworks/<이름>.md` 조각으로 둔다는 정리를 잠그는 래칫이다. 허용 위치는 `dev/LESSONS.md`(사고 경위)·조각·픽스처·`docs/tasks/`·벤더 사본이고, 조각에서 생성한 `dev/CONVENTIONS.md` 「스택 관례」 절은 대상이 아니다. 제품 프로젝트는 자기 문서에 자기 스택을 쓰는 게 정상이라 커널이 아니라 여기 산다 |
 
 `edit_surface` 의 동결본은 `harness_surface.txt` 이고, 다른 래칫(줄어들 수만 있게 잠근 목록)처럼 **감소만 허용**한다.
 회고의 판정을 사람이 하는 동안 면제를 늘리는 길이 열려 있으면, 개선 루프는 규칙을 고치는 대신 면제를
@@ -300,6 +301,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 실행 파일이 없으면 여섯 게이트 모두 `[TOOL]` 이다. `npx --no-install` 로 설치 여부를 판정하면 npm 오류가 위반 0건으로
 읽혀 조용히 통과하므로, 실행 파일이 실제로 있는지로 판정한다. 면제(`ALLOWLIST`·admin·토큰 정본)와 탈출 주석(`any-ok`·`px-ok`·
 `web-ok`)은 정규식 시절 그대로다. 골든 픽스처 테스트에서 도구가 없으면 `[TOOL]` 상태 자체를 기대값과 비교하고, 성공으로 판정하지 않는다.
+파서와 대상 확장자는 화면 프레임워크팩이 선언하고, 러너가 환경변수(`HARNESS_UI_PARSER`·`HARNESS_UI_PARSER_OPTIONS`·`HARNESS_UI_FILES`)로 설정 파일에 넘긴다. 규칙 본문은 스크립트 AST 기준이라 파서를 바꿔도 그대로 성립한다.
 
 검출이 제대로 되는지는 `tests/fixtures/uilint` 를 쓰는 자체 테스트가 증명한다.
 
@@ -365,6 +367,8 @@ Stop 훅은 제안을 알린 뒤 사용자 응답을 기다리며 턴을 끝내�
 
 ## 언어팩
 
+팩 축은 셋이다. 언어팩(`LANG`)은 검사기가 그 언어를 이해하는 방법, 아키텍처팩(`ARCH`)은 어떤 레이어가 있는가, 프레임워크팩(`FRAMEWORK`)은 웹·화면 게이트가 읽을 프레임워크 선언이다.
+
 하네스의 Python 실행 환경은 제품 언어를 결정하지 않는다.
 LANG을 선택하기 전에는 소스 확장자와 구문 분석을 임의로 Python으로 채우지 않는다.
 새 프로젝트는 스택을 정하지 않은 프로파일 서식 하나에서 시작하며 [조립 절차](workflows/harness-assembly.md)를 따른다.
@@ -378,17 +382,41 @@ LANG을 선택하기 전에는 소스 확장자와 구문 분석을 임의로 Py
 
 중첩 def(2)·함수 길이(37)·타입힌트(8)와 컴포넌트 의존 방향(`component_dependencies`)은 파일마다 한 번 뽑아 둔 구문 사실(함수·import·최상위 이름 같은 구문 정보, 정의는 `kernel/facts.py`)만 읽는다. 구문 사실을 만드는 것은 분석기이고, 언어를 아는 것도 분석기뿐이다.
 
-| 언어 | 분석기 | 설치 |
+어느 분석기를 쓸지는 언어팩의 `ANALYZER` 가 정하고, 비어 있으면 `SYNTAX` 로 추정한다(python → `python`, 그 밖에 `QUERIES` 가 있으면 `treesitter`).
+
+| 분석기 | 실물 | 설치 |
 |---|---|---|
-| Python | `kernel/analyzers/python.py` — 표준 `ast` | 없음 |
-| 그 외 | `kernel/analyzers/treesitter.py` — 팩의 `QUERIES` 실행 | `tree-sitter` 와 문법 패키지. 초기 설정의 스택 맞춤에서 설치하고, 없으면 `[TOOL]` |
+| `python` | `kernel/analyzers/python.py` — 표준 `ast` | 없음 |
+| `treesitter` | `kernel/analyzers/treesitter.py` — 팩의 `QUERIES` 실행 | `tree-sitter` 와 팩 `GRAMMAR` 문법 패키지. 초기 설정의 스택 맞춤에서 설치하고, 없으면 `[TOOL]` |
+| `command` | `kernel/analyzers/command.py` — 팩 `ANALYZER_CMD` 가 낸 구문 사실 JSON 을 계약으로 검증 | 그 언어의 툴체인. 명령이 없으면 `[TOOL]`, 출력이 계약과 다르면 그 파일은 `error`(통과 아님) |
 
 Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain 부수효과)의 재료는 Python 분석기의 `extra` 로만 전달되고, 다른 언어에서는 그 부분을 건너뛴다.
-프레임워크 판정(13·16)과 미정의 상수(32)는 아직 Python `ast` 다 — 그 검사는 다른 언어에서 설치 사유가 아니라 "분석기 없음"으로 찍힌다.
+프레임워크 판정(13·16)과 미정의 상수(32)는 아직 Python `ast` 다. 13·16 은 서버 프레임워크팩이 판정 방식(`ASYNC_HANDLER`·`ERROR_STATUS_KWARG`)을 선언했을 때만 돌고, 다른 언어에서는 설치 사유가 아니라 "분석기 없음"으로 찍힌다.
 
 팩이 1급인지는 선언이 아니라 `python -X utf8 -m kernel.pack_check <이름>` 이 판정한다.
 팩의 `FIXTURES` 로 위반 예제가 잡히고 통과 예제가 안 잡혀야 `[1급]` 이고, `[미검증]` 이 하나라도 있으면 exit 1 이다.
-새 언어는 `kernel/langs/go.py` 를 본떠 팩 파일 하나로 늘리고 이 명령으로 확인한다.
+새 언어·프레임워크는 `profiles/lang/_template.py`·`profiles/framework/_template.py` 를 복사해 만들고, 초기 설정의 「스택 맞춤」([조립 절차](workflows/harness-assembly.md))이 이 명령으로 1급을 확인한다.
+
+팩의 `REQUIRES` 는 1급으로 돌기 위한 외부 도구의 확인 명령과 설치 안내다. `harness_install.py --doctor` 가 린터 설치 여부, 고른 분석기의 가용성, 미충족 `REQUIRES` 를 보고하고, 설치는 사용자가 정한다. 하네스 자신의 프로파일은 아무것도 요구하지 않는다.
+
+## 프레임워크팩
+
+언어팩·아키텍처팩 옆의 세 번째 팩 축이다. 웹·화면 게이트의 판정은 `kernel/gates/` 와 `kernel/eslint.harness.mjs` 에 한 벌뿐이고, 프레임워크마다 다른 **선언**만 팩에 둔다. 프로파일의 `FRAMEWORK` 가 역할별로 최대 하나씩 고른다.
+
+| 역할 | 선언 | 읽는 게이트 |
+|---|---|---|
+| `server` | 라우트 정규식, await 없는 async 판정 방식, 스트림 반환 타입, 에러 상태 키워드 | 13 · 16 · 31 |
+| `ui` | 화면 소스 패턴, ESLint 파서와 옵션, 설치 안내 | 10 · 17~20 · 42, 그리고 `UI_EXT` 기본값 |
+
+- 로더는 `kernel/framework.py`. 선언 목록의 정본은 그 헤더다. 같은 이름을 `profiles/framework/<이름>.py` 에 두면 프로젝트 것이 이긴다.
+- 기본 탑재 팩 두 개(`kernel/frameworks/`)는 이 하네스가 처음 쓰인 프로젝트의 동작을 그대로 옮긴 것이라, 그 둘을 고른 프로젝트의 게이트 출력은 도입 전과 같다(골든으로 고정).
+- 팩을 안 고르면 그 역할의 게이트는 `[SKIP] … 프레임워크팩 미선택` 이다. 조용히 통과하지 않는다.
+- 팩이 판정 방식을 선언하지 않으면 `[N/A] <팩>: 이 프레임워크에서 성립하지 않음` 이다. 못 함과 해당 없음을 가르는 것이 언어팩과 같은 경계다.
+- 역할 중복·모르는 이름·틀린 선언은 프로파일 오류(검사 47)다.
+- 1급 여부는 `kernel.pack_check` 가 판정한다. 서버팩은 라우트 예제(route·consumer·stranger)로, 화면팩은 ESLint 실측으로 잰다. ESLint 가 없는 환경의 화면 예제는 `[미검증] eslint 미설치` 다.
+- `PROFILE_SCHEMA` 는 올리지 않았다. `FRAMEWORK` 는 선택 항목이라 기존 프로파일은 `[SKIP]` 사유로 새 항목을 알게 된다.
+
+팩은 판정 선언(`<이름>.py`) 옆에 사람용 관례 조각(`<이름>.md`)을 둔다. 초기 설정의 스택 맞춤이 `FRAMEWORK` 가 고른 조각을 `python -X utf8 -m kernel.conventions` 로 `dev/CONVENTIONS.md` 「스택 관례」 절에 넣는다. 절은 표식 주석 사이에 있고 손으로 고치지 않는다 — 고칠 것은 조각이다. 같은 이름의 `profiles/framework/<이름>.md` 가 있으면 프로젝트 것이 이긴다.
 
 ## 아키텍처팩
 

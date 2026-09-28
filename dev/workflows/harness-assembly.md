@@ -10,6 +10,17 @@
 기존 대화에서 결정한 사항은 다시 묻지 않는다.
 빈 프로파일(`profiles/_template.py`)에서 시작해 선택한 언어와 검사 도구를 연결한다.
 
+## 스택 맞춤
+
+선택한 언어와 프레임워크의 팩이 게이트를 실제로 켜는지 확인한다.
+커널에 팩이 있으면 그대로 쓰고, 없으면 `profiles/lang/_template.py` 와 `profiles/framework/_template.py` 를 복사해 채운다.
+tree-sitter 를 설치할 수 없으면 언어팩에 `ANALYZER = "command"` 를 두고 외부 분석기 스크립트를 만든다.
+그 스크립트의 출력 계약은 `kernel/analyzers/command.py` 헤더를 따른다.
+필요한 도구는 `python -X utf8 harness_install.py --doctor` 가 팩의 `REQUIRES` 로 보고한다.
+설치는 사용자가 동의한 것만 하고, 하네스 본체 개발에는 아무것도 설치하지 않는다.
+`python -X utf8 -m kernel.pack_check <이름>` 에 `[미검증]` 이 없어야 끝난다.
+무엇이 1급이고 무엇이 N/A 인지와 그 이유를 사용자에게 사람 말로 보고한다.
+
 ## 첫 분류와 승인
 
 AI가 컴포넌트의 이름과 책임 및 제외 범위를 제안한다.

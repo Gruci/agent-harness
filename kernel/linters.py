@@ -22,6 +22,10 @@
 판정 정본은 `kernel/eslint.harness.mjs` 하나이고, 러너는 npm 프로젝트의 `node_modules/.bin/eslint`
 로 그 설정을 돌리고, 메시지 앞의 `[slug]` 로 결과를 여섯 섹션에 나눈다. 예전의 줄 단위 정규식은 문자열과 코드를
 구분하지 못해, 주석 속 색 값이 걸리고 여러 줄에 걸친 표현은 놓쳤다.
+
+규칙 본문은 스크립트 AST 기준이라 프레임워크를 모른다. 어느 파서로 AST 를 만들고 어느 확장자를 볼지는
+화면 프레임워크팩(`kernel/framework.py`)이 선언하고, 러너가 환경변수 HARNESS_UI_PARSER ·
+HARNESS_UI_PARSER_OPTIONS · HARNESS_UI_FILES 로 설정 파일에 넘긴다.
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -164,17 +169,25 @@ def ui_allow(npm_dir: Path) -> dict[str, list[str]]:
             for slug, paths in per_slug.items()}
 
 
+def ui_file_globs(patterns: tuple[str, ...]) -> list[str]:
+    """화면 소스 패턴(`*.tsx`)을 ESLint 설정의 files glob(`**/*.tsx`)으로. 이미 경로가 있는 패턴은 그대로 둔다."""
+    return [pattern if "/" in pattern else f"**/{pattern}" for pattern in patterns]
+
+
 def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]],
-                  tokens_note: str) -> dict[str, list[str]]:
-    """하네스 설정으로 ESLint 를 돌려 `[slug]` 태그로 나눈다.
+                  tokens_note: str, ui_pack: Mapping[str, object]) -> dict[str, list[str]]:
+    """하네스 설정으로 ESLint 를 돌려 `[slug]` 태그로 나눈다. 파서·옵션·대상 확장자는 화면팩(`ui_pack`)에서 읽는다.
 
     파싱에 실패한(fatal) 파일은 여섯 slug 모두에 기록한다. 그 파일은 여섯 검사 어느 것도 할 수 없기 때문이다.
-    테스트가 프로파일 없이 이 함수를 직접 부른다.
+    테스트와 `pack_check` 가 프로파일 없이 이 함수를 직접 부른다.
     """
     exe = ui_eslint_bin(npm_dir)
     if not exe:
         raise FileNotFoundError(f"{npm_dir}/node_modules/.bin/eslint")
-    env = {**os.environ, "HARNESS_UI_ALLOW": json.dumps(allow), "HARNESS_UI_TOKENS": tokens_note}
+    env = {**os.environ, "HARNESS_UI_ALLOW": json.dumps(allow), "HARNESS_UI_TOKENS": tokens_note,
+           "HARNESS_UI_PARSER": str(ui_pack["ESLINT_PARSER"]),
+           "HARNESS_UI_PARSER_OPTIONS": json.dumps(ui_pack["PARSER_OPTIONS"]),
+           "HARNESS_UI_FILES": json.dumps(ui_file_globs(tuple(ui_pack["UI_EXT"])))}   # type: ignore[arg-type]  # framework.load 가 목록임을 검증했다
     done = subprocess.run([str(exe), "-c", str(UI_CONFIG), "--no-config-lookup", "--format", "json",
                            "--no-error-on-unmatched-pattern", *map(str, targets)],
                           cwd=npm_dir, capture_output=True, text=True, encoding="utf-8",
@@ -208,13 +221,20 @@ def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]
 
 
 def run_ui_lint(ui_files: list[Path]) -> UiLint:
-    """프로파일 설정을 읽어 eslint_report 에 넘긴다. 대상은 러너가 준 파일 그대로다. `--file` 실행이면 하나, 전체 실행이면 ui 레이어 전부다."""
+    """프로파일 설정을 읽어 eslint_report 에 넘긴다. 대상은 러너가 준 파일 그대로다. `--file` 실행이면 하나, 전체 실행이면 ui 레이어 전부다.
+
+    화면팩이 없으면 파서를 알 수 없다 — 러너가 그 전에 [SKIP] 으로 끊지만, 여기서도 돌리지 않는다.
+    대상 확장자는 프로파일 `UI_EXT` 를 쓴다. 러너가 그 패턴으로 파일을 모았으므로 설정의 files 도 같아야 한다.
+    """
+    if profile.UI is None:
+        return UiLint({}, "화면 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다")
     npm_dir = ui_npm_dir()
     if not npm_dir or not npm_dir.is_dir():
         return UiLint({}, "npm 디렉토리 없음 — 프로파일 UI_NPM_DIR 로 지정 (기본은 ui 레이어 첫 세그먼트)")
     if not ui_eslint_bin(npm_dir):
         return UiLint({}, f"{npm_dir.relative_to(ROOT).as_posix()}/node_modules/.bin/eslint 없음 — "
-                          "설치: npm i -D eslint @typescript-eslint/parser typescript")
+                          f"설치: {profile.UI['ESLINT_INSTALL']}")
     tokens = profile.layer_raw("ui_tokens")
     note = f"{tokens} 또는 CSS 변수" if tokens else "토큰 정본 또는 CSS 변수"
-    return UiLint(eslint_report(npm_dir, ui_files, ui_allow(npm_dir), note), "")
+    ui_pack = {**profile.UI, "UI_EXT": profile.UI_EXT}
+    return UiLint(eslint_report(npm_dir, ui_files, ui_allow(npm_dir), note, ui_pack), "")

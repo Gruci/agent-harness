@@ -89,4 +89,5 @@ AGENT_MODEL_POLICY: dict[str, tuple[str, str]] = {
 # 이 레포에서만 참인 규칙. 판정은 harness_gates/<이름>.py 의 run(py, ui) 이 한다.
 # edit_surface        — 면제·제외 목록이 harness_surface.txt 동결본보다 늘면 막는다.
 # archive_not_shipped — 배포본(master)에 docs/tasks/archive/ 가 추적되면 막는다.
-LOCAL_GATES: tuple[str, ...] = ("edit_surface", "archive_not_shipped")
+# stack_words         — 문서·에이전트(MD)에 스택 이름(react·fastapi·useApi·tanstack·colors.ts)이 돌아오면 막는다.
+LOCAL_GATES: tuple[str, ...] = ("edit_surface", "archive_not_shipped", "stack_words")

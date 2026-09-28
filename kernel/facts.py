@@ -3,8 +3,11 @@
 게이트는 `ast` 를 직접 보지 않는다. 파일 하나를 `FileFacts` 하나로 받고, 사실을 만드는 쪽은
 분석기다. 언어별 차이는 분석기와 언어팩에만 있고 판정은 어느 언어에서든 같다.
 
-  Python   kernel/analyzers/python.py     표준 `ast`. 설치 의존 0
-  그 외    kernel/analyzers/treesitter.py 언어팩의 QUERIES 를 실행한다. `tree_sitter` 가 없으면 [TOOL]
+  python      kernel/analyzers/python.py     표준 `ast`. 설치 의존 0
+  treesitter  kernel/analyzers/treesitter.py 언어팩의 QUERIES 를 실행한다. `tree_sitter` 가 없으면 [TOOL]
+  command     kernel/analyzers/command.py    언어팩의 ANALYZER_CMD 가 낸 JSON 을 검증한다. 명령이 없으면 [TOOL]
+
+어느 것을 쓸지는 언어팩의 ANALYZER 가 정하고, 비어 있으면 `kernel.lang.analyzer_kind` 가 SYNTAX 로 추정한다.
 
 사실 종류(kind)와 그 사실을 쓰는 게이트. 러너는 게이트마다 필요한 종류를 `unavailable()` 로 묻는다.
 
@@ -26,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from kernel import profile
+from kernel import lang, profile
 from kernel.context import READ_ENC, ROOT, _rel
 
 
@@ -86,24 +89,30 @@ def query_kinds(queries: Mapping[str, object]) -> frozenset[str]:
 
 def _pack_kinds(pack: Mapping[str, object]) -> frozenset[str]:
     """분석기를 만들지 않고도 아는, 이 팩이 낼 수 있는 종류. 설치가 안 됐을 때 사유를 가르는 데 쓴다."""
-    from kernel.analyzers import python as python_analyzer   # 순환 import 회피
+    from kernel.analyzers import command, python as python_analyzer   # 순환 import 회피
 
-    if pack.get("SYNTAX") == "python":
+    kind = lang.analyzer_kind(dict(pack))
+    if kind == "python":
         return python_analyzer.KINDS
+    if kind == "command":
+        return command.KINDS
     queries = pack.get("QUERIES")
-    return query_kinds(queries) if isinstance(queries, Mapping) else frozenset()
+    return query_kinds(queries) if kind == "treesitter" and isinstance(queries, Mapping) else frozenset()
 
 
 def analyzer_for_pack(pack: Mapping[str, object], root: Path) -> tuple[Analyzer | None, str]:
     """팩 하나의 (분석기, 못 쓰는 사유). 사유가 비면 쓸 수 있다. pack_check 가 프로파일과 무관하게 쓴다."""
     # 분석기가 이 모듈의 사실형을 쓰므로 여기서는 늦게 import 한다 — 순환 import 회피.
-    from kernel.analyzers import python as python_analyzer, treesitter
+    from kernel.analyzers import command, python as python_analyzer, treesitter
 
-    syntax = pack.get("SYNTAX")
-    if syntax == "python":
+    kind = lang.analyzer_kind(dict(pack))
+    if kind == "python":
         return python_analyzer.PythonAnalyzer(), ""
-    if pack.get("QUERIES"):
+    if kind == "treesitter":
         return treesitter.build(pack, root)
+    if kind == "command":
+        return command.build(pack, root)
+    syntax = pack.get("SYNTAX")
     return None, _no_analyzer(syntax if isinstance(syntax, str) else None)
 
 
