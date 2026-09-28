@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 1100 528" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="classic" data-quality-profile="showcase" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1105 652" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="classic" data-quality-profile="showcase" xmlns="http://www.w3.org/2000/svg">
 <style>
 @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 800; font-display: swap;
       src: url(data:font/woff2;base64,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) format('woff2');
@@ -101,15 +101,18 @@ svg[data-preset="blueprint"] .c-security-group,
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Swimlanes -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="1044" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="1049" height="104" rx="10" class="c-lane" stroke-width="1"/>
         <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / 세션</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="176" width="1044" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="176" width="1049" height="104" rx="10" class="c-lane" stroke-width="1"/>
         <text x="54" y="198" class="t-dim" font-size="10" font-weight="600">02 / 툴 이벤트</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="300" width="1044" height="104" rx="10" class="c-lane" stroke-width="1"/>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-2-exception" x="46" y="306" width="1032" height="92" rx="8" class="c-security-group" stroke-width="1"/>
-        <text x="54" y="322" class="t-security" font-size="10" font-weight="600">EX / 종료</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="300" width="1049" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="322" class="t-dim" font-size="10" font-weight="600">03 / 격리</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="424" width="1049" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-3-exception" x="46" y="430" width="1037" height="92" rx="8" class="c-security-group" stroke-width="1"/>
+        <text x="54" y="446" class="t-security" font-size="10" font-weight="600">EX / 종료</text>
 
         <!-- Phase headers -->
         <line x1="72" y1="35" x2="360.4" y2="35" class="a-default" stroke-width="1.1"/>
@@ -126,14 +129,17 @@ svg[data-preset="blueprint"] .c-security-group,
 
 
         <!-- Edge paths -->
-        <path data-edge-from="growth" data-edge-to="pretool" data-edge-label="툴 호출" data-edge-key="0" data-edge-id="growth-pretool" data-composition-points="314.4,145;314.4,243;364.4,243" d="M 314.4 145 L 314.4 243 L 364.4 243" class="a-default" data-animate="edge" style="--step:1" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="editing_lock" data-edge-to="coding_rules" data-edge-key="1" data-edge-id="lock-rules" data-composition-points="635.5999999999999,393;635.5999999999999,409;827.1999999999999,409;827.1999999999999,393" d="M 635.5999999999999 393 L 635.5999999999999 409 L 827.1999999999999 409 L 827.1999999999999 393" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="pretool" data-edge-to="write_gate" data-edge-label="Edit 저장" data-edge-key="2" data-edge-id="pretool-write" data-composition-points="434.4,269;434.4,285;635.5999999999999,285;635.5999999999999,269" d="M 434.4 269 L 434.4 285 L 635.5999999999999 285 L 635.5999999999999 269" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="coding_rules" data-edge-to="pretool" data-edge-label="차단 → 고치고 다시" data-edge-key="3" data-edge-id="rules-back" data-composition-points="897.1999999999999,367;913.1999999999999,367;913.1999999999999,160;434.4,160;434.4,217" d="M 897.1999999999999 367 L 913.1999999999999 367 L 913.1999999999999 160 L 434.4 160 L 434.4 217" class="a-security" data-animate="edge" style="--step:10" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="coding_rules" data-edge-to="stop_rest" data-edge-label="통과" data-edge-key="4" data-edge-id="rules-rest" data-composition-points="827.1999999999999,393;827.1999999999999,409;1005.1999999999999,409;1005.1999999999999,393" d="M 827.1999999999999 393 L 827.1999999999999 409 L 1005.1999999999999 409 L 1005.1999999999999 393" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="start" data-edge-to="growth" data-edge-label="프롬프트" data-edge-key="5" data-edge-id="start-growth" data-composition-points="188,119;244.39999999999998,119" d="M 188 119 L 244.39999999999998 119" class="a-default" data-animate="edge" style="--step:0" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="write_gate" data-edge-to="agent_return" data-edge-label="위임 시" data-edge-key="6" data-edge-id="write-agent" data-composition-points="635.5999999999999,269;635.5999999999999,285;827.1999999999999,285;827.1999999999999,269" d="M 635.5999999999999 269 L 635.5999999999999 285 L 827.1999999999999 285 L 827.1999999999999 269" class="a-dashed" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="write_gate" data-edge-to="editing_lock" data-edge-label="턴 종료" data-edge-key="7" data-edge-id="write-lock" data-composition-points="635.5999999999999,269;635.5999999999999,285;20,285;20,367;565.5999999999999,367" d="M 635.5999999999999 269 L 635.5999999999999 285 L 20 285 L 20 367 L 565.5999999999999 367" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="growth" data-edge-to="pretool" data-edge-label="툴 호출" data-edge-key="0" data-edge-id="growth-pretool" data-composition-points="384.4,119;434.4,119;434.4,217" d="M 384.4 119 L 434.4 119 L 434.4 217" class="a-default" data-animate="edge" style="--step:1" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="edit_guard" data-edge-to="write_gate" data-edge-label="worktree 안 → 저장" data-edge-key="1" data-edge-id="guard-write" data-composition-points="509.4,367;635.5999999999999,367;635.5999999999999,269" d="M 509.4 367 L 635.5999999999999 367 L 635.5999999999999 269" class="a-default" data-animate="edge" style="--step:8" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="editing_lock" data-edge-to="coding_rules" data-edge-key="2" data-edge-id="lock-rules" data-composition-points="705.5999999999999,491;757.1999999999999,491" d="M 705.5999999999999 491 L 757.1999999999999 491" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pretool" data-edge-to="edit_guard" data-edge-label="Edit·Write" data-edge-key="3" data-edge-id="pretool-guard" data-composition-points="364.4,250;20,250;20,367;359.4,367" d="M 364.4 250 L 20 250 L 20 367 L 359.4 367" class="a-default" data-animate="edge" style="--step:10" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pretool" data-edge-to="write_gate" data-edge-label="Edit 저장" data-edge-key="4" data-edge-id="pretool-write" data-composition-points="504.4,243;565.5999999999999,243" d="M 504.4 243 L 565.5999999999999 243" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="coding_rules" data-edge-to="pretool" data-edge-label="차단 → 고치고 다시" data-edge-key="5" data-edge-id="rules-back" data-composition-points="827.1999999999999,517;827.1999999999999,533;20,533;20,285;434.4,285;434.4,269" d="M 827.1999999999999 517 L 827.1999999999999 533 L 20 533 L 20 285 L 434.4 285 L 434.4 269" class="a-security" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="coding_rules" data-edge-to="exit_gate" data-edge-label="worktree 안 [WIP] → push·PR 직전" data-edge-key="6" data-edge-id="rules-exit" data-composition-points="827.1999999999999,465;827.1999999999999,414;1005.1999999999999,414;1005.1999999999999,393" d="M 827.1999999999999 465 L 827.1999999999999 414 L 1005.1999999999999 414 L 1005.1999999999999 393" class="a-security" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="coding_rules" data-edge-to="stop_rest" data-edge-label="통과" data-edge-key="7" data-edge-id="rules-rest" data-composition-points="897.1999999999999,491;935.1999999999999,491" d="M 897.1999999999999 491 L 935.1999999999999 491" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="start" data-edge-to="growth" data-edge-label="프롬프트" data-edge-key="8" data-edge-id="start-growth" data-composition-points="188,119;244.39999999999998,119" d="M 188 119 L 244.39999999999998 119" class="a-default" data-animate="edge" style="--step:0" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="write_gate" data-edge-to="agent_return" data-edge-label="위임 시" data-edge-key="9" data-edge-id="write-agent" data-composition-points="635.5999999999999,269;635.5999999999999,285;827.1999999999999,285;827.1999999999999,269" d="M 635.5999999999999 269 L 635.5999999999999 285 L 827.1999999999999 285 L 827.1999999999999 269" class="a-dashed" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="write_gate" data-edge-to="editing_lock" data-edge-label="턴 종료" data-edge-key="10" data-edge-id="write-lock" data-composition-points="635.5999999999999,269;635.5999999999999,352;721.5999999999999,352;721.5999999999999,491;705.5999999999999,491" d="M 635.5999999999999 269 L 635.5999999999999 352 L 721.5999999999999 352 L 721.5999999999999 491 L 705.5999999999999 491" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
 
         <!-- Nodes -->
         <g id="node-start" data-node-id="start" data-node-label="①~⑥ 세션 시작" tabindex="0" role="button" aria-label="Focus ①~⑥ 세션 시작, 페르소나·git·정비, 세션 › 시작·프롬프트" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="페르소나·git·정비" data-node-context="세션 › 시작·프롬프트">
@@ -196,85 +202,121 @@ svg[data-preset="blueprint"] .c-security-group,
           <text data-detail="context" x="827.1999999999999" y="255" class="t-muted" font-size="8" text-anchor="middle">크기 상한</text>
         </g>
 
+        <g id="node-edit_guard" data-node-id="edit_guard" data-node-label="⑧-6 편집 가드" tabindex="0" role="button" aria-label="Focus ⑧-6 편집 가드, 메인 체크아웃 · 보드 등록, 격리 › 툴 전·후" aria-pressed="false" data-node-kind="security" data-node-sublabel="메인 체크아웃 · 보드 등록" data-node-context="격리 › 툴 전·후">
+          <title>⑧-6 편집 가드 · 메인 체크아웃 · 보드 등록 · 격리 › 툴 전·후</title>
+          <rect x="359.4" y="341" width="150" height="52" rx="6" class="c-mask"/>
+          <rect x="359.4" y="341" width="150" height="52" rx="6" class="c-security" data-animate="node" style="--step:12" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(365.4 347) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="434.4" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑧-6 편집 가드</text>
+          <text data-detail="context" x="434.4" y="379" class="t-muted" font-size="8" text-anchor="middle">메인 체크아웃 · 보드 등록</text>
+        </g>
+
+        <g id="node-exit_gate" data-node-id="exit_gate" data-node-label="⑧-7 나올 때 검사" tabindex="0" role="button" aria-label="Focus ⑧-7 나올 때 검사, push·PR 전 --verify, 격리 › 종료" aria-pressed="false" data-node-kind="security" data-node-sublabel="push·PR 전 --verify" data-node-context="격리 › 종료">
+          <title>⑧-7 나올 때 검사 · push·PR 전 --verify · 격리 › 종료</title>
+          <rect x="930.1999999999999" y="341" width="150" height="52" rx="6" class="c-mask"/>
+          <rect x="930.1999999999999" y="341" width="150" height="52" rx="6" class="c-security" data-animate="node" style="--step:12" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(936.1999999999999 347) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="1005.1999999999999" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑧-7 나올 때 검사</text>
+          <text data-detail="context" x="1005.1999999999999" y="379" class="t-muted" font-size="8" text-anchor="middle">push·PR 전 --verify</text>
+        </g>
+
         <g id="node-editing_lock" data-node-id="editing_lock" data-node-label="⑫ 보드 잔존" tabindex="0" role="button" aria-label="Focus ⑫ 보드 잔존, 경고 — 추론, 종료 › 툴 전·후" aria-pressed="false" data-node-kind="backend" data-node-sublabel="경고 — 추론" data-node-context="종료 › 툴 전·후">
           <title>⑫ 보드 잔존 · 경고 — 추론 · 종료 › 툴 전·후</title>
-          <rect x="565.5999999999999" y="341" width="140" height="52" rx="6" class="c-mask"/>
-          <rect x="565.5999999999999" y="341" width="140" height="52" rx="6" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(571.5999999999999 347) scale(0.6875)">
+          <rect x="565.5999999999999" y="465" width="140" height="52" rx="6" class="c-mask"/>
+          <rect x="565.5999999999999" y="465" width="140" height="52" rx="6" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(571.5999999999999 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="635.5999999999999" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑫ 보드 잔존</text>
-          <text data-detail="context" x="635.5999999999999" y="379" class="t-muted" font-size="8" text-anchor="middle">경고 — 추론</text>
+          <text data-node-label="" data-detail-anchor="" x="635.5999999999999" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑫ 보드 잔존</text>
+          <text data-detail="context" x="635.5999999999999" y="503" class="t-muted" font-size="8" text-anchor="middle">경고 — 추론</text>
         </g>
 
         <g id="node-coding_rules" data-node-id="coding_rules" data-node-label="⑬ 전량 게이트" tabindex="0" role="button" aria-label="Focus ⑬ 전량 게이트, 차단 — 직접 관측, 종료 › 종료" aria-pressed="false" data-node-kind="security" data-node-sublabel="차단 — 직접 관측" data-node-context="종료 › 종료">
           <title>⑬ 전량 게이트 · 차단 — 직접 관측 · 종료 › 종료</title>
-          <rect x="757.1999999999999" y="341" width="140" height="52" rx="6" class="c-mask"/>
-          <rect x="757.1999999999999" y="341" width="140" height="52" rx="6" class="c-security" data-animate="node" style="--step:5" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(763.1999999999999 347) scale(0.6875)">
+          <rect x="757.1999999999999" y="465" width="140" height="52" rx="6" class="c-mask"/>
+          <rect x="757.1999999999999" y="465" width="140" height="52" rx="6" class="c-security" data-animate="node" style="--step:5" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(763.1999999999999 471) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="827.1999999999999" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑬ 전량 게이트</text>
-          <text data-detail="context" x="827.1999999999999" y="379" class="t-muted" font-size="8" text-anchor="middle">차단 — 직접 관측</text>
+          <text data-node-label="" data-detail-anchor="" x="827.1999999999999" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑬ 전량 게이트</text>
+          <text data-detail="context" x="827.1999999999999" y="503" class="t-muted" font-size="8" text-anchor="middle">차단 — 직접 관측</text>
         </g>
 
         <g id="node-stop_rest" data-node-id="stop_rest" data-node-label="⑭~⑱ 종료 검사" tabindex="0" role="button" aria-label="Focus ⑭~⑱ 종료 검사, 원격·잔해·UI 카피, 종료 › 종료" aria-pressed="false" data-node-kind="backend" data-node-sublabel="원격·잔해·UI 카피" data-node-context="종료 › 종료">
           <title>⑭~⑱ 종료 검사 · 원격·잔해·UI 카피 · 종료 › 종료</title>
-          <rect x="935.1999999999999" y="341" width="140" height="52" rx="6" class="c-mask"/>
-          <rect x="935.1999999999999" y="341" width="140" height="52" rx="6" class="c-backend" data-animate="node" style="--step:6" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(941.1999999999999 347) scale(0.6875)">
+          <rect x="935.1999999999999" y="465" width="140" height="52" rx="6" class="c-mask"/>
+          <rect x="935.1999999999999" y="465" width="140" height="52" rx="6" class="c-backend" data-animate="node" style="--step:6" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(941.1999999999999 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1005.1999999999999" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑭~⑱ 종료 검사</text>
-          <text data-detail="context" x="1005.1999999999999" y="379" class="t-muted" font-size="8" text-anchor="middle">원격·잔해·UI 카피</text>
+          <text data-node-label="" data-detail-anchor="" x="1005.1999999999999" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑭~⑱ 종료 검사</text>
+          <text data-detail="context" x="1005.1999999999999" y="503" class="t-muted" font-size="8" text-anchor="middle">원격·잔해·UI 카피</text>
         </g>
 
         <!-- Edge labels -->
         <g data-detail="context" data-edge-from="growth" data-edge-to="pretool" data-edge-label="툴 호출" data-edge-key="0" data-edge-id="growth-pretool">
-          <rect x="317.59999999999997" y="223" width="43.6" height="14" rx="3" class="c-mask"/>
-          <text x="339.4" y="233" class="t-muted" font-size="8" text-anchor="middle">툴 호출</text>
+          <rect x="387.59999999999997" y="99" width="43.6" height="14" rx="3" class="c-mask"/>
+          <text x="409.4" y="109" class="t-muted" font-size="8" text-anchor="middle">툴 호출</text>
+        </g>
+        <g data-detail="context" data-edge-from="edit_guard" data-edge-to="write_gate" data-edge-label="worktree 안 → 저장" data-edge-key="1" data-edge-id="guard-write">
+          <rect x="524.3" y="347" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="572.5" y="357" class="t-muted" font-size="8" text-anchor="middle">worktree 안 → 저장</text>
         </g>
 
-        <g data-detail="context" data-edge-from="pretool" data-edge-to="write_gate" data-edge-label="Edit 저장" data-edge-key="2" data-edge-id="pretool-write">
-          <rect x="508.4" y="265" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="535" y="275" class="t-backend" font-size="8" text-anchor="middle">Edit 저장</text>
+        <g data-detail="context" data-edge-from="pretool" data-edge-to="edit_guard" data-edge-label="Edit·Write" data-edge-key="3" data-edge-id="pretool-guard">
+          <rect x="163.2" y="230" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="192.2" y="240" class="t-muted" font-size="8" text-anchor="middle">Edit·Write</text>
         </g>
-        <g data-detail="context" data-edge-from="coding_rules" data-edge-to="pretool" data-edge-label="차단 → 고치고 다시" data-edge-key="3" data-edge-id="rules-back">
-          <rect x="625.5999999999999" y="140" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="673.8" y="150" class="t-security" font-size="8" text-anchor="middle">차단 → 고치고 다시</text>
+        <g data-detail="context" data-edge-from="pretool" data-edge-to="write_gate" data-edge-label="Edit 저장" data-edge-key="4" data-edge-id="pretool-write">
+          <rect x="508.4" y="223" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="535" y="233" class="t-backend" font-size="8" text-anchor="middle">Edit 저장</text>
         </g>
-        <g data-detail="context" data-edge-from="coding_rules" data-edge-to="stop_rest" data-edge-label="통과" data-edge-key="4" data-edge-id="rules-rest">
-          <rect x="901.1999999999999" y="389" width="30" height="14" rx="3" class="c-mask"/>
-          <text x="916.1999999999999" y="399" class="t-muted" font-size="8" text-anchor="middle">통과</text>
+        <g data-detail="context" data-edge-from="coding_rules" data-edge-to="pretool" data-edge-label="차단 → 고치고 다시" data-edge-key="5" data-edge-id="rules-back">
+          <rect x="375.4" y="513" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="423.59999999999997" y="523" class="t-security" font-size="8" text-anchor="middle">차단 → 고치고 다시</text>
         </g>
-        <g data-detail="context" data-edge-from="start" data-edge-to="growth" data-edge-label="프롬프트" data-edge-key="5" data-edge-id="start-growth">
+        <g data-detail="context" data-edge-from="coding_rules" data-edge-to="exit_gate" data-edge-label="worktree 안 [WIP] → push·PR 직전" data-edge-key="6" data-edge-id="rules-exit">
+          <rect x="834.4" y="394" width="163.6" height="14" rx="3" class="c-mask"/>
+          <text x="916.1999999999999" y="404" class="t-security" font-size="8" text-anchor="middle">worktree 안 [WIP] → push·PR 직전</text>
+        </g>
+        <g data-detail="context" data-edge-from="coding_rules" data-edge-to="stop_rest" data-edge-label="통과" data-edge-key="7" data-edge-id="rules-rest">
+          <rect x="901.1999999999999" y="471" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="916.1999999999999" y="481" class="t-muted" font-size="8" text-anchor="middle">통과</text>
+        </g>
+        <g data-detail="context" data-edge-from="start" data-edge-to="growth" data-edge-label="프롬프트" data-edge-key="8" data-edge-id="start-growth">
           <rect x="192" y="99" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="216.2" y="109" class="t-muted" font-size="8" text-anchor="middle">프롬프트</text>
         </g>
-        <g data-detail="context" data-edge-from="write_gate" data-edge-to="agent_return" data-edge-label="위임 시" data-edge-key="6" data-edge-id="write-agent">
+        <g data-detail="context" data-edge-from="write_gate" data-edge-to="agent_return" data-edge-label="위임 시" data-edge-key="9" data-edge-id="write-agent">
           <rect x="709.5999999999999" y="265" width="43.6" height="14" rx="3" class="c-mask"/>
           <text x="731.3999999999999" y="275" class="t-database" font-size="8" text-anchor="middle">위임 시</text>
         </g>
-        <g data-detail="context" data-edge-from="write_gate" data-edge-to="editing_lock" data-edge-label="턴 종료" data-edge-key="7" data-edge-id="write-lock">
-          <rect x="305.99999999999994" y="265" width="43.6" height="14" rx="3" class="c-mask"/>
-          <text x="327.79999999999995" y="275" class="t-backend" font-size="8" text-anchor="middle">턴 종료</text>
+        <g data-detail="context" data-edge-from="write_gate" data-edge-to="editing_lock" data-edge-label="턴 종료" data-edge-key="10" data-edge-id="write-lock">
+          <rect x="656.8" y="332" width="43.6" height="14" rx="3" class="c-mask"/>
+          <text x="678.5999999999999" y="342" class="t-backend" font-size="8" text-anchor="middle">턴 종료</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="20" y="428" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="User UI" data-legend-x="20" data-legend-baseline="448" data-legend-width="74">
-            <rect x="20" y="440" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="42" y="448" class="t-muted" font-size="7.5" font-weight="500">User UI</text>
+          <text x="20" y="552" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="User UI" data-legend-x="20" data-legend-baseline="572" data-legend-width="74">
+            <rect x="20" y="564" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="42" y="572" class="t-muted" font-size="7.5" font-weight="500">User UI</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent logic" data-legend-x="101" data-legend-baseline="448" data-legend-width="91">
-            <rect x="101" y="440" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="123" y="448" class="t-muted" font-size="7.5" font-weight="500">Agent logic</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent logic" data-legend-x="101" data-legend-baseline="572" data-legend-width="91">
+            <rect x="101" y="564" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="123" y="572" class="t-muted" font-size="7.5" font-weight="500">Agent logic</text>
           </g>
-          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Policy" data-legend-x="199" data-legend-baseline="448" data-legend-width="70">
-            <rect x="199" y="440" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
-            <text x="221" y="448" class="t-muted" font-size="7.5" font-weight="500">Policy</text>
+          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Policy" data-legend-x="199" data-legend-baseline="572" data-legend-width="70">
+            <rect x="199" y="564" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+            <text x="221" y="572" class="t-muted" font-size="7.5" font-weight="500">Policy</text>
           </g>
         </g>
       </svg>

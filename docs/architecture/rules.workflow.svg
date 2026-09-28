@@ -132,8 +132,8 @@ svg[data-preset="blueprint"] .c-security-group,
         <path data-edge-from="pretooluse-bash_write" data-edge-to="pretooluse-workboard_overlap" data-edge-key="2" data-edge-id="pretooluse-bash_write--pretooluse-workboard_overlap" data-composition-points="356,367;384,367" d="M 356 367 L 384 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="pretooluse-context_diet" data-edge-to="posttooluse-file_rules" data-edge-label="다음 이벤트" data-edge-key="3" data-edge-id="pretooluse-context_diet--posttooluse-file_rules" data-composition-points="118,393;118,414;32,414;32,491;48,491" d="M 118 393 L 118 414 L 32 414 L 32 491 L 48 491" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="pretooluse-context_diet" data-edge-to="pretooluse-bash_write" data-edge-key="4" data-edge-id="pretooluse-context_diet--pretooluse-bash_write" data-composition-points="118,393;118,409;286,409;286,393" d="M 118 393 L 118 409 L 286 409 L 286 393" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="pretooluse-workboard_overlap" data-edge-to="pretooluse-worktree_name" data-edge-key="5" data-edge-id="pretooluse-workboard_overlap--pretooluse-worktree_name" data-composition-points="524,367;552,367" d="M 524 367 L 552 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="pretooluse-worktree_name" data-edge-to="pretooluse-workflow_script" data-edge-key="6" data-edge-id="pretooluse-worktree_name--pretooluse-workflow_script" data-composition-points="692,367;720,367" d="M 692 367 L 720 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pretooluse-pretool" data-edge-to="pretooluse-workflow_script" data-edge-key="5" data-edge-id="pretooluse-pretool--pretooluse-workflow_script" data-composition-points="692,367;720,367" d="M 692 367 L 720 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pretooluse-workboard_overlap" data-edge-to="pretooluse-pretool" data-edge-key="6" data-edge-id="pretooluse-workboard_overlap--pretooluse-pretool" data-composition-points="524,367;552,367" d="M 524 367 L 552 367" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="sessionstart-code-master" data-edge-to="sessionstart-gitcheck" data-edge-key="7" data-edge-id="sessionstart-code-master--sessionstart-gitcheck" data-composition-points="188,119;216,119" d="M 188 119 L 216 119" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="sessionstart-code-master" data-edge-to="userpromptsubmit-context_growth" data-edge-label="다음 이벤트" data-edge-key="8" data-edge-id="sessionstart-code-master--userpromptsubmit-context_growth" data-composition-points="118,145;118,166;204,166;204,243;188,243" d="M 118 145 L 118 166 L 204 166 L 204 243 L 188 243" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="sessionstart-git_staleness" data-edge-to="sessionstart-maintenance" data-edge-key="9" data-edge-id="sessionstart-git_staleness--sessionstart-maintenance" data-composition-points="860,119;888,119" d="M 860 119 L 888 119" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
@@ -271,16 +271,16 @@ svg[data-preset="blueprint"] .c-security-group,
           <text data-detail="context" x="454" y="379" class="t-muted" font-size="7.8" text-anchor="middle">Edit|Write|MultiEdit|Noteboo</text>
         </g>
 
-        <g id="node-pretooluse-worktree_name" data-node-id="pretooluse-worktree_name" data-node-label="worktree_name" tabindex="0" role="button" aria-label="Focus worktree_name, EnterWorktree|Bash|PowerShel, 툴 실행 전" aria-pressed="false" data-node-kind="security" data-node-sublabel="EnterWorktree|Bash|PowerShel" data-node-context="툴 실행 전">
-          <title>worktree_name · EnterWorktree|Bash|PowerShel · 툴 실행 전</title>
+        <g id="node-pretooluse-pretool" data-node-id="pretooluse-pretool" data-node-label="pretool" tabindex="0" role="button" aria-label="Focus pretool, Edit|Write|MultiEdit|Noteboo, 툴 실행 전" aria-pressed="false" data-node-kind="security" data-node-sublabel="Edit|Write|MultiEdit|Noteboo" data-node-context="툴 실행 전">
+          <title>pretool · Edit|Write|MultiEdit|Noteboo · 툴 실행 전</title>
           <rect x="552" y="341" width="140" height="52" rx="6" class="c-mask"/>
           <rect x="552" y="341" width="140" height="52" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(558 347) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="622" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">worktree_name</text>
-          <text data-detail="context" x="622" y="379" class="t-muted" font-size="7.8" text-anchor="middle">EnterWorktree|Bash|PowerShel</text>
+          <text data-node-label="" data-detail-anchor="" x="622" y="362" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">pretool</text>
+          <text data-detail="context" x="622" y="379" class="t-muted" font-size="7.8" text-anchor="middle">Edit|Write|MultiEdit|Noteboo</text>
         </g>
 
         <g id="node-pretooluse-workflow_script" data-node-id="pretooluse-workflow_script" data-node-label="workflow_script" tabindex="0" role="button" aria-label="Focus workflow_script, Workflow, 툴 실행 전" aria-pressed="false" data-node-kind="security" data-node-sublabel="Workflow" data-node-context="툴 실행 전">

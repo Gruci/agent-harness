@@ -4,9 +4,9 @@
   "kind": "workflow",
   "source": "docs/architecture/hooks.workflow.json",
   "output": "docs/architecture/hooks.workflow.html",
-  "spec_sha256_lf": "1b346daa81425b5ca5a802a1284e413f13086580ff3396b4d3edf2b509c89afa",
-  "revision": "c37b7b600574f43de105341c3245551b56beb273",
-  "delivered_at": "2026-09-28T10:47:52",
+  "spec_sha256_lf": "20b7b49c4bf5746c6c9e02e17926dfae1aaa7de7e38a9035275cce0363cab4aa",
+  "revision": "ad61e9be3b844a788420dc50ca48c9b2df853068",
+  "delivered_at": "2026-09-28T13:24:40",
   "validation": {
     "checksPassed": 9,
     "checkCount": 9,
@@ -23,12 +23,12 @@
     "input": "docs/architecture/hooks.workflow.json",
     "output": "docs/architecture/hooks.workflow.html",
     "specification": {
-      "sha256": "bbaa6f3014aaa1a05c5daf170a2f2f1eb49ca995114fa74f63c4e10e7a252c3c",
-      "bytes": 8562
+      "sha256": "04f57e3cc59c73e826fc4f9307aa45c9882647e5332c1b5e25cdf62c1df33016",
+      "bytes": 10914
     },
     "artifact": {
-      "sha256": "92a7e3c31d189668716d81f6ef4707e9f3b9c42c72d7c0ea2d67977f838591a3",
-      "bytes": 829154
+      "sha256": "0f3ccb2f7b8d2f2ee640c110f8eee840b2ef1841e3fddda8a766c57d27d1cc03",
+      "bytes": 835799
     },
     "validation": {
       "checksPassed": 9,
