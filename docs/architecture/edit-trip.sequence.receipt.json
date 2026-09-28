@@ -4,9 +4,9 @@
   "kind": "sequence",
   "source": "docs/architecture/edit-trip.sequence.json",
   "output": "docs/architecture/edit-trip.sequence.html",
-  "spec_sha256_lf": "298f44ec70d9c7a90a72205c76975cbd7373b72af55587e173f42640659c7c68",
-  "revision": "865ae0b03068004e314609e6c19b541d80fd15b9",
-  "delivered_at": "2026-09-25T14:20:50",
+  "spec_sha256_lf": "b4c0f3ee47068f168cda7168b8c4eceaccadf7c40d197e93d011c35d5abe7db8",
+  "revision": "c37b7b600574f43de105341c3245551b56beb273",
+  "delivered_at": "2026-09-28T10:49:48",
   "validation": {
     "checksPassed": 9,
     "checkCount": 9,
@@ -23,12 +23,12 @@
     "input": "docs/architecture/edit-trip.sequence.json",
     "output": "docs/architecture/edit-trip.sequence.html",
     "specification": {
-      "sha256": "57b361ddcfd024936dfd6c9a4082d662726c1ea11710398cc3812f9821613e4f",
-      "bytes": 5310
+      "sha256": "1aff506e5f212da85a354c3317bea3e7cf99841c86a058033b2c7a5abea19899",
+      "bytes": 5303
     },
     "artifact": {
-      "sha256": "81713124b33f07d8c02f7ead7e74d18f662b4be7752f773cc7dbf514cb94c74d",
-      "bytes": 823139
+      "sha256": "8164c51f9f15809400864692268663a303bd0271ce8078dd2b638e84c0c2cda3",
+      "bytes": 823069
     },
     "validation": {
       "checksPassed": 9,

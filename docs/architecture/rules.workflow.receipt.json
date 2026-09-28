@@ -4,9 +4,9 @@
   "kind": "workflow",
   "source": "docs/architecture/rules.workflow.json",
   "output": "docs/architecture/rules.workflow.html",
-  "spec_sha256_lf": "032d521ffebf51f2bc66064ef061945b0ab6ba19f4e00e2ab29f608f3302851c",
-  "revision": "e1bb9e83a14190f863df5e3bb9c4a143a8834ad7",
-  "delivered_at": "2026-09-28T09:54:36",
+  "spec_sha256_lf": "97427521a0738d03e2018376283b0fb0d2f3cd4aeb0d82aa4fbd2a3f9fc7c2df",
+  "revision": "c37b7b600574f43de105341c3245551b56beb273",
+  "delivered_at": "2026-09-28T10:48:02",
   "validation": {
     "checksPassed": 9,
     "checkCount": 9,
@@ -23,12 +23,12 @@
     "input": "docs/architecture/rules.workflow.json",
     "output": "docs/architecture/rules.workflow.html",
     "specification": {
-      "sha256": "e8deaab55407920ada1ff5c17ba36947438770a04b7da5b42ff7a069197f4f76",
-      "bytes": 19907
+      "sha256": "5d85e1d68358323613694aa0f08f7e4c287b12e2e84140f1756af984e997b6f5",
+      "bytes": 19861
     },
     "artifact": {
-      "sha256": "77e85383fc5734cd66d98b7ca0b9e57943fe3ce8d1f0d4df7acb3f5005b09735",
-      "bytes": 855469
+      "sha256": "2466383b03acf2112d848c76cd5cc3369bf7c3b8475b5c1534ef8461817d7039",
+      "bytes": 855409
     },
     "validation": {
       "checksPassed": 9,

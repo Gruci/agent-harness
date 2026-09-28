@@ -10,8 +10,8 @@
       600
     ],
     "repository": {
-      "url": "https://github.com/Gruci/claude-web-harness",
-      "revision": "865ae0b03068004e314609e6c19b541d80fd15b9"
+      "url": "https://github.com/Gruci/web-harness",
+      "revision": "c37b7b600574f43de105341c3245551b56beb273"
     },
     "views": [
       {

@@ -6,7 +6,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "e1bb9e83a14190f863df5e3bb9c4a143a8834ad7"
+      "revision": "c37b7b600574f43de105341c3245551b56beb273"
     },
     "views": [
       {
@@ -650,18 +650,17 @@
         "api_array — API 응답 배열 필드 옵셔널",
         "orphan_api — 소비 UI 없는 API 라우트",
         "undefined_const — 미정의 모듈 상수",
-        "lint:ruff — 정적 분석(ruff)",
         "dup_decl — 선언 본문 중복(정본 재구현)",
         "dup_block — 블록 중복(선언 안 복붙)",
         "local:edit_surface — 편집 표면 래칫(면제·제외 목록)",
-        "local:archive_not_shipped — 작업 archive 배포 금지"
+        "local:archive_not_shipped — 작업 archive 배포 금지",
+        "md_style — MD 작성 규칙"
       ]
     },
     {
       "dot": "slate",
-      "title": "러너 게이트 37~44",
+      "title": "러너 게이트 37~43",
       "items": [
-        "md_style — MD 작성 규칙",
         "md_path_refs — MD 경로 참조 실존",
         "md_orphans — 고아 MD(허브 도달 불가)",
         "md_harness_map — 하네스 지도 대조",
