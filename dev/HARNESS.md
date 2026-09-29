@@ -105,7 +105,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ⑥ | SessionStart | `check_maintenance.py` | 정비 임계치 초과 (**startup 한정**) | 밀린 정비 목록 |
 | ⑦ | UserPromptSubmit | `check_context_growth.py` | transcript 가 임계 초과 | 경고 + `/clear` 권고 |
 | ⑧ | PreToolUse(Read) | `check_context_diet.py` | 추정 토큰이 한도를 넘는데 분할 읽기를 하지 않음 | **차단** |
-| ⑧-1 | PreToolUse(Bash·PowerShell) | `check_bash_write.py` | 셸로 소스 파일 쓰기, 판정 명령의 exit code 를 파이프·체인으로 삼키기, 병렬 작업 중 공유 트리의 git 변경 | **차단** |
+| ⑧-1 | PreToolUse(Bash·PowerShell) | `check_bash_write.py` | 셸로 소스 파일 쓰기, 판정 명령의 exit code 를 파이프·체인으로 삼키기, 병렬 작업 중 공유 트리의 git 변경(끝난 브랜치의 `git merge --ff-only` 는 예외) | **차단** |
 | ⑧-3 | 〃 | `check_bash_write.py` | 트리 밖·의존성 디렉토리를 잇는 junction·symlink 생성 | **차단** |
 | ⑧-2 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit·EnterWorktree·Bash·PowerShell) | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | 새 worktree 이름에 `--<sid8>` 접미 없음, 또는 `EnterWorktree(name)` 생성 | **차단** |
 | ⑧-2 | 〃 | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | worktree 이름 앞부분이 내 workboard 범위와 다름 (내 보드 파일 있을 때만) | **차단** |

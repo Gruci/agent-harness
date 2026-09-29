@@ -33,8 +33,11 @@ def main() -> None:
     last_message = payload.get("last_assistant_message")
     if not isinstance(last_message, str) or not last_message:
         # 차단은 아니지만 게이트가 아무 알림 없이 동작하지 않는 상태다. dev/LESSONS.md §15(꺼진 게이트와 연결이 빠진 게이트가 겉보기에 같음)가 경계하는 경우라 기록을 남긴다
+        # 값 본문은 대화 내용일 수 있어 남기지 않는다. 형식과 키 이름이면 원인을 가를 수 있다
+        keys = ", ".join(sorted(str(key) for key in payload)) or "없음"
         record("check_agent_return", "gate_error", sid=sid,
-               msg="페이로드에 last_assistant_message 없음 — 반환 검사가 안 돌고 있다")
+               msg=f"페이로드에 last_assistant_message 없음 — 반환 검사가 안 돌고 있다 "
+                   f"(값 형식 {type(last_message).__name__}, 받은 키: {keys})")
         print("[RETURN DIET] 페이로드에 last_assistant_message 가 없어 이번 반환은 검사하지 못했다. "
               "이 줄이 보이면 실제 payload 내용을 확인해 게이트가 다시 동작하게 고쳐라.", file=sys.stderr)
         sys.exit(0)

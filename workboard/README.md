@@ -135,6 +135,8 @@ Claude·Codex 양쪽에서 편집 전 격리 가드(⑧-6)와 push·PR·merge �
    쌓인 `[WIP]` 목록을 여기서 비워야 통과한다. 원격에 PR·CI 가 있으면 push → PR →
    **CI 통과 확인** → merge 순이다. CI 결과를 확인하는 명령은 다른 명령과 묶지 않고 단독으로 실행한다.
    파이프나 체인을 붙이면 그 명령의 exit code 가 가려져 훅이 막는다.
+   PR 없이 기본 브랜치에 바로 합치는 레포는 공유 체크아웃에서 `git merge --ff-only <브랜치>` → `git push origin <기본브랜치>` 순이다.
+   fast-forward 가 안 되면 worktree 에서 기본 브랜치를 먼저 merge 해 해소한다. 옵션 없는 `git merge` 는 병렬 중 공유 체크아웃에서 막힌다.
 4. 머지한 자기 worktree 만 제거하고 그다음 자기 브랜치를 정리한다.
 5. **자기 과업 파일 삭제는 맨 끝이다.** 머지 직후 같은 턴에 한다. 과업 파일이 남아 있으면 Stop 훅
    `check_worktree_residue.py`·`check_editing_lock.py` 가 턴을 끝낼 때 경고한다.

@@ -34,12 +34,15 @@ PostToolUse(Edit|Write) 게이트는 Edit·Write 툴로 바꾼 파일만 본다.
 통과시킨다. 게이트가 일상적인 셸 작업까지 막기 시작하면 우회하는 습관이 생겨 역효과가 난다.
 확장자 정본은 프로파일(`SOURCE_EXT`·`UI_EXT`)이다. 커널이 검사하는 언어면 이 훅도 검사한다.
 
-## 절 3 — 적용 조건이 원본 프로젝트와 다르다
+## 절 3 — 적용 조건과 합치기 예외
 
-원본 프로젝트는 항상 worktree 로 작업해서 이 절이 늘 적용되지만, 여기서는 **링크된 worktree 가 하나라도
-있을 때만** 적용한다. 세션 하나로 새로 시작하는 프로젝트에는 보호할 대상(두 번째 작성자)이 없다. 병렬 작업이
-시작되는 순간 공유 트리는 자동으로 구현 금지 구역이 된다. 즉 병렬 작업으로의 전환은 누가 선언해서가
-아니라 실제 worktree 가 있는지를 보고 일어난다. 따로 설정할 것은 없다.
+**링크된 worktree 가 하나라도 있으면** 적용한다. 격리가 강제된 뒤로는(`workboard/README.md` 작업 격리)
+과업이 열려 있는 동안 늘 자기 worktree 가 있으므로 이 절도 늘 적용된다.
+
+그래서 `git merge --ff-only` 는 막지 않는다. 완료 절차는 합치기 → 자기 worktree 제거 순서라, 이것까지 막으면
+끝난 브랜치를 본체로 합칠 길이 없다(실제로 P2 합치기가 여기 막혔다). fast-forward 는 새 커밋을 만들지 않고
+브랜치를 섞지 않는다. 덮어쓸 로컬 변경이 있으면 git 이 거부한다. `git switch`·`git checkout` 은 계속 막으므로
+공유 체크아웃은 기본 브랜치에 머문다. 합친 트리는 이어지는 `git push` 에서 나올 때 검사(⑧-7)가 검사한다.
 """
 import shlex
 import subprocess
@@ -78,6 +81,8 @@ AUTO_MERGE = "gh pr merge"
 # 절 3 — 병렬 작업 중 공유 메인 체크아웃에서 금지하는 git 변경 명령.
 # `git checkout` 은 파일 복원에도 쓰이지만, 실제 사고는 브랜치 전환으로 났기 때문에 전부 막는다.
 MUTATING_GIT = ("git commit", "git add", "git switch", "git checkout", "git merge")
+# 끝난 브랜치를 본체로 합치는 명령. 새 커밋을 만들지 않고 브랜치를 섞지 않으므로 병렬 중에도 통과시킨다.
+FAST_FORWARD = "--ff-only"
 
 
 def _tokens(command: str) -> list[str]:
@@ -258,6 +263,8 @@ def shared_tree_mutation(command: str) -> str | None:
     for segment in segments(_tokens(command)):
         head = " ".join(segment[:3])
         hit = next((mutation for mutation in MUTATING_GIT if head.startswith(mutation)), None)
+        if hit == "git merge" and FAST_FORWARD in segment:
+            continue
         if hit:
             return hit
     return None
@@ -312,6 +319,7 @@ def _violation(command: str) -> str | None:
     if mutation:
         return (f"[BASH GATE] 병렬 작업 중에 공유 메인 체크아웃에서 `{mutation}` 을 실행하려 한다 — 구현과 커밋은 자기 worktree 에서만 한다.\n"
                 "EnterWorktree 로 격리하거나, 이미 만든 worktree 가 있으면 `git -C <worktree경로>` 로 실행하라.\n"
+                "끝난 브랜치를 합치는 중이면 `git merge --ff-only <브랜치>` 로 실행하라.\n"
                 "(정본: workboard/README.md 작업 격리)")
     return None
 

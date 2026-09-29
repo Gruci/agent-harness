@@ -16,7 +16,9 @@ worktree 와 작업공간 판정은 커널로 옮겼다. 그 모듈은 `tests/te
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import sys
 import tempfile
 from pathlib import Path
@@ -110,6 +112,24 @@ def test_auto_merge() -> None:
     assert gate.auto_merge('git commit -m "gh pr merge --auto 설명"') is False, "산문을 명령으로 오독"
 
 
+def test_shared_tree_mutation() -> None:
+    """병렬 중 공유 체크아웃의 git 변경은 막고, 끝난 브랜치의 `git merge --ff-only` 는 통과시킨다.
+
+    격리가 강제된 뒤로 이 절은 과업이 열려 있는 동안 늘 적용된다. fast-forward 까지 막으면 완료 절차
+    (합치기 → 자기 worktree 제거)를 밟을 수 없다.
+    """
+    gate = _load("check_bash_write")
+    gate._is_main_checkout = lambda: True
+    gate._parallel_mode = lambda: True
+    for command, expected in (("git merge feat/x", "git merge"), ("git commit -m x", "git commit"),
+                              ("git switch feat/x", "git switch")):
+        assert gate.shared_tree_mutation(command) == expected, f"막아야 하는데 통과: {command}"
+    for command in ("git merge --ff-only feat/x", 'echo "git merge"', "git -C worktrees/a--1 commit -m x"):
+        assert gate.shared_tree_mutation(command) is None, f"통과해야 하는데 막음: {command}"
+    gate._parallel_mode = lambda: False
+    assert gate.shared_tree_mutation("git merge feat/x") is None, "병렬이 아닌데 막았다"
+
+
 def test_ui_copy_extract() -> None:
     """문구 추출기 단위 테스트. JSX 텍스트는 추출하고, JSDoc 이어짐 줄은 제외하고, `${}` 를 가린 뒤 남는 조각은 버린다. LLM 은 호출하지 않는다."""
     gate = _load("check_ui_copy")
@@ -186,13 +206,39 @@ def test_trace_paths_are_portable() -> None:
     home_file = Path.home().resolve() / ".claude" / "x.txt"
     assert portable(str(home_file)) == "~/.claude/x.txt", portable(str(home_file))
     assert portable("orders/a.py:3: 위반") == "orders/a.py:3: 위반", "상대경로를 건드렸다"
+    # 구분자 없이 단독으로 나온 루트·홈. 실제로 `--root <루트>` 안내문이 절대경로 그대로 커밋될 뻔했다
+    root = KROOT.resolve()
+    assert portable(f"run x --root {root}") == "run x --root .", portable(f"run x --root {root}")
+    assert portable(f"{root}에서 exit 1") == ".에서 exit 1", "한글이 바로 붙은 루트를 놓쳤다"
+    assert portable(f"home {Path.home().resolve()}") == "home ~", "단독 홈 경로를 놓쳤다"
+    sibling = f"{root}-old/a.py"
+    assert portable(sibling) == sibling, "레포 밖 형제 경로를 레포 경로로 바꿨다"
+
+
+def test_agent_return_gate_error_keys() -> None:
+    """반환 검사를 못 하면 값 형식과 받은 키를 기록하고 통과시킨다. 값 본문은 대화 내용일 수 있어 기록하지 않는다."""
+    gate = _load("check_agent_return")
+    recorded: list[str] = []
+    gate.read_hook_payload = lambda: {"session_id": "abcd1234", "hook_event_name": "SubagentStop",
+                                      "agent_transcript_path": "C:/secret/x.jsonl"}
+    gate.record = lambda *args, **kwargs: recorded.append(kwargs.get("msg", ""))
+    code = None
+    with contextlib.redirect_stderr(io.StringIO()):
+        try:
+            gate.main()
+        except SystemExit as done:
+            code = done.code
+    assert code == 0, f"검사 불능인데 막았다: exit {code}"
+    (msg,) = recorded
+    assert "NoneType" in msg and "hook_event_name" in msg and "session_id" in msg, msg
+    assert "secret" not in msg, "값 본문을 기록했다"
 
 
 def demo() -> None:
     for check in (test_outbound_link, test_workboard_file_is_one_row, test_branch_comes_from_task_field,
-                  test_workboard_overlap, test_auto_merge, test_ui_copy_extract,
+                  test_workboard_overlap, test_auto_merge, test_shared_tree_mutation, test_ui_copy_extract,
                   test_workflow_model_required, test_record_never_raises,
-                  test_trace_paths_are_portable):
+                  test_trace_paths_are_portable, test_agent_return_gate_error_keys):
         check()
         print(f"  [OK] {check.__name__}")
     print("훅 행동 테스트 모두 통과")

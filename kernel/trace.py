@@ -62,11 +62,12 @@ def portable(text: str) -> str:
 
     fixed = text
     for base, label in ((ROOT.resolve(), ""), (Path.home().resolve(), "~/")):
+        bare = label.rstrip("/") or "."
         for form in {str(base), base.as_posix()}:
             for sep in ("\\", "/"):
                 fixed = fixed.replace(form + sep, label)
-            if fixed == form:
-                fixed = label.rstrip("/") or "."
+            # 뒤에 구분자 없이 나온 루트(`--root D:\repo`). 이름이 이어지는 형제 경로(`D:\repo-old`)는 레포 밖이라 둔다.
+            fixed = re.sub(re.escape(form) + r"(?![A-Za-z0-9_.-])", lambda _match: bare, fixed)
     return fixed.replace("\\", "/") if fixed != text else fixed
 
 
