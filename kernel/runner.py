@@ -106,10 +106,13 @@ def _syntax_section(slug: str, title: str, check: object, args: tuple,
     선택한 언어의 분석기가 그 종류를 내지 못하면 **실행하지 않는다.** 파서 없이 돌리면 모든 파일이
     '파싱 실패' 위반이 되기 때문이다. 관용구 정규식 계열 검사는 언어팩의 `PATTERNS` 로
     바꿔 끼우므로 여기 오지 않는다. 여기 남은 것은 실제 파서가 필요한 검사뿐이다.
+    확인 순서는 화면 린트(`_ui_entry`)와 같이 N/A, SKIP(볼 소스 없음), TOOL(분석기 없음), 판정이다.
     """
     unneeded = profile.not_applicable(slug)
     if unneeded:
         return (slug, title, [], ("N/A", unneeded))   # 출처 이름은 profile 에서 병합할 때 이미 붙어 있다
+    if not ok:
+        return (slug, title, [], ("SKIP", need))     # 볼 소스가 없으면 분석기도 필요 없다
     reason = facts.unavailable(kind)
     if reason:
         return (slug, title, [], ("TOOL", reason))

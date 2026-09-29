@@ -90,11 +90,13 @@ def test_fresh_install_is_green() -> None:
         second = _run([sys.executable, "-X", "utf8", "harness_install.py"], work)
         out = second.stdout.decode("utf-8", "replace")
         assert second.returncode == 0, out
-        assert "설치 완료" in out, "동결 후 검증이 초록불이 아니다:\n" + out
+        assert "설치 검증 완료" in out, "동결 후 검증이 초록불이 아니다:\n" + out
         assert (work / "harness_trace.jsonl").read_text(encoding="utf-8").strip() == "", (
             "하네스 레포 자신의 관찰 기록이 새 프로젝트에 딸려갔다")
         assert not (work / "harness_surface.txt").exists(), "하네스 자신의 표면 동결본이 딸려갔다"
-        assert not (work / "docs" / "architecture").exists(), "하네스 자신의 그림이 새 프로젝트에 딸려갔다"
+        diagrams = work / "docs" / "architecture"
+        assert not list(diagrams.glob("*.receipt.json")), "하네스 자신의 그림이 새 프로젝트에 딸려갔다"
+        assert (diagrams / "components.schema.json").is_file(), "새 프로젝트에 필요한 분류 스키마까지 지웠다"
 
         typo = _run([sys.executable, "-X", "utf8", "harness_install.py", "--dryrun"], work)
         assert typo.returncode == 2, "오타 옵션 --dryrun 이 거절되지 않고 실행됐다"

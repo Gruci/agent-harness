@@ -11,9 +11,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kernel import feature_map, graph_workflow
-
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))       # 스크립트로 돌릴 때도 커널을 찾는다 — test_harness_self 가 그렇게 부른다
+from kernel import feature_map, graph_workflow  # noqa: E402
+
 PROFILE = "PROFILE_SCHEMA = 1\nARCH = 'headless'\nLANG = 'python'\nLINTERS = ()\nCHECK_PATHS = {}\n"
 
 
@@ -356,19 +357,16 @@ class SharedHookTests(SharedHookFixture):
                         self.assertEqual(json.loads(result.stdout), {})
 
     def test_configured_pretooluse_command_from_nested_cwd(self) -> None:
+        """하위 폴더에서 상대경로로 만들면 git 은 그 폴더 밑에 만든다 — 자리 규약 밖이라 둘 다 막힌다."""
         nested = self.root / "nested"
         nested.mkdir()
-        for command, code in (("git worktree add .claude/worktrees/x--abcdef12", 2),
-                              ("git worktree add worktrees/x--abcdef12", 0)):
+        for command in ("git worktree add .claude/worktrees/x--abcdef12", "git worktree add worktrees/x--abcdef12"):
             with self.subTest(command=command):
                 payload = self.bash_payload(command)
                 payload["cwd"] = str(nested)
                 result = self.run_configured("PreToolUse", nested, payload)
-                self.assertEqual(result.returncode, code, result.stderr)
-                if code == 0:
-                    self.assertEqual(json.loads(result.stdout), {})
-                else:
-                    self.assertIn("worktrees/x--abcdef12", result.stderr)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("worktrees/x--abcdef12", result.stderr)
 
 
 if __name__ == "__main__":

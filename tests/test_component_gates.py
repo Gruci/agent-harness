@@ -4,8 +4,8 @@ import importlib
 import unittest
 from unittest.mock import patch
 
-from tests.harness_test_support import TemporaryRootTestCase
-from tests.test_component_graph import example_graph
+from harness_test_support import TemporaryRootTestCase
+from test_component_graph import example_graph
 
 
 class ComponentGateTests(TemporaryRootTestCase):

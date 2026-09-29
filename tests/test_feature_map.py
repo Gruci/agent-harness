@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests.harness_test_support import TemporaryRootTestCase
-from tests.test_component_graph import example_graph
+from harness_test_support import TemporaryRootTestCase
+from test_component_graph import example_graph
 
 
 class FeatureMapTests(TemporaryRootTestCase):

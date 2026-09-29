@@ -22,6 +22,7 @@ from pathlib import Path
 
 from kernel import KERNEL_VERSION, UPSTREAM, UPSTREAM_BRANCH, profile, runner
 from kernel.context import ROOT
+from kernel.diagram import DIAGRAM_DIR, RECEIPT_SUFFIX
 from kernel.gates import api_types
 
 PRESET_DIR = ROOT / "profiles"
@@ -330,7 +331,18 @@ def reset_shipped_state() -> None:
         surface.unlink()
         print(f"[동봉 상태] {SHIPPED_SURFACE} 제거 — 하네스 레포 자신의 면제 동결본이었다. "
               f"edit_surface 게이트를 켤 때 이 프로젝트의 표면으로 다시 뜬다")
-    # 그림과 그래프 및 스키마는 프로젝트 정본이 섞일 수 있어 자동 삭제하지 않는다.
+    # 영수증이 있는 그림은 하네스 자신을 그린 것이다. 영수증이 하네스 레포의 커밋을 가리켜 새 이력에서는 검사할 수 없다.
+    # 분류 스키마·빈 그래프·승인 기록은 새 프로젝트의 시작점이라 남긴다.
+    folder = ROOT / DIAGRAM_DIR
+    removed = []
+    for receipt in sorted(folder.glob(f"*{RECEIPT_SUFFIX}")):
+        stem = receipt.name.removesuffix(RECEIPT_SUFFIX)
+        for path in folder.glob(f"{stem}.*"):
+            path.unlink()
+        removed.append(stem)
+    if removed:
+        print(f"[동봉 상태] 하네스 자신의 그림 {len(removed)}개 제거 — {' · '.join(removed)}. "
+              "이 프로젝트의 그림은 arch-diagram 스킬로 만든다")
 
 
 def install_gate_baselines() -> None:

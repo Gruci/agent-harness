@@ -80,6 +80,10 @@ worktrees/
 .codex/tmp/
 .codex/worktrees/
 
+# 분류 결정 알림 대기열 — 세션마다 한 번만 알리려고 세션 ID 를 적는 로컬 실행 상태다(`kernel/graph_notifications.py`).
+# 보드와 같은 이유로 git 에 두지 않는다.
+docs/architecture/decision-requests.json
+
 # 이 레포는 배포본이라 하네스 자체의 작업 산출물을 함께 배포하지 않는다. 파일은 로컬에 두고 git 추적만 막는다.
 # `harness_gates/archive_not_shipped.py` 가 같은 규칙을 게이트로 강제하는데, 이 gitignore 행이
 # 없으면 `git add -A` 한 번에 다시 추적돼 그 게이트가 매번 걸린다.
