@@ -4,9 +4,9 @@
   "kind": "architecture",
   "source": "docs/architecture/harness.architecture.json",
   "output": "docs/architecture/harness.architecture.html",
-  "spec_sha256_lf": "bab3ae55f76449050c7646ee1bfb18815adb203fe710bc8d28e0e5dda0056d9b",
-  "revision": "3e8f6e6e7bb944993bf96aa8f7b84fd0400b8e82",
-  "delivered_at": "2026-09-28T17:46:30",
+  "spec_sha256_lf": "0465076378e54d82903603457590dc10451c5f8a383b1ebfcec8afb2cad44c3c",
+  "revision": "dc2303266f2a2a318b05c0d1159885ebd6988b94",
+  "delivered_at": "2026-09-29T11:16:33",
   "validation": {
     "checksPassed": 9,
     "checkCount": 9,
@@ -23,12 +23,12 @@
     "input": "docs/architecture/harness.architecture.json",
     "output": "docs/architecture/harness.architecture.html",
     "specification": {
-      "sha256": "bab3ae55f76449050c7646ee1bfb18815adb203fe710bc8d28e0e5dda0056d9b",
-      "bytes": 11702
+      "sha256": "cad67cf8dab33df47d5e7b42b2d1ff1807d1bdabc561d48feb7f163541bf9725",
+      "bytes": 12258
     },
     "artifact": {
-      "sha256": "1735a2238e82f05016f1e8a31ef630bdc2b4fe8754ea308e2152babd15596597",
-      "bytes": 839823
+      "sha256": "2b3c6af66e8931e4bdd6331d973d5e2aff46d7bbe30e09c4a839840017ac008c",
+      "bytes": 839825
     },
     "validation": {
       "checksPassed": 9,

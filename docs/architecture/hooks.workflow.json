@@ -7,7 +7,7 @@
     "animation": "trace",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "ad61e9be3b844a788420dc50ca48c9b2df853068"
+      "revision": "dc2303266f2a2a318b05c0d1159885ebd6988b94"
     },
     "views": [
       {
@@ -171,8 +171,8 @@
         },
         {
           "path": ".claude/hooks/check_bash_write.py",
-          "line": 266,
-          "end_line": 319,
+          "line": 273,
+          "end_line": 327,
           "label": "⑧-1 셸"
         },
         {
@@ -218,7 +218,7 @@
         {
           "path": ".claude/hooks/check_agent_return.py",
           "line": 23,
-          "end_line": 62,
+          "end_line": 65,
           "label": "main"
         }
       ]

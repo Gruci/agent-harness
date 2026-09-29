@@ -7,7 +7,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "3e8f6e6e7bb944993bf96aa8f7b84fd0400b8e82"
+      "revision": "dc2303266f2a2a318b05c0d1159885ebd6988b94"
     },
     "views": [
       {
@@ -230,8 +230,8 @@
       "sources": [
         {
           "path": "kernel/trace.py",
-          "line": 59,
-          "end_line": 84,
+          "line": 78,
+          "end_line": 101,
           "label": "record"
         },
         {
