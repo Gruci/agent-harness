@@ -7,7 +7,7 @@
     "animation": "trace",
     "repository": {
       "url": "https://github.com/Gruci/web-harness",
-      "revision": "dc2303266f2a2a318b05c0d1159885ebd6988b94"
+      "revision": "a7a425f8c6b8799253781cdf25f8c78b588a36a7"
     },
     "views": [
       {
@@ -200,8 +200,8 @@
         },
         {
           "path": "kernel/runner.py",
-          "line": 385,
-          "end_line": 399,
+          "line": 388,
+          "end_line": 402,
           "label": "러너"
         }
       ]
