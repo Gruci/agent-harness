@@ -19,5 +19,5 @@
 <path d="M198,205 L244,205" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><text x="221" y="196" text-anchor="middle" class="edge">writes</text><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="0s" repeatCount="indefinite" path="M198,205 L244,205"/></circle>
 <path d="M654,135 L700,135" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><text x="677" y="126" text-anchor="middle" class="edge">reads</text><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M654,135 L700,135"/></circle>
 <path d="M654,275 L700,275" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><text x="677" y="266" text-anchor="middle" class="edge">reads</text><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="1.8s" repeatCount="indefinite" path="M654,275 L700,275"/></circle>
-<text x="450" y="414" text-anchor="middle" class="tag">Many sessions. One engineer.</text>
+<text x="450" y="414" text-anchor="middle" class="tag">Sessions change. The engineer doesn't.</text>
 </svg>
