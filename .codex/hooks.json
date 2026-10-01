@@ -8,7 +8,7 @@
           {
             "type": "command",
             "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
-            "commandWindows": "python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
             "timeout": 180,
             "statusMessage": "Isolation gate (edit guard, worktree naming, exit verify)"
           }
@@ -22,7 +22,7 @@
           {
             "type": "command",
             "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PostToolUse",
-            "commandWindows": "python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PostToolUse; exit $LASTEXITCODE",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PostToolUse; exit $LASTEXITCODE",
             "timeout": 120,
             "statusMessage": "Checking edited files"
           }
@@ -35,7 +35,7 @@
           {
             "type": "command",
             "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event Stop",
-            "commandWindows": "python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event Stop; exit $LASTEXITCODE",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event Stop; exit $LASTEXITCODE",
             "timeout": 180,
             "statusMessage": "Checking the full checkout"
           }
