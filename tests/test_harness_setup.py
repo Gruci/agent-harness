@@ -33,7 +33,7 @@ class HarnessSetupTests(TemporaryRootTestCase):
             self.write(rel)
         self.write(".agents/skills/harness-assembly-cdx/SKILL.md",
                    "Read dev/workflows/harness-assembly.md")
-        for name in ("feature-workflow", "full-feature", "impeccable", "code-audit",
+        for name in ("feature-workflow", "full-feature", "code-audit",
                      "code-debt", "code-trim", "md-audit", "review-loop", "test"):
             self.write(f"dev/workflows/{name}.md")
             reference = f"Read `dev/workflows/{name}.md`."

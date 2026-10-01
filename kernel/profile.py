@@ -17,9 +17,7 @@ import re
 from typing import Any
 
 from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, arch, framework, lang
-from kernel.context import ROOT
-
-PROFILE_FILE = "harness_profile.py"
+from kernel.context import KERNEL_HOME, PROFILE_FILE, ROOT
 
 _CHECK_PATH_KEYS = ("ui", "ui_admin", "ui_tokens", "tests", "routes", "schema")
 _FILE_KEYS = ("settings", "ssl_util")
@@ -295,7 +293,7 @@ def outdated_notice() -> str:
 
     if _MOD is not None and PROFILE_SCHEMA == required:
         return ""
-    template = ROOT / "profiles" / "_template.py"
+    template = KERNEL_HOME / "profiles" / "_template.py"
     names = set(_TEMPLATE_NAME.findall(template.read_text(encoding="utf-8"))) if template.exists() else set()
     missing = sorted(n for n in names - set(vars(_MOD) if _MOD else ()) if n not in ("PRESET_SUMMARY", "PRESET_FITS"))
     return (f"[PROFILE SCHEMA] {PROFILE_FILE} 서식 버전이 {PROFILE_SCHEMA} 인데 커널은 {required} 를 요구한다 — "

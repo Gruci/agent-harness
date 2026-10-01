@@ -14,7 +14,6 @@
 | 테스트 | [테스트 전략](TESTING.md) |
 | 새 기능과 변경 계획 | [작업 절차](workflows/README.md) |
 | 재사용과 관례 | [관례](CONVENTIONS.md) |
-| 소스 증거가 있는 그림 | [그림 계약](DIAGRAM.md) |
 | 화면 작업 | [디자인](../design/DESIGN_GUIDE.md) |
 
 ## 기술 선택

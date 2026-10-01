@@ -1,10 +1,10 @@
 <div align="center">
 
-# web-harness
+# agent-harness
 
 **A guardrail that keeps AI from wrecking your code**
 
-AI development harness v1.1.0
+AI development harness v2.0.0
 
 [한국어](README.md) · [English](README.en.md)
 
@@ -32,8 +32,17 @@ A developer can at least spot it. If you can't read code, all you can do is trus
 
 **1. Get it**
 
+Install it as a Claude Code plugin. Nothing is copied into your project folder, and the checks run only in projects you connect.
+
+```
+/plugin marketplace add Gruci/agent-harness
+/plugin install agent-harness@agent-harness
+```
+
+If you also use Codex, or want the work-copy and work-board procedure, get it as a template instead. The check engine is the same either way.
+
 ```bash
-git clone https://github.com/Gruci/web-harness.git my-project
+git clone https://github.com/Gruci/agent-harness.git my-project
 cd my-project
 rm -rf .git && git init && git add -A && git commit -m "init"
 ```
@@ -114,7 +123,10 @@ Put `ARCH = "backend_only"` (server only) or `ARCH = "headless"` (no web, no scr
 If `gh` is logged in, a private repository is created for you. It asks for an address only when it isn't.
 
 **How do I update the harness?**
-`python -X utf8 harness_install.py --check-update` tells you whether a new version exists. To update, commit your changes and run `--upgrade`. Only the check engine, check scripts and presets change; your settings, docs and diagrams stay.
+For the plugin, `/plugin update agent-harness@agent-harness`. For the template, `python -X utf8 harness_install.py --check-update` tells you whether a new version exists; commit your changes and run `--upgrade`. Only the check engine, check scripts and presets change; your settings and docs stay.
+
+**Is there a UI design audit or an architecture diagram tool?**
+Not included. If you need a UI audit skill or a diagram tool, install one separately. The harness ships only the check engine.
 
 ## Using it with Codex
 
@@ -143,24 +155,15 @@ python -X utf8 harness_install.py                     # create settings and veri
 python -X utf8 setup_global_permissions.py            # Claude Code global permissions
 ```
 
-You need a Git repository, a GitHub remote and Python 3.10+. Screen quality checks and diagrams need Node.js; Go and TypeScript analysis needs tree-sitter. `--doctor` lists anything missing.
+You need a Git repository, a GitHub remote and Python 3.10+. Screen checks need Node.js; Go and TypeScript analysis needs tree-sitter. `--doctor` lists anything missing.
 
 For a project that already has code, run `--dry-run` first to see current violations.
-
-## Diagrams
-
-Diagrams of the harness itself. Every box is linked to real source lines, and changing the code without updating the diagram fails a check. Open the matching `.html` in `docs/architecture/` to click from a box to its code. Installing into a new project removes these diagrams; the project's own diagrams are made with the arch-diagram skill.
-
-| Structure | Order of automatic checks |
-|:--|:--|
-| ![Structure](docs/architecture/harness.architecture.svg) | ![Check order](docs/architecture/hooks.workflow.svg) |
-| **Saving one file** | **What is checked when** |
-| ![Save flow](docs/architecture/edit-trip.sequence.svg) | ![Check map](docs/architecture/rules.workflow.svg) |
 
 ## Changelog
 
 | Version | Changes |
 |:--|:--|
+| **v2.0.0** | Installs as a Claude Code plugin (`/plugin install agent-harness@agent-harness`). The same check engine runs in both the template install and the plugin install. The repository is renamed `agent-harness`. The UI design audit skill and the diagram engine with its diagram check are removed; install them separately if needed. |
 | **v1.1.0** | Languages and frameworks move into packs, and setup fits the checks to the stack you choose. Work-copy isolation and the pre-merge check are enforced in both Claude Code and Codex. Finished branches can be merged by fast-forward. A fresh install into a new project now passes its checks. |
 | **v1.0.0** | First public release. |
 

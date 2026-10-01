@@ -1,6 +1,7 @@
 """kernel/context.py — 프로젝트 루트와 추적 파일 수집.
 
-커널은 `<프로젝트>/kernel/` 에 설치되므로 루트는 이 패키지의 부모다.
+설치 방식은 둘이다. 템플릿 설치는 커널이 `<프로젝트>/kernel/` 에 있어 루트가 이 패키지의 부모이고,
+플러그인 설치는 커널이 플러그인 폴더에 있어 진입점이 `HARNESS_ROOT` 로 검사할 프로젝트를 알려 준다.
 
 대상 수집이 `git ls-files` 인 이유: 추적되지 않는 파일(빌드 산출물·벤더 사본·gitignore 대상)은
 프로젝트의 소유가 아니라 게이트의 대상도 아니다. 작업트리에서 지워졌는데 인덱스에만 남은
@@ -11,10 +12,33 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+# 커널이 든 폴더. 템플릿 설치에서는 프로젝트 루트와 같고, 플러그인 설치에서는 플러그인 폴더다.
+KERNEL_HOME = Path(__file__).resolve().parents[1]
+# 검사할 프로젝트. 플러그인 진입점(`kernel/__main__.py`·`kernel.hook --plugin`)이 HARNESS_ROOT 로 알려 준다.
+ROOT = Path(os.environ.get("HARNESS_ROOT") or KERNEL_HOME).resolve()
+PROFILE_FILE = "harness_profile.py"
+
+
+def runner_command(root: Path, *args: str) -> tuple[list[str], dict[str, str]] | None:
+    """root 를 검사하는 러너 명령과 환경. 하네스가 연결되지 않은 체크아웃이면 None 이다.
+
+    템플릿 설치는 체크아웃마다 자기 커널이 있어 그 커널로 돈다. 이때 HARNESS_ROOT 를 지운다 — 플러그인 프로세스가
+    `git -C <템플릿 체크아웃> push` 를 검사할 때 물려받은 값이 남으면 엉뚱한 프로젝트를 검사한다.
+    플러그인 설치는 프로파일만 있고 이 커널이 밖에서 검사한다.
+    """
+    python = [sys.executable, "-X", "utf8"]
+    if (root / "kernel" / "runner.py").is_file():
+        env = {key: value for key, value in os.environ.items() if key != "HARNESS_ROOT"}
+        return [*python, "-m", "kernel.runner", *args], env
+    if (root / PROFILE_FILE).is_file():
+        return [*python, str(KERNEL_HOME / "kernel"), *args], {**os.environ, "HARNESS_ROOT": str(root)}
+    return None
+
 
 # utf-8-sig — BOM 이 붙은 파일도 읽는다. Windows 에서 PowerShell 의 `Set-Content`·`Out-File`
 # 이 기본으로 BOM 을 붙이고, 그 BOM 을 그냥 utf-8 로 읽으면 첫 글자가 ﻿ 가 되어

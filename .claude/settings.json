@@ -47,7 +47,7 @@
           },
           {
             "type": "command",
-            "command": "python --version >/dev/null 2>&1 || echo '[PYTHON CHECK] python 을 실행할 수 없다. 훅은 exit 2 일 때만 차단하고 실행 실패는 조용히 통과시키므로 Stop 과 PostToolUse 게이트가 전부 동작하지 않는다. 코딩 전에 python PATH부터 복구하라.'; python -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 || echo '[PYTHON CHECK] python 버전이 3.10 보다 낮다. 훅과 커널이 `str | None` 문법을 쓰므로 전 게이트가 SyntaxError 로 조용히 죽는다. 3.10 이상으로 올려라.'; node --version >/dev/null 2>&1 || echo '[NODE CHECK] node 를 실행할 수 없어 impeccable UI 훅이 동작하지 않는다. UI 작업 전에 node PATH를 복구하라.'",
+            "command": "python --version >/dev/null 2>&1 || echo '[PYTHON CHECK] python 을 실행할 수 없다. 훅은 exit 2 일 때만 차단하고 실행 실패는 조용히 통과시키므로 Stop 과 PostToolUse 게이트가 전부 동작하지 않는다. 코딩 전에 python PATH부터 복구하라.'; python -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 || echo '[PYTHON CHECK] python 버전이 3.10 보다 낮다. 훅과 커널이 `str | None` 문법을 쓰므로 전 게이트가 SyntaxError 로 조용히 죽는다. 3.10 이상으로 올려라.'",
             "timeout": 10,
             "statusMessage": "Checking gate interpreters"
           }
@@ -158,17 +158,6 @@
           {
             "type": "command",
             "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_file_rules.py\""
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/impeccable/scripts/hook.mjs\"",
-            "timeout": 5,
-            "statusMessage": "Checking UI changes"
           }
         ]
       }

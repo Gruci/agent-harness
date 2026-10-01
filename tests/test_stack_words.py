@@ -3,7 +3,7 @@
 두 모듈은 한 장치의 양면이다. 합성이 조각을 「스택 관례」 절에 넣고, 래칫은 절 밖 문서에 스택 이름이
 되돌아오는 것을 막는다. 한쪽만 맞으면 문서가 스택을 추정하거나 조각을 넣을 자리가 없다.
 
-  래칫   `dev/X.md` 의 React 는 위반 · `dev/LESSONS.md`·조각·픽스처·벤더 사본은 통과 · 허용 위치 경로의
+  래칫   `dev/X.md` 의 React 는 위반 · `dev/LESSONS.md`·조각·픽스처·작업 산출물은 통과 · 허용 위치 경로의
          백틱 참조는 통과 · 생성 절 안은 통과 · 실물 조각 두 개가 게이트 대상에서 빠진다
   합성   두 조각이 표식 사이에 이름순으로 · 손으로 고친 절이 재생성으로 되돌아감 · 프로젝트 조각이 커널 조각을
          덮음 · 팩 없음이면 자리 표시 한 줄 · 없는 팩·표식 없는 문서는 오류
@@ -42,7 +42,7 @@ class StackWordsTests(unittest.TestCase):
 
     def test_allowed_locations_pass(self) -> None:
         for rel in ("dev/LESSONS.md", "kernel/frameworks/react.md", "tests/fixtures/x/README.md",
-                    "docs/tasks/archive/2026-09-28-x/plan_x.md", ".claude/skills/impeccable/reference/animate.md"):
+                    "docs/tasks/archive/2026-09-28-x/plan_x.md"):
             self.assertEqual(stack_words.scan(rel, "React FastAPI useApi\n"), [], rel)
 
     def test_backtick_reference_to_allowed_path_passes(self) -> None:

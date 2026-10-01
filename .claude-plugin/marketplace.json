@@ -1,0 +1,13 @@
+{
+  "name": "agent-harness",
+  "description": "Mechanical guardrails for AI coding agents.",
+  "owner": {"name": "Daehyun Kim", "url": "https://github.com/Gruci"},
+  "plugins": [
+    {
+      "name": "agent-harness",
+      "source": "./",
+      "description": "Save-time, session-end and pre-push gates for repos connected with harness-init.",
+      "version": "2.0.0"
+    }
+  ]
+}

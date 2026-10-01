@@ -6,18 +6,22 @@
 
   머리 버전    두 README 머리와 KERNEL_VERSION 이 같은 숫자인가
   변경 이력    두 README 의 버전 행 목록이 같고, 맨 위가 현재 버전인가
+  매니페스트   플러그인·마켓플레이스 버전이 KERNEL_VERSION 과 같고, 훅·스킬 경로가 실존하는가
 
 실행: `python -X utf8 tests/test_release_identity.py`
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 READMES = ("README.md", "README.en.md")
+PLUGIN_DIR = REPO / ".claude-plugin"
+_PLUGIN_PATH = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\"']+)")
 
 _VERSION = re.compile(r"\b[Hh]arness v(\d+\.\d+\.\d+)|하네스 v(\d+\.\d+\.\d+)")
 _CHANGELOG_ROW = re.compile(r"^\|\s*\*\*v(\d+\.\d+\.\d+)\*\*\s*\|", re.M)
@@ -55,8 +59,29 @@ def test_readme_changelogs_agree() -> None:
         f"변경 이력 맨 위가 현재 버전이 아니다: {logs[READMES[0]][0]} ≠ {KERNEL_VERSION}"
 
 
+def test_plugin_manifest_matches_kernel() -> None:
+    """매니페스트 버전은 커널 상수와 같고, 매니페스트가 가리키는 훅·스킬·훅 명령의 파일은 전부 있다."""
+    sys.path.insert(0, str(REPO))
+    from kernel import KERNEL_VERSION       # noqa: E402  (경로 삽입 후에만 import 가능)
+
+    plugin = json.loads((PLUGIN_DIR / "plugin.json").read_text(encoding="utf-8"))
+    market = json.loads((PLUGIN_DIR / "marketplace.json").read_text(encoding="utf-8"))
+    versions = {plugin["version"], *(entry["version"] for entry in market["plugins"])}
+    assert versions == {KERNEL_VERSION}, f"매니페스트 버전이 KERNEL_VERSION({KERNEL_VERSION}) 과 다르다: {sorted(versions)}"
+    for skill in plugin["skills"]:
+        assert (REPO / skill / "SKILL.md").is_file(), f"plugin.json 의 스킬 {skill} 에 SKILL.md 가 없다"
+    hooks_file = REPO / plugin["hooks"]
+    assert hooks_file.is_file(), f"plugin.json 의 hooks {plugin['hooks']} 가 없다"
+    hooks = json.loads(hooks_file.read_text(encoding="utf-8"))["hooks"]
+    commands = [hook["command"] for groups in hooks.values() for group in groups for hook in group["hooks"]]
+    assert commands, "hooks.json 에 명령이 없다"
+    for command in commands:
+        for rel in _PLUGIN_PATH.findall(command):
+            assert (REPO / rel).exists(), f"hooks.json 명령이 없는 파일을 가리킨다: {rel}"
+
+
 def demo() -> None:
-    for check in (test_readme_versions_agree, test_readme_changelogs_agree):
+    for check in (test_readme_versions_agree, test_readme_changelogs_agree, test_plugin_manifest_matches_kernel):
         check()
         print(f"  [OK] {check.__name__}")
     print("배포 정체 테스트 전건 통과")

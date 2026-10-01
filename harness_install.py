@@ -21,12 +21,14 @@ from collections import Counter
 from pathlib import Path
 
 from kernel import KERNEL_VERSION, UPSTREAM, UPSTREAM_BRANCH, profile, runner
-from kernel.context import ROOT
-from kernel.diagram import DIAGRAM_DIR, RECEIPT_SUFFIX
+from kernel.context import KERNEL_HOME, ROOT
 from kernel.gates import api_types
 
-PRESET_DIR = ROOT / "profiles"
+PRESET_DIR = KERNEL_HOME / "profiles"
 DEFAULT_PRESET = "_template"
+# 플러그인 설치 — 커널이 프로젝트 밖(플러그인 폴더)에 있다. 업데이트와 배선 검사는 플러그인 런타임의 몫이다.
+PLUGIN = KERNEL_HOME != ROOT
+PLUGIN_UPDATE = "[UPDATE] 플러그인 설치다 — `/plugin update agent-harness@agent-harness` 로 올린다. --upgrade 는 템플릿 전용이다."
 
 BASELINE_HEADER = """# harness_baseline.txt — 하네스 설치 시점에 이미 있던 위반의 동결 목록.
 #
@@ -66,6 +68,9 @@ def upstream_version() -> str:
 
 
 def check_update() -> int:
+    if PLUGIN:
+        print(PLUGIN_UPDATE)
+        return 2
     try:
         latest = upstream_version()
     except Exception as exc:                                  # 네트워크 오류·404 — 알리기만 하고 끝낸다
@@ -85,6 +90,9 @@ def check_update() -> int:
 
 def upgrade() -> int:
     """하네스가 소유한 파일만 교체한다. 되돌리기는 git 에 맡기므로 작업 트리가 깨끗해야 시작한다."""
+    if PLUGIN:
+        print(PLUGIN_UPDATE)
+        return 2
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
                            text=True, encoding="utf-8").stdout.strip()
     if dirty:
@@ -331,18 +339,6 @@ def reset_shipped_state() -> None:
         surface.unlink()
         print(f"[동봉 상태] {SHIPPED_SURFACE} 제거 — 하네스 레포 자신의 면제 동결본이었다. "
               f"edit_surface 게이트를 켤 때 이 프로젝트의 표면으로 다시 뜬다")
-    # 영수증이 있는 그림은 하네스 자신을 그린 것이다. 영수증이 하네스 레포의 커밋을 가리켜 새 이력에서는 검사할 수 없다.
-    # 분류 스키마·빈 그래프·승인 기록은 새 프로젝트의 시작점이라 남긴다.
-    folder = ROOT / DIAGRAM_DIR
-    removed = []
-    for receipt in sorted(folder.glob(f"*{RECEIPT_SUFFIX}")):
-        stem = receipt.name.removesuffix(RECEIPT_SUFFIX)
-        for path in folder.glob(f"{stem}.*"):
-            path.unlink()
-        removed.append(stem)
-    if removed:
-        print(f"[동봉 상태] 하네스 자신의 그림 {len(removed)}개 제거 — {' · '.join(removed)}. "
-              "이 프로젝트의 그림은 arch-diagram 스킬로 만든다")
 
 
 def install_gate_baselines() -> None:
@@ -409,6 +405,9 @@ def main(argv: list[str]) -> int:
     if args.check_agents:
         from kernel.harness_setup import check_agents
 
+        if PLUGIN:
+            print("[AGENTS] 플러그인이 훅을 건다 — 프로젝트 배선 검사는 템플릿 설치에만 해당한다.")
+            return 0
         return check_agents(ROOT)
 
     if args.check_update:
@@ -421,7 +420,7 @@ def main(argv: list[str]) -> int:
         from kernel.harness_setup import check_agents
 
         print_language_report()
-        return check_agents(ROOT)
+        return 0 if PLUGIN else check_agents(ROOT)
 
     # 설치 위치를 가장 먼저 확인한다. 위치가 틀리면 나머지를 다 해도 훅이 하나도 실행되지 않는다.
     if not report_install_location():

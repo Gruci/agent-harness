@@ -7,6 +7,10 @@ PreToolUse is shared by both runtimes and dispatched in kernel/pretool.py (isola
 worktree naming, exit gate). Inside a linked worktree the save and stop gates still run
 but only notify (`[WIP]`); blocking resumes at the exit gate before push/PR/merge.
 
+`--plugin` is the Claude Code plugin install: the kernel lives in the plugin folder and checks
+the checkout that owns the session cwd (`bind_plugin_target`). It steps aside in a checkout
+without harness_profile.py and in a template checkout, whose own hooks run the same gates.
+
 Codex also runs the workspace Stop judgments (board, origin, worktree, mockup, task
 artifacts) from kernel.workspace. Claude keeps one wrapper per judgment in .claude/hooks,
 so the Codex-only branches below never change a Claude verdict.
@@ -19,6 +23,7 @@ import codecs
 import fnmatch
 import io
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -56,16 +61,37 @@ def read_payload() -> dict[str, object]:
         return value
 
 
-def checkout_root(cwd: Path) -> Path:
-    """Resolve the actual checkout, including external worktrees and nested cwd."""
+def git_toplevel(cwd: Path) -> Path:
+    """cwd 가 속한 git 체크아웃의 최상위. 외부 worktree 와 하위 폴더 cwd 도 맞게 잡는다."""
     result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd,
                             capture_output=True, text=True, encoding="utf-8",
                             errors="replace", timeout=10)
     if result.returncode:
         raise ValueError("git checkout not found")
-    root = Path(result.stdout.strip()).resolve()
+    return Path(result.stdout.strip()).resolve()
+
+
+def checkout_root(cwd: Path) -> Path:
+    """템플릿 설치의 체크아웃. 자기 커널이 없으면 예외다."""
+    root = git_toplevel(cwd)
     if not (root / "kernel" / "runner.py").is_file():
         raise ValueError("checkout has no kernel/runner.py")
+    return root
+
+
+def bind_plugin_target(cwd: Path) -> Path | None:
+    """플러그인 훅이 검사할 체크아웃을 정하고 커널에 알린다. 비켜야 하는 체크아웃이면 None 이다.
+
+    사용자 범위로 켠 플러그인은 모든 레포에서 돈다. 프로파일이 없는 레포를 막으면 플러그인을 켠 것만으로 다른 레포가 잠긴다.
+    템플릿으로 설치한 체크아웃은 자기 훅이 같은 검사를 돌므로 여기서 또 돌리지 않는다.
+    """
+    try:
+        root = git_toplevel(cwd)
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        return None
+    if (root / "kernel" / "hook.py").is_file() or not (root / "harness_profile.py").is_file():
+        return None
+    os.environ["HARNESS_ROOT"] = str(root)
     return root
 
 
@@ -163,6 +189,8 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str, out: TextIO 
     `out` receives every message (stderr by default); a worktree caller passes a buffer so
     the same verdict can be re-emitted as a `[WIP]` notice instead of a block.
     """
+    from kernel.context import runner_command
+
     out = sys.stderr if out is None else out
     jobs: list[list[str]] = []
     code = 0
@@ -178,10 +206,13 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str, out: TextIO 
     if event == "Stop":
         jobs.append([])
     for args in jobs:
+        command_line = runner_command(root, *args)
+        if command_line is None:
+            continue                          # 하네스가 연결되지 않은 체크아웃 — 검사할 러너도 프로파일도 없다
+        argv, env = command_line
         try:
             result = subprocess.run(
-                [sys.executable, "-X", "utf8", "-m", "kernel.runner", *args],
-                cwd=root, capture_output=True, text=True, encoding="utf-8",
+                argv, cwd=root, env=env, capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=60 if event == "Stop" else 30,
             )
         except (subprocess.TimeoutExpired, OSError) as exc:
@@ -271,10 +302,27 @@ def refresh_projection(root: Path) -> None:
         feature_map.generate(root)
 
 
+def _delegate(root: Path, agent: str, event: str, payload: dict[str, object]) -> int:
+    """Re-run the hook with the target checkout's own kernel; an imported kernel package cannot be rebound."""
+    if not (root / "kernel" / "hook.py").is_file():
+        raise RuntimeError("대상 체크아웃에 kernel/hook.py 가 없다")
+    result = subprocess.run(
+        [sys.executable, "-X", "utf8", "-m", "kernel.hook", "--agent", agent, "--event", event],
+        cwd=root, input=json.dumps(payload), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=120,
+    )
+    print(result.stdout, end="")
+    print(result.stderr, end="", file=sys.stderr)
+    if result.returncode not in (0, 1, 2):
+        raise RuntimeError("대상 체크아웃의 훅이 예상 밖의 종료 코드로 끝났다")
+    return result.returncode                  # 1 is a notice ([WIP], overlap) — pass it through
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", choices=("claude", "codex"), required=True)
     parser.add_argument("--event", choices=("PreToolUse", "PostToolUse", "Stop"), required=True)
+    parser.add_argument("--plugin", action="store_true")
     args = parser.parse_args(argv)
     try:
         payload = read_payload()
@@ -287,26 +335,18 @@ def main(argv: list[str] | None = None) -> int:
     sid = str(payload.get("session_id") or "")
     system_message = ""
     try:
-        root = checkout_root(cwd)
-        if root != Path(__file__).resolve().parents[1]:
-            # Inserting sys.path cannot rebind an already imported kernel package.
-            if not (root / "kernel" / "hook.py").is_file():
-                raise RuntimeError("대상 체크아웃에 kernel/hook.py 가 없다")
-            result = subprocess.run(
-                [sys.executable, "-X", "utf8", "-m", "kernel.hook",
-                 "--agent", args.agent, "--event", args.event], cwd=root,
-                input=json.dumps(payload), capture_output=True, text=True,
-                encoding="utf-8", errors="replace", timeout=120,
-            )
-            print(result.stdout, end="")
-            print(result.stderr, end="", file=sys.stderr)
-            if result.returncode not in (0, 1, 2):
-                raise RuntimeError("대상 체크아웃의 훅이 예상 밖의 종료 코드로 끝났다")
-            return result.returncode          # 1 is a notice ([WIP], overlap) — pass it through
-        sys.path.insert(0, str(root))  # Direct script launch starts with kernel/ on sys.path.
+        if args.plugin:
+            root = bind_plugin_target(cwd)
+            if root is None:
+                return 0                      # 하네스가 연결되지 않았거나 템플릿 체크아웃 — 비킨다
+        else:
+            root = checkout_root(cwd)
+            if root != Path(__file__).resolve().parents[1]:
+                return _delegate(root, args.agent, args.event, payload)
+            sys.path.insert(0, str(root))  # Direct script launch starts with kernel/ on sys.path.
         if args.event == "PreToolUse":
             from kernel import pretool
-            code, system_message = pretool.pretool_gate(root, payload, sid, args.agent)
+            code, system_message = pretool.pretool_gate(root, payload, sid, args.agent, core_only=args.plugin)
             if code == 0 and args.agent == "codex":
                 print(json.dumps({"systemMessage": system_message}, ensure_ascii=False) if system_message else "{}")
             return code

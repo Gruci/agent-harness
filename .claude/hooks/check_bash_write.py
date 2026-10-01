@@ -52,11 +52,24 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _hookio import SEPARATORS, read_hook_payload, record, segments  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+HOME = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(HOME))
+
+
+def _target_root() -> Path | None:
+    """검사할 체크아웃. 템플릿 훅은 이 파일이 든 체크아웃이고, 플러그인 훅(`--plugin`)은 세션 폴더가 속한 체크아웃이다.
+    플러그인 훅이 비켜야 하는 체크아웃이면 None 이다(`kernel.hook.bind_plugin_target`)."""
+    if "--plugin" not in sys.argv[1:]:
+        return HOME
+    from kernel.hook import bind_plugin_target
+    return bind_plugin_target(Path.cwd())
+
+
+_TARGET = _target_root()
+ROOT = _TARGET or HOME
 
 # 확장자 정본은 프로파일이다. 프로파일을 못 읽어도 훅은 동작해야 하므로 기본값으로 대신한다.
 _FALLBACK_EXT = (".py", ".ts", ".tsx", ".md", ".css", ".html", ".json")
-sys.path.insert(0, str(ROOT))
 try:
     from kernel import profile as _profile
     SOURCE_SUFFIXES = tuple(dict.fromkeys(
@@ -271,6 +284,8 @@ def shared_tree_mutation(command: str) -> str | None:
 
 
 def main() -> None:
+    if _TARGET is None:
+        sys.exit(0)                      # 플러그인 훅이 비켜야 하는 체크아웃 — 하네스 미연결 또는 템플릿 설치
     try:
         payload = read_hook_payload()
     except Exception as exc:

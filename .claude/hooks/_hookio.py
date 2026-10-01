@@ -40,7 +40,7 @@ def record(*args: object, **kwargs: object) -> None:
 
 def emit(finding: object, sid: str = "") -> None:
     """커널 판정 결과(`kernel.workspace.Finding`)를 stderr 와 trace 로 내보낸다. exit 는 이 함수가 아니라 훅 파일이 직접 낸다.
-    차단(2)인지 경고(1)인지가 훅 파일 본문에 글자로 남아 있어야 규칙 지도(`kernel/diagram/rules.py`)가 읽을 수 있다."""
+    차단(2)인지 경고(1)인지는 훅 파일이 직접 낸다."""
     for msg in getattr(finding, "trace", ()):
         record(finding.hook, finding.kind, sid=sid, msg=msg)
     # Stop·PreToolUse 훅의 사유는 stderr 로 내보내야 모델에게 전달된다(stdout 은 무시된다).

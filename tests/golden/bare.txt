@@ -44,7 +44,6 @@ exit=3
 [SKIP] 에이전트 모델 정책 — 설정에 담당 AI 모델 표를 안 적었음
 [SKIP] 사고 절 승격 상태 — 설정에 사고 기록 문서를 안 적었음
 [SKIP] MD 함수 참조 실존 — greenfield — 문서가 코드보다 먼저다
-[SKIP] 아키텍처 그림 1:1 대조 — 그릴 레이어·패키지가 아직 없음
 
 [FAIL] 컴포넌트 그래프 (graph_schema) — 1건
    - first code requires classification; needs_decision

@@ -25,14 +25,13 @@ import importlib
 import sys
 from pathlib import Path
 
-from kernel import diagram, facts, graph_checks, linters, profile
+from kernel import facts, graph_checks, linters, profile
 # 러너를 거쳐 쓰도록 다시 내보낸다. trace 는 violation_path 를, 설치 스크립트는 BASELINE_FILE·load_baseline 을 쓴다.
 from kernel.baseline import (BASELINE_FILE, apply_baseline as _apply_baseline,  # noqa: F401
                              load_baseline, violation_path)
 from kernel.context import ROOT, _rel, app_code, is_harness_own, tracked
-from kernel.gates import (api_types, arch_diagram, core, duplication, harness_self, layers,
-                          md_graph, md_style, orphan_api, placement, prompt_version, schema,
-                          tests_pairing)
+from kernel.gates import (api_types, core, duplication, harness_self, layers, md_graph, md_style,
+                          orphan_api, placement, prompt_version, schema, tests_pairing)
 
 # (slug, 제목, 위반 목록, 건너뜀). 건너뜀은 (등급, 사유) 이고 None 이면 실제로 검사한 것이다.
 #
@@ -243,7 +242,7 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
 
 
 def _doc_sections(full: bool = True) -> list[Section]:
-    """문서 게이트. full 이 거짓이면(`--file`) 레포 전체 REPORT 와 아키텍처 그림 대조(검사 48)를 뺀다. 둘 다 편집한 파일과 무관하다."""
+    """문서 게이트. full 이 거짓이면(`--file`) 레포 전체 REPORT 와 문서↔코드 대조를 뺀다. 둘 다 편집한 파일과 무관하다."""
     greenfield = profile.STAGE == "greenfield"
 
     # 새 프로젝트는 MD 가 코드보다 먼저 나온다 — plan 문서가 아직 없는 경로를 가리키는 게 정상
@@ -269,18 +268,8 @@ def _doc_sections(full: bool = True) -> list[Section]:
         _entry("md_fn_refs", "MD 함수 참조 실존", md_graph.check_md_fn_refs(),
                not greenfield, "greenfield — 문서가 코드보다 먼저다"),
     ]
-    if not full:                        # 아키텍처 그림 대조(검사 48)는 그림과 소스 전체를 맞대는 검사라 --file 모드에는 비교 상대가 없다(중복 검사 34·35 와 같다)
+    if not full:                        # 문서↔코드 대조는 양쪽 실물을 맞대는 검사라 --file 모드에는 비교 상대가 없다(중복 검사 34·35 와 같다)
         return sections
-    # 그림과 실제 코드를 1:1 로 대조한다. 그림이 없는 greenfield 는 "아직 없음"으로 두고, 있으면 노드마다 소스 근거를 확인한다.
-    hard, soft = arch_diagram.check_arch_diagram()
-    _print_style_reports(soft)
-    has_diagrams = bool(arch_diagram.diagrams())
-    sections.append(_entry("arch_diagram", "아키텍처 그림 1:1 대조", hard,
-                           has_diagrams or (arch_diagram.expected_nodes() and not greenfield),
-                           "그릴 레이어·패키지가 아직 없음" if not arch_diagram.expected_nodes()
-                           else f"greenfield — {diagram.DIAGRAM_DIR} 아직 없음"))
-    if has_diagrams:
-        sections += arch_diagram.engine_sections()
     for pair in profile.DOC_SYNC:
         title = f"문서↔코드 대조({pair['doc']}↔{pair['code']})"
         sections.append(_entry(f"doc_sync:{pair['doc']}", title,

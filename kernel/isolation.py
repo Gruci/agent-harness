@@ -40,11 +40,10 @@ from __future__ import annotations
 import difflib
 import shlex
 import subprocess
-import sys
 from datetime import date
 from pathlib import Path
 
-from kernel.context import default_branch
+from kernel.context import default_branch, runner_command
 from kernel.workboard import board_dir
 from kernel.workspace import Finding
 from kernel.worktree import my_scope, segments
@@ -306,12 +305,13 @@ def exit_gate(command: str, cwd: Path) -> Finding | None:
     root = checkout_of(cwd / target if target else cwd)
     if root is None:
         return _blocked(name, "git 체크아웃을 못 찾았다(fail-closed).", [])
-    if not (root / "kernel" / "runner.py").is_file():
-        return None                           # 하네스가 깔린 체크아웃이 아니다 — 검사할 러너가 없다
+    command_line = runner_command(root, "--verify")
+    if command_line is None:
+        return None                           # 하네스가 연결되지 않은 체크아웃이다 — 검사할 러너도 프로파일도 없다
+    argv, env = command_line
     try:
-        done = subprocess.run([sys.executable, "-X", "utf8", "-m", "kernel.runner", "--verify"], cwd=root,
-                              capture_output=True, text=True, encoding="utf-8", errors="replace",
-                              timeout=VERIFY_TIMEOUT_SEC)
+        done = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=VERIFY_TIMEOUT_SEC)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return _blocked(name, f"러너를 실행하지 못했다: {type(exc).__name__}(fail-closed).", [])
     if done.returncode == 0:

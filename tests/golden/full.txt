@@ -114,15 +114,6 @@ exit=2
    - dev/LESSONS.md:5: §1 에 `> 강제:` 선언이 없다 — 게이트를 적거나 `산문 전용 — 사유` 로 적어라
 [OK]   MD 함수 참조 실존
 
-[FAIL] 아키텍처 그림 1:1 대조 (arch_diagram) — 6건
-   - docs/architecture/app.architecture.json: revision 0000000 이 이 레포에 없음 — deliver 를 다시 돌려 HEAD 로 찍는다
-   - docs/architecture/app.architecture.json: 노드 reads → db/reads/bad_write.py 행 99 없음 (파일은 5줄)
-   - docs/architecture/app.architecture.json: 노드 gone → utils/gone.py 실존하지 않음 — 이름을 바꿨으면 그림도 고친다
-   - docs/architecture/app.architecture.json: 노드 orphan 에 sources 없음 — 코드 어디인지 적어야 그림이다
-   - docs/architecture/app.architecture.json: utils/ 를 가리키는 노드 없음 — 구현된 컴포넌트의 실제 소스 근거가 필요하다
-   - docs/architecture/app.architecture.json: 영수증 없음 — `python -X utf8 -m kernel.diagram deliver` 로 렌더한다
-[TOOL] 그림 엔진 진단(docs/architecture/app.architecture.json) — node 없음 — node 를 설치하면 켜진다
-
 [FAIL] 문서↔코드 대조(DEVGUIDE.md↔batch_runner.py) (doc_sync:DEVGUIDE.md) — 1건
    - DEVGUIDE.md:9: BATCH_HOUR=5 인데 문서 값 [0, 3] 불일치
 

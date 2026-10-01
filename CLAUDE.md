@@ -50,7 +50,6 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 | **기존 데이터셋을 새 표·차트·카드에 얹기 전** | `dev/CONVENTIONS.md` 「데이터셋 표시 규약」 — 순서·라벨은 화면이 정하지 않는다. 표에 없는 축이면 소비처를 grep 해 관례를 확인하고 표에 등재한다 |
 | **MD 작성·수정 전 (예외 없음)** | `dev/MD_STANDARD.md` — 3원칙과 성분 판정 |
 | 하네스(훅·에이전트·스킬·게이트) 파악·수정 | `dev/HARNESS.md` — 전체 지도 |
-| **아키텍처·흐름 그림 작성·갱신** | `dev/DIAGRAM.md` — 정본 위치·1:1 매핑 규약·검사 48. 작성 계약은 `dev/DIAGRAM_AUTHORING.md` |
 | **규칙에 이의 제기 전** | `dev/LESSONS.md` — 그 규칙이 생긴 사고 경위 |
 | **이미 나온 제안을 다시 꺼내기 전** | `dev/REJECTED.md` — 거절·보류된 것과 그 사유 |
 | **3단계 구현을 시작하기 전 (예외 없음)** | `workboard/README.md` — 작업을 시작할 때의 분기와 과업 파일 서식. 열린 과업은 SessionStart 훅이 세션 시작 때 넣어 주지만, 오래 이어진 세션은 `ls workboard/`로 다시 확인한다 |
@@ -189,7 +188,7 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 
 ## 정비 — 하네스가 때를 알린다
 
-월간 감사류(`md-audit`·`code-audit`·`code-debt`·`impeccable critique`·`review-loop`)는 사용자가 시켜서 도는 게 아니다. SessionStart 훅이 레포에서 마지막 실행 후 커밋 수, 경과일, 바뀐 화면 파일, 남은 `debt:` 표시를 재고, 임계치를 넘으면 `[정비]` 로 알린다. 판정 정본은 `kernel/maintenance.py`이고 임계치는 프로파일의 `MAINTENANCE`가 조정한다.
+월간 감사류(`md-audit`·`code-audit`·`code-debt`·`review-loop`)는 사용자가 시켜서 도는 게 아니다. SessionStart 훅이 레포에서 마지막 실행 후 커밋 수, 경과일, 바뀐 화면 파일, 남은 `debt:` 표시를 재고, 임계치를 넘으면 `[정비]` 로 알린다. 판정 정본은 `kernel/maintenance.py`이고 임계치는 프로파일의 `MAINTENANCE`가 조정한다.
 
 **알림이 뜨면 묻지 말고 실행한다.** 다만 현재 요청을 먼저 끝내고, 그다음 같은 세션에서 돌린다. 전부 보고서만 내고 코드는 고치지 않으므로 승인이 필요 없다. 끝나면 `python -X utf8 -m kernel.maintenance --stamp <이름>`으로 기록하고 `harness_maintenance.json`을 커밋한다 — 기록이 공유돼야 주기가 성립한다.
 

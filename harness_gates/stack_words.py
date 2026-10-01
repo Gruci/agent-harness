@@ -7,9 +7,8 @@
 
 대상은 MD 문서와 에이전트·스킬 정의뿐이다. 코드 쪽 스택 이름은 팩과 픽스처가 담는 것이 정상이다.
 허용 위치: 사고 경위는 그 스택에서 났으므로 `dev/LESSONS.md` 는 그대로 두고, 조각·픽스처·작업
-산출물(`docs/tasks/`)은 스택을 담는 것이 역할이다. 벤더 사본(`.claude/skills/impeccable/`)은 우리 문서가
-아니다. 허용 위치의 경로를 백틱으로 가리키는 것과 조각에서 생성한 「스택 관례」 절은 이름이 아니라
-참조라 걸지 않는다.
+산출물(`docs/tasks/`)은 스택을 담는 것이 역할이다. 허용 위치의 경로를 백틱으로 가리키는 것과 조각에서
+생성한 「스택 관례」 절은 이름이 아니라 참조라 걸지 않는다.
 
 제품 프로젝트는 자기 문서에 자기 스택을 쓰는 게 정상이므로 커널이 아니라 여기에 둔다.
 """
@@ -24,8 +23,7 @@ from kernel.context import READ_ENC, _rel, candidate_files
 
 TITLE = "스택 단어 래칫(문서·에이전트)"
 WORDS = re.compile(r"\b(react|fastapi|useapi|tanstack|colors\.ts)\b", re.IGNORECASE)
-ALLOWED = ("dev/LESSONS.md", "kernel/frameworks/", "tests/fixtures/", "docs/tasks/",
-           ".claude/skills/impeccable/")
+ALLOWED = ("dev/LESSONS.md", "kernel/frameworks/", "tests/fixtures/", "docs/tasks/")
 _ALLOWED_REF = re.compile("`(?:" + "|".join(re.escape(prefix) for prefix in ALLOWED) + ")[^`]*`")
 
 

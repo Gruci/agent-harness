@@ -9,7 +9,6 @@
 
 공통 절차는 [작업 절차 허브](dev/workflows/README.md)가 정본이다.
 각 에이전트의 진입 문서와 스킬은 공통 절차에 자기 도구만 연결한다.
-Impeccable은 벤더 자산 사본을 하나만 두고 수정하지 않으며, 두 어댑터가 그 사본을 함께 참조한다.
 
 | 책임 | 계약 |
 |---|---|
@@ -18,6 +17,18 @@ Impeccable은 벤더 자산 사본을 하나만 두고 수정하지 않으며, �
 | Claude 연결 | 저장·종료 Python 훅과 PreToolUse 래퍼(`check_pretool.py`)가 공통 진입점을 호출한다 |
 | Codex 연결 | `.codex/hooks.json`이 Bash·apply_patch·Edit·Write 실행 전과 patch 후와 Stop에 공통 진입점을 호출한다 |
 | 설치 진단 | `python -X utf8 harness_install.py --check-agents`로 누락과 배선 불일치를 검사한다 |
+
+### 플러그인 배포
+
+같은 커널이 Claude Code 플러그인으로도 깔린다. 레포 루트가 곧 플러그인이고 매니페스트는 `.claude-plugin/` 에 있다.
+
+| 항목 | 계약 |
+|---|---|
+| 싣는 것 | 저장(⑨)·종료(⑬)·셸 쓰기(⑧-1·⑧-3)·나올 때 검사(⑧-7)와 `harness-init` 스킬. 작업 절차 훅과 나머지 스킬은 싣지 않는다 |
+| 도는 곳 | `harness_profile.py` 가 있고 템플릿 커널(`kernel/hook.py`)이 없는 체크아웃. 다른 레포에서는 훅이 exit 0 으로 비킨다 |
+| 루트 | 플러그인 진입점이 `HARNESS_ROOT` 로 프로젝트를 커널에 알린다. 정본은 `kernel/context.py` 다 |
+| 명령 | `python -X utf8 "<플러그인>/kernel" <하위 명령>`. 정본은 `kernel/__main__.py` 헤더이고 경로는 세션 시작 알림이 준다 |
+| 업데이트 | `/plugin update agent-harness@agent-harness`. `--upgrade` 는 템플릿 전용이다 |
 
 Codex에서는 프로젝트와 새 훅 정의를 런타임에서 신뢰해야 실행된다.
 공식 CLI의 `/hooks`에서 확인하며 호스트 앱은 해당 앱의 훅 지원과 신뢰 설정을 확인한다.
@@ -77,17 +88,6 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 런타임별 훅이 공통 검사 진입점을 호출하고 커널은 프로파일을 통해 프로젝트 규칙을 읽는다.
 프로젝트별 경로와 예외는 프로파일에서 정하며 실행 도구의 입력 형식은 어댑터에서 처리한다.
 
-이 구조의 그림은 `docs/architecture/` 에 있다. 그림의 상자마다 근거가 되는 소스 파일과 행 범위가 기록돼 있고, 아키텍처 그림 1:1 대조 검사(검사 48)가 이를 실물과 대조한다.
-
-| 그림 | 무엇 | 열기 |
-|:--|:--|:--|
-| 구조 | 세션 → 훅·규칙·스킬 → 러너 → 게이트·팩·프로파일 → 관찰·테스트·엔진 | `docs/architecture/harness.architecture.html` |
-| 훅 실행 순서 | 「Claude 훅 실행 순서」 표의 ①~⑱ 를 레인과 단계로 배치한 그림. 가이드 뷰 3개, `?present=1&play=1` 로 재생 | `docs/architecture/hooks.workflow.html` |
-| Edit 한 번의 여정 | 저장 → ⑨ → 러너 → 게이트 → 관찰 → 피드백 → 재수정 | `docs/architecture/edit-trip.sequence.html` |
-| 훅별 규칙 지도 | 어느 훅이 언제 무엇을 검사하나 — `settings.json` 배선과 게이트 목록에서 **생성**. 훅이 바뀌면 `python -X utf8 -m kernel.diagram rules` | `docs/architecture/rules.workflow.html` |
-
-같은 이름의 `.svg` 가 README 에 실린다. 규약은 `dev/DIAGRAM.md`, 만드는 절차는 `arch-diagram` 스킬이다.
-
 ## Claude 훅 실행 순서
 
 세션 시작부터 종료까지 시간순이다. **차단**은 exit 2 로 진행을 멈추고 모델에게 피드백을 준다.
@@ -100,7 +100,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ① | SessionStart | `code-master.md` 주입 — 코딩 페르소나(단순성 우선·근본 원인·비타협 안전) | 항상 | 통과 |
 | ② | SessionStart | git·origin 검사 | 저장소 아님 또는 origin 미설정 | 경고 문자열 |
 | ③ | SessionStart | 프로파일 검사 | `harness_profile.py` 없음, 또는 `PROFILE_SCHEMA` 가 커널 요구치보다 낮음(새 항목 목록 고지) | 경고 문자열 |
-| ④ | SessionStart | 인터프리터 검사 | python 또는 node 실행 불가 | 경고 문자열 |
+| ④ | SessionStart | 인터프리터 검사 | python 실행 불가 또는 3.10 미만 | 경고 문자열 |
 | ⑤ | SessionStart | `git_staleness.py` | 항상 열린 과업 주입 + 기본 브랜치가 origin 보다 뒤면 정렬 (**startup 한정**) | 과업 목록 · ff-only 자동 정렬 |
 | ⑥ | SessionStart | `check_maintenance.py` | 정비 임계치 초과 (**startup 한정**) | 밀린 정비 목록 |
 | ⑦ | UserPromptSubmit | `check_context_growth.py` | transcript 가 임계 초과 | 경고 + `/clear` 권고 |
@@ -115,7 +115,6 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ⑧-4 | PreToolUse(Workflow) | `check_workflow_script.py` | 스크립트의 `agent()` 에 model 미지정 | **차단** |
 | ⑧-5 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit) | `check_workboard_overlap.py` | 다른 과업의 `손대는 곳` 글로브에 걸리는 파일을 편집 | 경고 (추론) — exit 0 JSON. `systemMessage` 로 사용자에게, `additionalContext` 로 모델에게 넘긴다. 후자는 문서화된 필드지만 실측 확인은 아직이다 |
 | ⑨ | PostToolUse(Edit·Write·MultiEdit) | `check_file_rules.py` | 저장한 파일이 게이트 위반 | **차단** — worktree 안에서는 `[WIP]` 경고 |
-| ⑩ | PostToolUse(Edit·Write·MultiEdit) | `impeccable/scripts/hook.mjs` | 항상 | 통과 (UI 리마인더) |
 | ⑪ | SubagentStop | `check_agent_return.py` | 반환이 임계 초과 | **차단** |
 | ⑫ | Stop | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | `workboard/` 에 자기 `#sid` 과업 파일이 **머지 후에도** 남아 있음 (진행 중은 통과) | 경고 (추론) |
 | ⑫-1 | 〃 | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | 주인 없는 과업 파일 — 머지됐고 브랜치가 origin·로컬 양쪽에 없음 | 경고 (추론) |
@@ -256,7 +255,6 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | 45 | 루트 직속 잡파일 | `root_litter` | 확장자와 상관없이 루트에 쌓인 덤프·메모 — 아직 추적되지 않은 커밋 후보도 포함 |
 | 46 | 프롬프트 버전 범프 | `prompt_version` | 버전은 그대로 두고 본문만 바꾼 LLM 프롬프트 — 산출물을 판정할 근거가 사라진다 |
 | 47 | 프로파일 형식 | `profile_shape` | 설정 이름 오타·튜플 자리의 문자열 — 예외 없이 게이트 대부분이 대상 0건으로 조용히 초록불이 된다 |
-| 48 | 아키텍처 그림 1:1 대조 | `arch_diagram` · `arch_diagram_engine:<파일>` | 코드 위치가 증명되지 않은 노드, 이름을 바꾸고 고치지 않은 그림, 렌더하지 않은 정본. 엔진에 위임한 부분은 렌더 영수증 해시가 정본과 같으면 다시 호출하지 않고 OK 이고, 다르면서 node 가 없으면 `[TOOL]` 이다 — 통과가 아니다. 레포 전체를 검사하는 전량 모드에서만 돈다(34·35 와 같다). 정본은 `dev/DIAGRAM.md` |
 
 문서↔코드 대조(`doc_sync`)는 프로파일의 `DOC_SYNC` 가 정의한 만큼 늘어난다.
 
@@ -454,7 +452,6 @@ Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain
 | `qa` | API 응답과 그것을 쓰는 화면 사이의 경계 교차검증 | 양쪽을 동시에 읽는 별도 컨텍스트가 필요하다 |
 | `product-reviewer` | 사용자 관점 검수 | 역할 분리가 본질 — 만든 사람은 자기 결과를 못 본다 |
 | `orchestrator` | 병렬 구현 지휘 — 소유권 배정·워커 스폰·공유 파일 직렬 적용 | 한 worktree 를 여럿이 쓰면 git 이 충돌을 못 잡는다. 소유권 판단이 유일한 방어다 |
-| `impeccable-manual-edit-applier` | impeccable 수동 편집 적용 | 벤더 사본. 손대지 않는다 |
 
 메인 루프가 몇 번의 툴 호출로 끝날 일을 위임하지 않는다. 부트스트랩 비용이 더 크다.
 
@@ -467,7 +464,6 @@ Codex의 프로젝트 조립은 [harness-assembly-cdx](../.agents/skills/harness
 | `harness-init` | 새 프로젝트를 하네스에 연결할 때. `harness_profile.py` 가 없으면 이것부터 |
 | `feature-workflow` | 기능 추가·수정·버그 수정 |
 | `full-feature` | 서버와 화면을 같이 만들 때 |
-| `impeccable` | UI 품질 — 비평·감사·다듬기 |
 | `code-audit` | 레포 전체 과설계 감사 |
 | `code-debt` | `debt:` 부채 수확 |
 | `code-trim` | 변경분 과설계 리뷰 |
@@ -475,7 +471,6 @@ Codex의 프로젝트 조립은 [harness-assembly-cdx](../.agents/skills/harness
 | `review-loop` | 리뷰 반복 |
 | `test` | 테스트 작성 |
 | `harness-retro` | 훅이 막은 기록을 읽고 규칙·게이트를 손볼지 판정 |
-| `arch-diagram` | 아키텍처·흐름·시퀀스 그림을 정본 JSON 으로 쓰고 소스 증거를 박아 렌더. 구조가 바뀌는 plan 의 델타도 여기서 |
 
 인증·토큰·결제처럼 보안이 걸린 변경은 **Claude Code 내장 `security-review`** 로 검수한다. 전용
 에이전트를 만들지 않는 이유는 그 판단이 이 프로젝트 고유가 아니어서다 — 레이어 이름도 어휘도
@@ -493,13 +488,12 @@ Codex 세션엔 이 내장 스킬이 없다 — 그쪽은 사람이 리뷰를 �
 | `md-audit` | 문서와 코드가 어긋난 곳 | 커밋 80개 또는 30일 |
 | `code-audit` | 필요 이상으로 복잡해진 코드 | 커밋 150개 또는 60일 |
 | `code-debt` | 미뤄둔 `debt:` 표시의 재고 | 표시 12개 |
-| `impeccable critique` | 화면 사용성 | 화면 파일 20개 변경 또는 45일 |
 | `review-loop` | 사용자 관점의 지표·문구 | 화면 파일 12개 변경 |
 | `harness-retro` | 훅이 막은 기록의 패턴 | 관찰 25건 |
 
 판정 정본은 `kernel/maintenance.py`, 임계치 조정은 프로파일의 `MAINTENANCE`, 마지막 실행
 기록은 `harness_maintenance.json` 이다. 기록은 커밋한다 — 세션과 머신이 바뀌어도 공유돼야
-주기가 성립한다. 화면 레이어가 선언되지 않은 프로젝트에선 화면 관련 두 항목이 아예 안 뜬다.
+주기가 성립한다. 화면 레이어가 선언되지 않은 프로젝트에선 `review-loop` 가 아예 안 뜬다.
 
 전부 **보고서만 내고 코드는 고치지 않는다.** 그래서 알림이 뜨면 승인 없이 실행한다.
 고칠지 말지는 보고서를 본 뒤의 문제다.

@@ -1,10 +1,10 @@
 <div align="center">
 
-# web-harness
+# agent-harness
 
 **AI가 내 코드를 망치지 않게 잡아주는 가드레일**
 
-AI 개발 하네스 v1.1.0
+AI 개발 하네스 v2.0.0
 
 [한국어](README.md) · [English](README.en.md)
 
@@ -32,8 +32,17 @@ AI와 오래 개발하면 코드가 꼬입니다. 어제 합의한 규칙을 오
 
 **1. 받기**
 
+Claude Code 플러그인으로 깝니다. 프로젝트 폴더에는 아무것도 복사되지 않고, 연결한 프로젝트에서만 검사가 돕니다.
+
+```
+/plugin marketplace add Gruci/agent-harness
+/plugin install agent-harness@agent-harness
+```
+
+Codex도 함께 쓰거나 작업 사본·작업 보드 절차까지 쓰려면 템플릿으로 받습니다. 검사 엔진은 두 방식이 같습니다.
+
 ```bash
-git clone https://github.com/Gruci/web-harness.git my-project
+git clone https://github.com/Gruci/agent-harness.git my-project
 cd my-project
 rm -rf .git && git init && git add -A && git commit -m "init"
 ```
@@ -114,7 +123,10 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 `gh` 로그인이 돼 있으면 비공개 저장소를 자동으로 만듭니다. 로그인이 안 돼 있을 때만 주소를 묻습니다.
 
 **하네스를 새 버전으로 올리려면요?**
-`python -X utf8 harness_install.py --check-update`로 새 버전이 있는지 봅니다. 올리려면 변경 사항을 커밋한 뒤 `--upgrade`를 실행합니다. 검사 엔진·자동 검사 스크립트·프리셋만 바뀌고 설정·문서·그림은 그대로 둡니다.
+플러그인은 `/plugin update agent-harness@agent-harness`입니다. 템플릿은 `python -X utf8 harness_install.py --check-update`로 새 버전이 있는지 보고, 변경 사항을 커밋한 뒤 `--upgrade`를 실행합니다. 검사 엔진·자동 검사 스크립트·프리셋만 바뀌고 설정·문서는 그대로 둡니다.
+
+**화면 디자인 감사나 구조 그림 도구는 없나요?**
+싣지 않습니다. UI 감사 스킬이나 구조 그림 도구가 필요하면 따로 설치합니다. 하네스는 검사 엔진만 담습니다.
 
 ## Codex와 함께 쓰기
 
@@ -143,24 +155,15 @@ python -X utf8 harness_install.py                     # 설정 파일 생성과 
 python -X utf8 setup_global_permissions.py            # Claude Code 전역 권한 설정
 ```
 
-필요한 것은 Git 저장소, GitHub 원격 저장소, Python 3.10 이상입니다. 화면 품질 점검과 구조 그림에는 Node.js가, Go·TypeScript 분석에는 tree-sitter가 필요합니다. 빠진 도구는 `--doctor`가 알려 줍니다.
+필요한 것은 Git 저장소, GitHub 원격 저장소, Python 3.10 이상입니다. 화면 검사에는 Node.js가, Go·TypeScript 분석에는 tree-sitter가 필요합니다. 빠진 도구는 `--doctor`가 알려 줍니다.
 
 이미 코드가 있는 프로젝트라면 `--dry-run`으로 현재 위반을 먼저 봅니다.
-
-## 구조 그림
-
-하네스 자신의 구조를 그린 그림입니다. 상자마다 실제 소스 위치가 연결돼 있고, 코드를 바꾸고 그림을 안 고치면 검사에 걸립니다. `docs/architecture/`의 같은 이름 `.html`을 열면 상자를 눌러 코드로 갈 수 있습니다. 새 프로젝트에 설치하면 이 그림은 지워지고, 프로젝트의 그림은 arch-diagram 스킬로 새로 만듭니다.
-
-| 구조 | 자동 검사가 도는 순서 |
-|:--|:--|
-| ![구조](docs/architecture/harness.architecture.svg) | ![자동 검사 순서](docs/architecture/hooks.workflow.svg) |
-| **파일 하나를 저장할 때** | **어느 시점에 무엇을 검사하나** |
-| ![저장 흐름](docs/architecture/edit-trip.sequence.svg) | ![검사 지도](docs/architecture/rules.workflow.svg) |
 
 ## 변경 이력
 
 | 버전 | 변경 내용 |
 |:--|:--|
+| **v2.0.0** | Claude Code 플러그인으로 깝니다(`/plugin install agent-harness@agent-harness`). 같은 검사 엔진이 템플릿 설치와 플러그인 설치 양쪽에서 돕니다. 레포 이름이 `agent-harness`로 바뀌었습니다. UI 디자인 감사 스킬과 구조 그림 엔진·그림 검사는 뺐습니다. 필요하면 따로 설치합니다. |
 | **v1.1.0** | 언어·프레임워크를 팩으로 분리하고, 초기 설정에서 고른 스택에 맞춥니다. 작업 사본 격리와 합치기 전 검사를 Claude Code·Codex 양쪽에 강제합니다. 끝난 브랜치의 fast-forward 합치기를 허용합니다. 새로 받은 프로젝트의 첫 설치가 검사를 통과하지 못하던 문제를 고쳤습니다. |
 | **v1.0.0** | 첫 공개 버전. |
 

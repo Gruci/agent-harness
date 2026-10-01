@@ -33,31 +33,38 @@ def emit_finding(root: Path, finding: object | None, sid8: str, agent: str) -> t
     return 0, str(finding.message)
 
 
-def pretool_gate(root: Path, payload: dict[str, object], sid: str, agent: str) -> tuple[int, str]:
-    """EnterWorktree(name) refusal, edit guard, shell naming + exit gate — in that order."""
+def pretool_gate(root: Path, payload: dict[str, object], sid: str, agent: str,
+                 core_only: bool = False) -> tuple[int, str]:
+    """EnterWorktree(name) refusal, edit guard, shell naming + exit gate — in that order.
+
+    `core_only` is the plugin core: it keeps the exit gate but enforces no working procedure
+    (board registration, worktree naming, main-checkout edits).
+    """
     from kernel import isolation, worktree
 
     tool = str(payload.get("tool_name") or "")
     tool_input = payload.get("tool_input")
     cwd = Path(str(payload.get("cwd") or root))
     sid8 = worktree.session_id8(payload)
-    if tool == "EnterWorktree":
-        if isinstance(tool_input, dict) and tool_input.get("name") and not tool_input.get("path"):
-            return emit_finding(root, worktree.enter_worktree_violation(sid8), sid8 or "", agent)
-        return 0, ""
-    if isolation.is_edit(tool, tool_input):
-        try:
-            paths = edited_paths(payload, cwd)
-        except ValueError:
-            return 0, ""                      # e.g. a patch that only deletes — nothing to guard
-        found = isolation.edit_guard(paths, sid8, isolation.changed_lines(tool, tool_input))
-        return emit_finding(root, found, sid8 or "", agent)
+    if not core_only:
+        if tool == "EnterWorktree":
+            if isinstance(tool_input, dict) and tool_input.get("name") and not tool_input.get("path"):
+                return emit_finding(root, worktree.enter_worktree_violation(sid8), sid8 or "", agent)
+            return 0, ""
+        if isolation.is_edit(tool, tool_input):
+            try:
+                paths = edited_paths(payload, cwd)
+            except ValueError:
+                return 0, ""                  # e.g. a patch that only deletes — nothing to guard
+            found = isolation.edit_guard(paths, sid8, isolation.changed_lines(tool, tool_input))
+            return emit_finding(root, found, sid8 or "", agent)
     command = tool_input.get("command") if isinstance(tool_input, dict) else None
     if not isinstance(command, str) or not command:
         return 0, ""
-    code = worktree_gate(root, payload, sid)
-    if code:
-        return code, ""
+    if not core_only:
+        code = worktree_gate(root, payload, sid)
+        if code:
+            return code, ""
     return emit_finding(root, isolation.exit_gate(command, cwd), sid8 or "", agent)
 
 

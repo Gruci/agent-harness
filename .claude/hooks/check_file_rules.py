@@ -9,4 +9,4 @@ from kernel.hook import main
 
 
 if __name__ == "__main__":
-    sys.exit(main(["--agent", "claude", "--event", "PostToolUse"]))
+    sys.exit(main(["--agent", "claude", "--event", "PostToolUse", *sys.argv[1:]]))

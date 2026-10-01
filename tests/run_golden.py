@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import difflib
-import os
 import shutil
 import subprocess
 import sys
@@ -79,10 +78,12 @@ def _git(cwd: Path, *args: str) -> None:
                    capture_output=True, text=True)
 
 
-def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None) -> str:
+def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None,
+            plugin: bool = False) -> str:
     """픽스처와 검사기를 임시 레포에 준비하고 전체 검사 출력을 받는다.
 
     bare=True는 스택을 아직 고르지 않은 상태다. 이때 첫 코드는 분류 결정 없이 통과하면 안 된다.
+    plugin=True 는 플러그인 설치다. 커널을 복사하지 않고 이 레포의 커널이 픽스처를 밖에서 검사한다.
     """
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "proj"
@@ -95,8 +96,11 @@ def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None) 
             if fixture != FIXTURE_GO:
                 (work / "unclassified.py").write_text("VALUE = 1\n", encoding="utf-8")
 
-        shutil.copytree(checker_dir, work / "kernel", ignore=shutil.ignore_patterns("__pycache__"))
-        command = [sys.executable, "-X", "utf8", "-m", "kernel.runner"]
+        if plugin:
+            command = [sys.executable, "-X", "utf8", str(checker_dir)]
+        else:
+            shutil.copytree(checker_dir, work / "kernel", ignore=shutil.ignore_patterns("__pycache__"))
+            command = [sys.executable, "-X", "utf8", "-m", "kernel.runner"]
         if not bare:
             command.append("--verify")
 
@@ -105,13 +109,8 @@ def capture(checker_dir: Path, bare: bool = False, fixture: Path | None = None) 
         if not bare:
             prepare_graph(work, "go" if fixture == FIXTURE_GO else "python")
 
-        # 그림 엔진 호출 결과는 [TOOL] 로 고정한다. 머신에 node 가 있는지에 따라 정답지가 달라지면 안 된다.
-        # 실제 엔진 실행은 tests/test_harness_self.py 가 확인한다.
-        done = subprocess.run(
-            command, cwd=work, capture_output=True, text=True,
-            encoding="utf-8", errors="replace",
-            env={**os.environ, "HARNESS_DIAGRAM_ENGINE": "off"},
-        )
+        done = subprocess.run(command, cwd=work, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
         body = done.stdout
         if done.stderr.strip():
             body += "\n--- stderr ---\n" + done.stderr

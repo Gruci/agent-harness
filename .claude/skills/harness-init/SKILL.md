@@ -22,13 +22,27 @@ description: >
 커널은 `harness_profile.py` 하나로만 프로젝트를 안다. 이 절차의 실질은 그 파일을 실물에 맞게
 채우는 것이고, 끝났을 때의 목표는 게이트를 켜는 게 아니라 **꺼진 게이트를 없애는 것**이다.
 
+## 플러그인으로 설치한 경우
+
+`/plugin install agent-harness@agent-harness` 로 깔았으면 커널은 프로젝트가 아니라 플러그인 폴더에 있다.
+그 경로는 세션 시작 알림 `[HARNESS]` 가 준다. 아래 표만 바꿔 읽고 나머지 절차는 같다.
+
+| 이 문서의 단계·명령 | 플러그인에서 |
+|:--|:--|
+| 0. 설치 위치 확인 | 건너뛴다 — 훅은 플러그인이 건다 |
+| `python -X utf8 harness_install.py [옵션]` | `python -X utf8 "<플러그인>/kernel" install [옵션]` |
+| `python -X utf8 -m kernel.<모듈> [인자]` | `python -X utf8 "<플러그인>/kernel" <모듈> [인자]` |
+| `dev/`·`profiles/` 의 하네스 문서와 서식 | 플러그인 폴더 기준으로 읽는다 |
+| `PROJECT.md`·`dev/CONVENTIONS.md` 갱신 | 프로젝트에 그 파일이 없으면 건너뛴다 |
+| worktree 자리 제외(`.git/info/exclude`) | 건너뛴다 — 플러그인 코어는 작업 사본을 강제하지 않는다 |
+
 ## 0. 설치 위치부터 확인한다 — 다른 무엇보다 먼저
 
 `.claude/settings.json` 의 훅 명령은 `"$(git rev-parse --show-toplevel)/.claude/hooks/…"` 다.
 레포 루트에 `.claude/` 가 없으면 훅이 하나도 안 걸리고, **그 상태는 화면에 아무것도 안 남긴다.**
 `[SKIP]` 조차 없다 — 검사기가 아예 안 불리기 때문이다.
 
-실제로 났던 사고다. 프로젝트 폴더 안쪽에 `web-harness/` 로 clone 해서, 하네스 파일은
+실제로 났던 사고다. 프로젝트 폴더 안쪽에 `agent-harness/` 로 clone 해서, 하네스 파일은
 다 있는데 훅이 하나도 걸리지 않은 채로 시작될 뻔했다.
 
 ```bash
@@ -182,13 +196,6 @@ python -X utf8 -m kernel.runner --verify
 
 2단계에서 들은 답을 `PROJECT.md` 의 "무엇을 만드나"에 옮긴다. 한 문단이면 된다.
 나머지 표(용어·숫자)는 비워둔다 — 개발하면서 쌓이는 것이지 지금 채우는 게 아니다.
-
-## 7-1. 첫 그림을 만든다
-
-`arch-diagram` 스킬로 `docs/architecture/<프로젝트>.architecture.json` 을 만든다. 노드는
-컴포넌트 그래프의 implemented 컴포넌트에서 나오고, 노드마다 `sources` 가 실제 파일을
-가리킨다. planned 컴포넌트는 그리지 않는다. 그림 1:1 대조 검사(검사 48)는 실제로 있는 것만 그리도록 요구한다.
-빈 폴더면 이 단계를 건너뛰고 첫 수직 슬라이스 뒤에 만든다.
 
 ## 8. 사람 말로 보고한다
 

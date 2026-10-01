@@ -2,7 +2,6 @@
 import copy
 import importlib
 import unittest
-from unittest.mock import patch
 
 from harness_test_support import TemporaryRootTestCase
 from test_component_graph import example_graph
@@ -94,22 +93,6 @@ class ComponentGateTests(TemporaryRootTestCase):
         before = {path: path.read_bytes() for path in paths}
         self.assertEqual(([], []), self.dependencies.check(self.graph, self.root, paths)[:2])
         self.assertEqual(before, {path: path.read_bytes() for path in paths})
-
-    def test_diagram_coverage_uses_implemented_graph_components(self):
-        import json
-        from kernel.gates import arch_diagram
-        planned = copy.deepcopy(self.graph["components"][0])
-        planned.update(id="future", root="future", state="planned", public=[])
-        self.graph["components"].append(planned)
-        self.source("orders/api.py", "def place(): pass\n")
-        self.source("docs/architecture/components.json", json.dumps(self.graph))
-        with patch.object(arch_diagram, "ROOT", self.root), patch.object(arch_diagram.profile, "COMPONENT_GRAPH", "docs/architecture/components.json"):
-            self.assertEqual(("orders/",), arch_diagram.expected_nodes())
-
-    def test_feature_map_does_not_require_a_second_renderer_artifact(self):
-        from kernel.gates import arch_diagram
-        with patch.object(arch_diagram, "diagrams", return_value=[]), patch.object(arch_diagram, "expected_nodes", return_value=("orders/",)), patch.object(arch_diagram.profile, "STAGE", "growing"):
-            self.assertEqual(([], []), arch_diagram.check_arch_diagram())
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
   python -X utf8 -m kernel.maintenance              지금 밀린 정비를 출력
   python -X utf8 -m kernel.maintenance --stamp <이름>  방금 돌린 정비를 기록
 
-월간 감사류(문서 드리프트·과설계·부채 수확·UI 점검)는 "한 달에 한 번"이라고 문서에 적어두면
+월간 감사류(문서 드리프트·과설계·부채 수확·사용자 관점 검수)는 "한 달에 한 번"이라고 문서에 적어두면
 아무도 안 한다. 사용자가 명령어를 외우고 때를 판단해야 하기 때문이다. 그건 하네스가 할 일이다.
 
 이 모듈은 **정비할 때가 됐는지 재는 일**만 한다. 무엇을 볼지는 각 스킬이 알고, 임계치는
@@ -32,7 +32,6 @@ DEFAULTS: dict[str, dict[str, int]] = {
     "md-audit":            {"commits": 80, "days": 30},
     "code-audit":          {"commits": 150, "days": 60},
     "code-debt":           {"markers": 12},
-    "impeccable critique": {"ui_changes": 20, "days": 45},
     "review-loop":         {"ui_changes": 12},
     # 임계 25 의 근거: 초반엔 하루에도 여러 번 걸리므로 10 이면 상시 알림이 되고, 100 이면
     # 관례가 굳은 뒤에야 읽는다. "몇 세션 분량이 모이면 본다"가 25 다.
@@ -43,7 +42,6 @@ WHY: dict[str, str] = {
     "md-audit":            "문서와 코드가 어긋난 곳 찾기",
     "code-audit":          "필요 이상으로 복잡해진 코드 찾기",
     "code-debt":           "미뤄둔 작업(`debt:` 표시) 목록 만들기",
-    "impeccable critique": "화면 사용성 점검",
     "review-loop":         "실제 사용자 관점에서 지표와 문구 검수",
     "harness-retro":       "훅이 막은 기록을 읽고 규칙과 게이트를 손볼지 판정",
 }
@@ -179,10 +177,10 @@ def due() -> list[tuple[str, str]]:
     # 선언이 아니라 실물을 본다. 프리셋이 ui 레이어를 미리 적어두므로, 선언만 보면 화면
     # 파일이 한 개도 없는 프로젝트가 첫날부터 "화면 사용성 점검할 때"라는 알림을 받는다.
     has_ui = bool(_source_lists()[1])
-    needs_ui = ("impeccable critique", "review-loop")
+    needs_ui = ("review-loop",)
     for name in DEFAULTS:
         if name in needs_ui and not has_ui:
-            continue                    # 화면이 없으면 화면·지표 검수는 대상이 아니다
+            continue                    # 화면이 없으면 지표·문구 검수는 대상이 아니다
         reason = _due_for(name, ledger.get(name, {}))
         if reason:
             found.append((name, reason))

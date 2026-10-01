@@ -8,7 +8,6 @@ This is the Codex-only entry point for this project. Claude Code uses `CLAUDE.md
 
 - Ordinary Codex work must not load `CLAUDE.md` or scan `.claude/`.
 - Shared skill procedures live in [dev/workflows/README.md](dev/workflows/README.md); each Codex skill reads the relevant procedure directly.
-- `impeccable-cdx` alone may read the unchanged vendor `.claude/skills/impeccable/SKILL.md` and the task-specific references and scripts it requires. Do not preload or modify vendor assets.
 - Worktree operations may use the shared location specified in `workboard/README.md`; that is not permission to load Claude instructions.
 - Shared project truth lives in `README.md`, `dev/DEVGUIDE.md`, `design/DESIGN_GUIDE.md`, `dev/`, `design/`, and `kernel/runner.py`.
 - Codex-only behavior belongs in `AGENTS.md`, `.agents/`, or `.codex/`. Edit Claude-only harness files only for explicitly requested interoperability.

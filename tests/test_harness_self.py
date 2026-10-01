@@ -17,8 +17,6 @@
   frontmatter    스킬·에이전트 name 이 실물과 같고 description 이 1024자 안인가 (skill-metadata)
   화면 린터      ESLint 설정이 픽스처 위반 6종을 각각 잡고 면제 파일과 깨끗한 파일은 안 잡는가.
                  골든은 이 검사를 [TOOL] 로 고정해 검출을 증명하지 못하므로 여기서 대신 확인한다
-  영수증 캐시    영수증 해시가 정본과 같으면 node 없이도 엔진 진단이 OK 인가
-  ⑱ 문구 훅      LLM 으로 UI 문구를 판정하는 훅(check_ui_copy)이 규칙 지도에서 차단(security) 노드가 아닌가
   --file 모드     정본 MD 하나의 작성 시점 검사에 전역 REPORT 가 섞이지 않는가
 
 실행: `python -X utf8 tests/test_harness_self.py`
@@ -26,14 +24,12 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -94,9 +90,7 @@ def test_fresh_install_is_green() -> None:
         assert (work / "harness_trace.jsonl").read_text(encoding="utf-8").strip() == "", (
             "하네스 레포 자신의 관찰 기록이 새 프로젝트에 딸려갔다")
         assert not (work / "harness_surface.txt").exists(), "하네스 자신의 표면 동결본이 딸려갔다"
-        diagrams = work / "docs" / "architecture"
-        assert not list(diagrams.glob("*.receipt.json")), "하네스 자신의 그림이 새 프로젝트에 딸려갔다"
-        assert (diagrams / "components.schema.json").is_file(), "새 프로젝트에 필요한 분류 스키마까지 지웠다"
+        assert (work / "docs" / "architecture" / "components.schema.json").is_file(), "새 프로젝트에 필요한 분류 스키마까지 지웠다"
 
         typo = _run([sys.executable, "-X", "utf8", "harness_install.py", "--dryrun"], work)
         assert typo.returncode == 2, "오타 옵션 --dryrun 이 거절되지 않고 실행됐다"
@@ -118,46 +112,6 @@ def test_runner_reports_profile_shape() -> None:
     assert "[FAIL] 프로파일 형식 (profile_shape)" in output, output
     assert "모르는 설정 이름 LAYER" in output, output
     assert "SCOPE['exclude_all'] 는 튜플이어야 한다" in output, output
-
-
-def test_diagram_engine_delivers_harness_architecture() -> None:
-    """실제 엔진으로 하네스 자신의 architecture 정본을 임시 디렉토리에 deliver 하고 showcase 검사가 9/9 인지 본다.
-
-    골든은 엔진 호출 결과를 [TOOL] 로 고정하므로 엔진이 실제로 도는지는 여기서만 확인한다.
-    node 가 없으면 skipped 로 출력하고 통과로 처리하지 않는다. 건너뛴 테스트는 통과가 아니다.
-    """
-    sys.path.insert(0, str(REPO))
-    from kernel import diagram                # noqa: E402  (경로 삽입 후에만 import 가능)
-
-    source = REPO / "docs" / "architecture" / "harness.architecture.json"
-    assert source.exists(), "하네스 자신의 architecture 정본이 없다"
-    if not diagram.node_path():
-        print("  [SKIPPED] node 없음 — 엔진 실물 테스트를 건너뛴다(통과 아님)")
-        return
-    with tempfile.TemporaryDirectory() as tmp:
-        receipt = diagram.validate("architecture", source)
-        assert receipt.get("ok"), "\n".join(diagram.diagnostics_lines(receipt))
-        out = Path(tmp) / "harness.html"
-        engine = diagram._run(["deliver", "architecture", str(source), str(out), "--repo-root", str(REPO)])
-        validation = engine.get("validation") or {}
-        assert engine.get("ok") and validation.get("checksPassed") == validation.get("checkCount"), (
-            "\n".join(diagram.diagnostics_lines(engine)))
-        assert "harness-source-evidence-data" in out.read_text(encoding="utf-8"), "소스 증거가 HTML 에 안 실렸다"
-
-
-def test_rules_map_matches_wiring() -> None:
-    """규칙 지도는 settings.json 의 훅 연결에서 만들어진다. 훅 항목 수와 노드 수가 같고, 노드마다 소스가 있어야 한다."""
-    sys.path.insert(0, str(REPO))
-    from kernel.diagram import rules          # noqa: E402  (경로 삽입 후에만 import 가능)
-
-    entries = rules._entries()
-    doc = rules.build()
-    nodes = doc["nodes"]
-    assert len(nodes) == len(entries), f"훅 {len(entries)}개인데 노드 {len(nodes)}개"
-    assert all(node.get("sources") for node in nodes), "소스 없는 노드가 있다"
-    assert all(0 <= int(node["col"]) <= rules.MAX_COL for node in nodes), "col 상한을 넘겼다"
-    lane_ids = {lane["id"] for lane in doc["lanes"]}
-    assert all(node["lane"] in lane_ids for node in nodes), "레인 없는 노드"
 
 
 def test_harness_map_catches_ghost_rows() -> None:
@@ -186,8 +140,7 @@ def test_harness_map_catches_ghost_rows() -> None:
 def test_runner_leaves_tree_clean() -> None:
     """전 게이트를 돌려도 git 이 추적하는 파일은 하나도 바뀌지 않는다. 게이트는 판정만 한다(`dev/LESSONS.md` §23).
 
-    검사 48(아키텍처 그림 1:1 대조)이 엔진을 호출하면서 정본의 revision 을 다시 써서,
-    Stop 훅이 커밋된 그림 파일을 바꿔 놓은 적이 있다.
+    예전 그림 검사가 엔진을 호출하면서 정본의 revision 을 다시 써서, Stop 훅이 커밋된 파일을 바꿔 놓은 적이 있다.
     """
     before = subprocess.run(["git", "status", "--porcelain"], cwd=str(REPO), capture_output=True,
                             text=True, encoding="utf-8").stdout
@@ -339,25 +292,6 @@ def test_ui_lint_detects_fixture_violations() -> None:
     assert not any("Consumer.tsx" in v for vs in found.values() for v in vs), "깨끗한 파일을 잡았다"
 
 
-def test_engine_skipped_when_receipt_fresh() -> None:
-    """영수증 해시가 정본과 같으면 node 없이도 엔진 진단이 OK 다. 엔진을 다시 호출하지 않는다는 증명이다."""
-    sys.path.insert(0, str(REPO))
-    from kernel.gates import arch_diagram     # noqa: E402  (경로 삽입 후에만 import 가능)
-
-    with mock.patch.dict(os.environ, {"HARNESS_DIAGRAM_ENGINE": "off"}):
-        sections = arch_diagram.engine_sections()
-    assert sections and all(skip is None and not found for _s, _t, found, skip in sections), sections
-
-
-def test_ui_copy_is_warning_tier() -> None:
-    """LLM 판정 훅은 차단 노드가 아니다 — 규칙 지도에서 backend(경고) 타입이어야 한다."""
-    sys.path.insert(0, str(REPO))
-    from kernel.diagram import rules          # noqa: E402  (경로 삽입 후에만 import 가능)
-
-    node = next(n for n in rules.build()["nodes"] if n["id"] == "stop-ui_copy")
-    assert node["type"] == "backend", node
-
-
 def test_file_mode_prints_no_global_reports() -> None:
     """정본 MD 하나의 작성 시점 검사에 전역 REPORT(경로 참조·stale 노드)가 섞이지 않는다."""
     done = subprocess.run([sys.executable, "-X", "utf8", "-m", "kernel.runner", "--file", "dev/LESSONS.md"],
@@ -369,10 +303,9 @@ def demo() -> None:
     for check in (test_skill_and_agent_frontmatter,
                   test_hook_reports_kernel_crash_as_gate_error,
                   test_hooks_do_not_block_on_broken_payload,
-                  test_runner_reports_profile_shape, test_diagram_engine_delivers_harness_architecture,
-                  test_runner_leaves_tree_clean, test_rules_map_matches_wiring,
-                  test_ui_lint_detects_fixture_violations, test_engine_skipped_when_receipt_fresh,
-                  test_ui_copy_is_warning_tier, test_file_mode_prints_no_global_reports,
+                  test_runner_reports_profile_shape, test_runner_leaves_tree_clean,
+                  test_harness_map_catches_ghost_rows,
+                  test_ui_lint_detects_fixture_violations, test_file_mode_prints_no_global_reports,
                   test_runner_output_same_for_lf_and_crlf, test_fresh_install_is_green):
         check()
         print(f"  [OK] {check.__name__}")

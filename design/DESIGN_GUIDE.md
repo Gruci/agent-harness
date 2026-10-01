@@ -46,19 +46,6 @@
 
 ---
 
-## impeccable 디자인 스킬 연동
+## UI 디자인 감사 도구
 
-UI 디자인·리뷰·개선 작업 시 `/impeccable` 스킬을 활용한다. UI 파일을 편집하면 이 스킬의 자동 훅(PostToolUse)이 그 자리에서 디자인 품질을 검사한다.
-
-| 명령 | 용도 |
-|------|------|
-| `/impeccable craft [기능]` | 새 UI 기능 설계→구현 |
-| `/impeccable critique [대상]` | UX 휴리스틱 점수 리뷰 |
-| `/impeccable audit [대상]` | 기술 품질(a11y, 성능, 반응형) |
-| `/impeccable polish [대상]` | 출하 전 최종 품질 패스 |
-| `/impeccable animate [대상]` | 모션 추가 |
-| `/impeccable colorize [대상]` | 색 전략 적용 |
-| `/impeccable typeset [대상]` | 타이포그래피 개선 |
-| `/impeccable layout [대상]` | 간격·리듬·위계 수정 |
-
-> 전체 명령 목록은 `.claude/skills/impeccable/SKILL.md` 참조.
+하네스는 UI 디자인 감사 도구를 싣지 않는다. 필요하면 impeccable 같은 외부 스킬을 따로 설치한다.

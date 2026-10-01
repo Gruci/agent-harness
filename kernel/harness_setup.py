@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ADAPTERS = ("feature-workflow", "full-feature", "impeccable", "code-audit", "code-debt",
+ADAPTERS = ("feature-workflow", "full-feature", "code-audit", "code-debt",
             "code-trim", "md-audit", "review-loop", "test")
 WORKFLOW_REF = re.compile(r"dev/workflows/[A-Za-z0-9_-]+\.md")
 # (event, Claude wrapper stem, tools that must reach the shared entry point). Codex adds apply_patch
@@ -31,10 +31,6 @@ def _check_adapters(root: Path, problems: list[str]) -> None:
         claude = f".claude/skills/{name}/SKILL.md"
         codex_text = _read(root, codex, problems)
         claude_text = _read(root, claude, problems)
-        if name == "impeccable":  # External vendor skill remains one shared installation.
-            if claude not in codex_text and not WORKFLOW_REF.search(codex_text):
-                problems.append(f"{codex}: missing reference to vendor skill {claude}")
-            continue
         codex_refs = set(WORKFLOW_REF.findall(codex_text))
         claude_refs = set(WORKFLOW_REF.findall(claude_text))
         if not codex_refs or codex_refs != claude_refs:
