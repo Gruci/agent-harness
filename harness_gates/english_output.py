@@ -15,7 +15,7 @@ from pathlib import Path
 from kernel.context import READ_ENC, ROOT, tracked
 
 TITLE = "English-only harness output"
-HANGUL = re.compile(r"[가-힣]")
+HANGUL = re.compile(r"[가-힣]")                  # ko-ok: detection pattern, not output
 ESCAPE = "# ko-ok:"
 CODE_ROOTS = ("kernel/", ".claude/hooks/", "harness_gates/", "profiles/")
 CODE_FILES = ("harness_install.py", "setup_global_permissions.py")
