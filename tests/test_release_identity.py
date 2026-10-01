@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-READMES = ("README.md", "README.en.md")
+READMES = ("README.md", "README.ko.md")
 PLUGIN_DIR = REPO / ".claude-plugin"
 _PLUGIN_PATH = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\"']+)")
 

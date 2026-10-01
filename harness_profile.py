@@ -55,7 +55,7 @@ MD: dict[str, tuple[str, ...]] = {
     # 레포 대문(README)도 마찬가지다.
     # `workboard/` 과업 파일은 기계가 파싱하는 보드 상태라 문서 서식의 대상이 아니다.
     "style_exclude": (".claude/", ".agents/", ".codex/", "tests/fixtures/",
-                      "workboard/", "docs/BACKLOG.md", "README.md", "README.en.md"),
+                      "workboard/", "docs/BACKLOG.md", "README.md", "README.ko.md"),
     "date_exempt":   ("dev/LESSONS.md",),
 }
 

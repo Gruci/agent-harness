@@ -47,7 +47,7 @@ MD: dict[str, tuple[str, ...]] = {
     # 하네스가 함께 싣는 벤더 문서(`.claude/`·`.agents/`)와 정의 파일, 레포 대문(README), 테스트 픽스처, 과업 보드는
     # 역할 계약 규약의 대상이 아니다. 하네스 자신의 프로파일도 같은 사유로 뺀다.
     "style_exclude": (".claude/", ".agents/", ".codex/", "tests/fixtures/", "workboard/",
-                      "README.md", "README.en.md"),
+                      "README.md", "README.ko.md"),
     "date_exempt": (),
 }
 VOCAB: dict[str, tuple[str, ...]] = {
