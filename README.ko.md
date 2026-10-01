@@ -138,8 +138,8 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 **하네스를 새 버전으로 올리려면요?**
 플러그인은 `/plugin update agent-harness@agent-harness`입니다. 템플릿은 `python -X utf8 harness_install.py --check-update`로 새 버전이 있는지 보고, 변경 사항을 커밋한 뒤 `--upgrade`를 실행합니다. 검사 엔진·자동 검사 스크립트·프리셋만 바뀌고 설정·문서는 그대로 둡니다.
 
-**화면 디자인 감사나 구조 그림 도구는 없나요?**
-싣지 않습니다. UI 감사 스킬이나 구조 그림 도구가 필요하면 따로 설치합니다. 하네스는 검사 엔진만 담습니다.
+**구조 그림 도구는 없나요?**
+싣지 않습니다. 필요하면 따로 설치합니다.
 
 ## Codex와 함께 쓰기 (템플릿)
 

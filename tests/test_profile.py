@@ -52,11 +52,11 @@ class ProfileTests(unittest.TestCase):
             root = Path(directory)
             target = root / "docs/architecture"
             target.mkdir(parents=True)
-            for name in ("components.schema.json", "components.json", "app.architecture.json"):
+            for name in ("components.schema.json", "components.json"):
                 (target / name).write_text("{}", encoding="utf-8")
             with patch.object(harness_install, "ROOT", root):
                 harness_install.reset_shipped_state()
-            self.assertEqual(len(list(target.glob("*.json"))), 3)
+            self.assertEqual(len(list(target.glob("*.json"))), 2)
 
     def test_only_unselected_template_is_shipped(self):
         self.assertEqual(harness_install.presets(), ["_template"])

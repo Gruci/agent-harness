@@ -138,8 +138,8 @@ If `gh` is logged in, a private repository is created for you. It asks for an ad
 **How do I update the harness?**
 For the plugin, `/plugin update agent-harness@agent-harness`. For the template, `python -X utf8 harness_install.py --check-update` tells you whether a new version exists; commit your changes and run `--upgrade`. Only the check engine, check scripts and presets change; your settings and docs stay.
 
-**Is there a UI design audit or an architecture diagram tool?**
-Not included. If you need a UI audit skill or a diagram tool, install one separately. The harness ships only the check engine.
+**Is there an architecture diagram tool?**
+Not included. If you need one, install it separately.
 
 ## Using it with Codex (template)
 
