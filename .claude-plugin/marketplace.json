@@ -7,7 +7,7 @@
       "name": "agent-harness",
       "source": "./",
       "description": "Save-time, session-end and pre-push gates for repos connected with harness-init.",
-      "version": "2.1.0"
+      "version": "1.0.0"
     }
   ]
 }

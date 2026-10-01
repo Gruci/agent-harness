@@ -5,7 +5,7 @@ KERNEL_VERSION 은 배포된 커널의 버전이다. clone 해 간 프로젝트�
 커널이 요구하는 프로파일 서식의 버전이다. 프로파일에 선언된 버전이 이보다 낮으면 세션 시작 훅이 새로 생긴 항목을 알려준다.
 """
 
-KERNEL_VERSION = "2.1.0"
+KERNEL_VERSION = "1.0.0"
 PROFILE_SCHEMA = 1
 UPSTREAM = "https://github.com/Gruci/agent-harness"
 UPSTREAM_BRANCH = "master"
