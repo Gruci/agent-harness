@@ -29,5 +29,5 @@ def check_root_litter() -> list[str]:
     names = {line.strip() for line in out.stdout.splitlines()}
     strays = sorted(n for n in names if n and "/" not in n
                     and n not in allow and (ROOT / n).exists())
-    return [f"{n}: 루트 직속 파일 금지 — 읽는 코드의 패키지 안에 두고, 루트가 맞으면 사유와 "
-            f"함께 프로파일 ROOT_FILES 에 등재하라" for n in strays]
+    return [f"{n}: no files directly under the root — put it in the package of the code that reads it; "
+            f"if the root is right, list it in the profile ROOT_FILES with a reason" for n in strays]

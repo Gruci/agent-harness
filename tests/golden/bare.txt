@@ -1,50 +1,50 @@
 exit=3
-[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
-[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/ARCHITECTURE.md`
-[REPORT] kernel/frameworks/fastapi.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
-[REPORT] kernel/frameworks/react.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
-[REPORT] kernel/frameworks/react.md:3: 실존하지 않는 경로 참조 `dev/CONVENTIONS.md`
-[OK]   프로파일 형식
-[SKIP] 파일 길이 상한 — 검사할 소스 없음
-[SKIP] 헤더 경로 주석 — 검사할 소스 없음
-[SKIP] 중첩 def(클로저) — 검사할 소스 없음
-[SKIP] 함수 길이 상한 — 검사할 소스 없음
-[SKIP] TYPE_CHECKING↔future annotations 짝 — 검사할 소스 없음
-[SKIP] 축약 이름 단독 대입 — 설정에 금지할 축약어를 안 적었음
-[SKIP] 축약 접두 식별자 — 설정에 금지할 축약 접두어를 안 적었음
-[N/A ] UI 라벨 금칙어 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] Any 타입힌트 — 검사할 소스 없음
-[SKIP] 공개 함수 타입힌트 — 검사할 소스 없음
-[SKIP] 시크릿 토큰 하드코딩 — 검사할 소스 없음
-[N/A ] TS any 타입 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] 설정 밖 환경변수 조회 — 설정에 환경변수 모듈을 안 적었음
-[N/A ] await 없는 async 핸들러 — headless: 웹 서버가 없는 아키텍처
-[SKIP] 전역 SSL 패치 호출 위치 — 설정에 ssl_bypass 이름을 안 적었음
-[N/A ] 라우트 에러 응답 형식 — headless: 웹 서버가 없는 아키텍처
-[N/A ] 공용 래퍼 없는 fetch — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 프론트 색 리터럴 — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 폰을 깨뜨리는 고정 폭 — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 브라우저 API 직접 호출 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] 해시 네비게이션 단일 기전 — 화면 소스 없음
-[SKIP] 프론트 로직 테스트 짝 — 화면 소스 없음
-[SKIP] 프론트 컴포넌트 테스트 짝 — 화면 소스 없음
-[SKIP] 루트 직속 잡파일 — 설정에 루트 허용 파일을 안 적었음
-[SKIP] 프롬프트 버전 범프 — 설정에 버전 관리 프롬프트 목록을 안 적었음
-[SKIP] 수집·계산 모듈의 행동 테스트 짝 — 설정에 테스트 대상 폴더를 안 적었음
-[SKIP] DDL 저장 타입 잘림 — 설정에 schema 폴더를 안 적었음
-[N/A ] API 응답 배열 필드 옵셔널 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] 소비 UI 없는 API 라우트 — 화면 소스 없음
-[SKIP] 미정의 모듈 상수 — 검사할 소스 없음
-[SKIP] 선언 본문 중복(정본 재구현) — 검사할 소스 없음
-[SKIP] 블록 중복(선언 안 복붙) — 검사할 소스 없음
-[OK]   MD 작성 규칙
-[SKIP] MD 경로 참조 실존 — greenfield — 리포트로만
-[SKIP] 고아 MD(허브 도달 불가) — 설정에 문서 시작점을 안 적었음
-[SKIP] 하네스 지도 대조 — greenfield — HARNESS.md 아직 없음
-[SKIP] 에이전트 모델 정책 — 설정에 담당 AI 모델 표를 안 적었음
-[SKIP] 사고 절 승격 상태 — 설정에 사고 기록 문서를 안 적었음
-[SKIP] MD 함수 참조 실존 — greenfield — 문서가 코드보다 먼저다
+[REPORT] kernel/frameworks/fastapi.md:3: reference to a nonexistent path `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/fastapi.md:3: reference to a nonexistent path `dev/ARCHITECTURE.md`
+[REPORT] kernel/frameworks/fastapi.md:3: reference to a nonexistent path `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/react.md:3: reference to a nonexistent path `dev/CONVENTIONS.md`
+[REPORT] kernel/frameworks/react.md:3: reference to a nonexistent path `dev/CONVENTIONS.md`
+[OK]   Profile format
+[SKIP] File length limit — no source files to check
+[SKIP] Header path comment — no source files to check
+[SKIP] Nested def (closure) — no source files to check
+[SKIP] Function length limit — no source files to check
+[SKIP] TYPE_CHECKING↔future annotations pair — no source files to check
+[SKIP] Bare abbreviated names — no banned abbreviations set in the profile
+[SKIP] Abbreviated identifier prefixes — no banned abbreviation prefixes set in the profile
+[N/A ] Banned UI label words — headless: architecture has no UI layer
+[SKIP] Any type hints — no source files to check
+[SKIP] Public function type hints — no source files to check
+[SKIP] Hardcoded secret tokens — no source files to check
+[N/A ] TS any type — headless: architecture has no UI layer
+[SKIP] Env var reads outside settings — no settings module set in the profile
+[N/A ] Async handler without await — headless: architecture has no web server
+[SKIP] Global SSL patch call site — no ssl_bypass name set in the profile
+[N/A ] Route error response format — headless: architecture has no web server
+[N/A ] fetch without the shared wrapper — headless: architecture has no UI layer
+[N/A ] Frontend color literals — headless: architecture has no UI layer
+[N/A ] Fixed widths that break phones — headless: architecture has no UI layer
+[N/A ] Direct browser API calls — headless: architecture has no UI layer
+[SKIP] Single hash navigation mechanism — no UI source files
+[SKIP] Frontend logic test pairs — no UI source files
+[SKIP] Frontend component test pairs — no UI source files
+[SKIP] Stray files at repo root — no allowed root files set in the profile
+[SKIP] Prompt version bump — no versioned prompts set in the profile
+[SKIP] Behavior test pairs for collect/compute modules — no tested folders set in the profile
+[SKIP] Lossy DDL storage types — no schema folder set in the profile
+[N/A ] Optional array fields in API responses — headless: architecture has no UI layer
+[SKIP] API routes without a consuming UI — no UI source files
+[SKIP] Undefined module constants — no source files to check
+[SKIP] Duplicate declaration bodies (reimplementation) — no source files to check
+[SKIP] Duplicate blocks (copy-paste in declarations) — no source files to check
+[OK]   MD writing rules
+[SKIP] MD path references exist — greenfield — report only
+[SKIP] Orphan MD (unreachable from hubs) — no doc entry points set in the profile
+[SKIP] Harness map match — greenfield — HARNESS.md does not exist yet
+[SKIP] Agent model policy — no agent model table set in the profile
+[SKIP] Incident promotion status — no lessons doc set in the profile
+[SKIP] MD function references exist — greenfield — docs come before code
 
-[FAIL] 컴포넌트 그래프 (graph_schema) — 1건
+[FAIL] Component graph (graph_schema) — 1 found
    - first code requires classification; needs_decision
-[DECISION] 분류 변경안을 사용자에게 제안하고 응답을 기록하라.
+[DECISION] Propose the classification change to the user and record the answer.

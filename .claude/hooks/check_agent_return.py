@@ -34,12 +34,12 @@ def main() -> None:
     if not isinstance(last_message, str) or not last_message:
         # 차단은 아니지만 게이트가 아무 알림 없이 동작하지 않는 상태다. dev/LESSONS.md §15(꺼진 게이트와 연결이 빠진 게이트가 겉보기에 같음)가 경계하는 경우라 기록을 남긴다
         # 값 본문은 대화 내용일 수 있어 남기지 않는다. 형식과 키 이름이면 원인을 가를 수 있다
-        keys = ", ".join(sorted(str(key) for key in payload)) or "없음"
+        keys = ", ".join(sorted(str(key) for key in payload)) or "none"
         record("check_agent_return", "gate_error", sid=sid,
-               msg=f"페이로드에 last_assistant_message 없음 — 반환 검사가 안 돌고 있다 "
-                   f"(값 형식 {type(last_message).__name__}, 받은 키: {keys})")
-        print("[RETURN DIET] 페이로드에 last_assistant_message 가 없어 이번 반환은 검사하지 못했다. "
-              "이 줄이 보이면 실제 payload 내용을 확인해 게이트가 다시 동작하게 고쳐라.", file=sys.stderr)
+               msg=f"No last_assistant_message in payload — the return check is not running "
+                   f"(value type {type(last_message).__name__}, keys received: {keys})")
+        print("[RETURN DIET] No last_assistant_message in the payload, so this return was not checked. "
+              "If you see this line, inspect the actual payload and fix the gate so it runs again.", file=sys.stderr)
         sys.exit(0)
 
     return_length = len(last_message)
@@ -47,15 +47,15 @@ def main() -> None:
         sys.exit(0)
 
     record("check_agent_return", "return_diet", sid=sid,
-           msg=f"반환 {return_length}자 — 상한 {MAX_RETURN_CHARS}자 초과")
+           msg=f"Return {return_length} chars — over the {MAX_RETURN_CHARS} char limit")
     print(
-        f"[RETURN DIET] 최종 반환이 {return_length:,}자로 상한 {MAX_RETURN_CHARS:,}자를 넘었다. "
-        f"이 반환은 전부 메인 루프 컨텍스트에 들어가 남은 세션 동안 매 턴 다시 과금된다.\n"
-        f"  상세는 파일로 저장하고 최종 반환은 다음 형식으로 다시 써라:\n"
-        f"  · summary: 핵심 결론 1,500토큰 이하\n"
-        f"  · 근거 포인터: file:line 형식\n"
-        f"  · detail_path: 방금 저장한 상세 파일 경로\n"
-        f"  (정본: CLAUDE.md 모델 라우팅 절의 에이전트 반환 규칙)",
+        f"[RETURN DIET] The final return is {return_length:,} chars, over the {MAX_RETURN_CHARS:,} char limit. "
+        f"The whole return enters the main loop context and is billed again every turn for the rest of the session.\n"
+        f"  Save the details to a file and rewrite the final return in this form:\n"
+        f"  · summary: key conclusions, 1,500 tokens or less\n"
+        f"  · evidence pointers: file:line\n"
+        f"  · detail_path: path of the detail file you just saved\n"
+        f"  (source of truth: agent return rule in the CLAUDE.md model routing section)",
         file=sys.stderr,
     )
     sys.exit(2)

@@ -72,7 +72,7 @@ class LoaderTests(ProjectPackMixin):
         self.write_pack("flask", FLASK_PACK)
         with self.assertRaises(ValueError) as caught:
             framework.load(("fastapi", "flask"))
-        self.assertIn("역할 server 이 둘", str(caught.exception))
+        self.assertIn("role server chosen twice", str(caught.exception))
 
     def test_bad_declarations_are_errors_not_defaults(self) -> None:
         cases = {
@@ -115,9 +115,9 @@ class ProfileTests(ProjectPackMixin):
 
     def test_role_clash_unknown_pack_and_wrong_shape_are_profile_errors(self) -> None:
         self.write_pack("flask", FLASK_PACK)
-        for source, fragment in (('FRAMEWORK = ("fastapi", "flask")\n', "역할 server 이 둘"),
-                                 ('FRAMEWORK = ("no-such-framework",)\n', "찾을 수 없음"),
-                                 ('FRAMEWORK = "fastapi"\n', "튜플이어야")):
+        for source, fragment in (('FRAMEWORK = ("fastapi", "flask")\n', "role server chosen twice"),
+                                 ('FRAMEWORK = ("no-such-framework",)\n', "not found"),
+                                 ('FRAMEWORK = "fastapi"\n', "must be a tuple")):
             with self.subTest(source=source):
                 loaded = self.load_profile("PROFILE_SCHEMA = 1\n" + source)
                 self.assertTrue(any(fragment in error for error in loaded.PROFILE_ERRORS), loaded.PROFILE_ERRORS)
@@ -165,45 +165,45 @@ class RunnerTests(ProjectPackMixin):
         self.write_pack("express", EXPRESS_PACK)
         with patch.object(profile, "SERVER", framework.load_one("express")), patch.object(profile, "UI", None):
             skips = self.sections([], [self.ui])
-        self.assertEqual(skips["web_async"], ("N/A", "express: 이 프레임워크에서 성립하지 않음"))
-        self.assertEqual(skips["routes_error"], ("N/A", "express: 이 프레임워크에서 성립하지 않음"))
+        self.assertEqual(skips["web_async"], ("N/A", "express: does not apply to this framework"))
+        self.assertEqual(skips["routes_error"], ("N/A", "express: does not apply to this framework"))
 
     def test_fastapi_pack_runs_the_python_judgement(self) -> None:
         bad = _write(self.root / "web/routes/lazy.py", "async def lazy() -> int:\n    return 1\n")
         with patch.object(profile, "SERVER", framework.load_one("fastapi")), patch.object(profile, "UI", None):
             found = {slug: found for slug, _title, found, _skip in runner._kernel_sections([self.route, bad], [])}
-        self.assertEqual(found["web_async"], ["web/routes/lazy.py:1: await 없는 async def 'lazy' — 동기 def 로 바꿔라"])
+        self.assertEqual(found["web_async"], ["web/routes/lazy.py:1: async def 'lazy' has no await — make it a plain def"])
 
 
 class PackCheckTests(unittest.TestCase):
     def test_fastapi_route_recognition_is_first_class(self) -> None:
         verdicts = pack_check.assess_framework(framework.load_one("fastapi"))
-        self.assertEqual([(grade, slug) for grade, slug, _reason in verdicts], [("1급", "orphan_api")])
+        self.assertEqual([(grade, slug) for grade, slug, _reason in verdicts], [("verified", "orphan_api")])
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(pack_check.main(["fastapi"]), 0)
-        self.assertIn("[1급] orphan_api", out.getvalue())
+        self.assertIn("[VERIFIED] orphan_api", out.getvalue())
 
     def test_route_examples_that_do_not_match_are_unverified(self) -> None:
         pack = dict(framework.load_one("fastapi"))
         pack["FIXTURES"] = {"orphan_api": {"route": "def plain(): ...\n", "consumer": "x", "stranger": "y"}}
-        self.assertEqual(pack_check.assess_framework(pack)[0][:2], ("미검증", "orphan_api"))
+        self.assertEqual(pack_check.assess_framework(pack)[0][:2], ("unverified", "orphan_api"))
         pack["FIXTURES"] = {"orphan_api": {"route": '@app.get("/api/a")\n', "consumer": "'/api/a'", "stranger": "'/api/a'"}}
-        self.assertEqual(pack_check.assess_framework(pack)[0], ("미검증", "orphan_api", "stranger 예제가 소비로 잡힘"))
+        self.assertEqual(pack_check.assess_framework(pack)[0], ("unverified", "orphan_api", "stranger example counted as a consumer"))
         pack["FIXTURES"] = {}
-        self.assertEqual(pack_check.assess_framework(pack), [("미검증", "orphan_api", "예제 없음")])
+        self.assertEqual(pack_check.assess_framework(pack), [("unverified", "orphan_api", "no example")])
 
     def test_react_examples_without_eslint_are_unverified_not_passed(self) -> None:
         with patch.object(linters, "ui_npm_dir", return_value=None):
             verdicts = pack_check.assess_framework(framework.load_one("react"))
         self.assertEqual([slug for _grade, slug, _reason in verdicts], list(linters.UI_SLUGS))
         self.assertEqual({(grade, reason) for grade, _slug, reason in verdicts},
-                         {("미검증", "eslint 미설치 — npm i -D eslint @typescript-eslint/parser typescript")})
+                         {("unverified", "eslint not installed — npm i -D eslint @typescript-eslint/parser typescript")})
 
     @unittest.skipUnless(linters.ui_eslint_bin(UILINT), "tests/fixtures/uilint 에 eslint 가 없다")
     def test_react_examples_are_first_class_when_eslint_is_installed(self) -> None:
         with patch.object(linters, "ui_npm_dir", return_value=UILINT):
             verdicts = pack_check.assess_framework(framework.load_one("react"))
-        self.assertEqual({grade for grade, _slug, _reason in verdicts}, {"1급"}, verdicts)
+        self.assertEqual({grade for grade, _slug, _reason in verdicts}, {"verified"}, verdicts)
         self.assertEqual(list(UILINT.glob("harness_pack_check_*")), [])
 
     def test_unknown_name_is_exit_2(self) -> None:

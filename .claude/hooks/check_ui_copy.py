@@ -39,12 +39,12 @@ CALL_TIMEOUT_SEC = 90   # 훅 안에서 claude 를 다시 호출하면 콜드 �
 MAX_STRINGS = 120
 MAX_CHARS = 6000
 
-_HANGUL = re.compile(r"[가-힣]")
+_HANGUL = re.compile(r"[가-힣]")  # ko-ok: matches Korean screen copy
 # 따옴표 3종 리터럴과 JSX 텍스트 노드. 이스케이프와 중첩은 처리하지 않는다. 너무 많이 뽑힌 것은 LLM 이
 # "위반 아님"으로 거르면 되지만, 뽑지 못한 문구는 검사에서 아예 빠진다.
 _LITERALS = re.compile(
-    r"'([^'\n]*[가-힣][^'\n]*)'|\"([^\"\n]*[가-힣][^\"\n]*)\"|`([^`\n]*[가-힣][^`\n]*)`")
-_JSX_TEXT = re.compile(r">([^<>{}\n]*[가-힣][^<>{}\n]*)<")
+    r"'([^'\n]*[가-힣][^'\n]*)'|\"([^\"\n]*[가-힣][^\"\n]*)\"|`([^`\n]*[가-힣][^`\n]*)`")  # ko-ok: matches Korean screen copy
+_JSX_TEXT = re.compile(r">([^<>{}\n]*[가-힣][^<>{}\n]*)<")  # ko-ok: matches Korean screen copy
 # JSDoc/블록 주석의 이어지는 줄. _strip_comments 는 줄 단위라 여러 줄 /** */ 의 2번째 줄부터는
 # 주석인지 알아보지 못한다. diff 에는 그 중간 줄만 들어 있어 여는 `/*` 가 아예 없을 때도 있다.
 _JSDOC_CONT = re.compile(r"^\s*\*")
@@ -52,8 +52,8 @@ _JSDOC_CONT = re.compile(r"^\s*\*")
 _TEMPLATE_EXPR = re.compile(r"\$\{[^}]*\}")
 # 치환 자리를 지운 뒤에도 한글이 2글자 이상 이어져야 문구로 본다. `${y}년 ${m}월` 에서 남는
 # "년 월"은 조사·단위 조각이라 감수할 문구가 아니다.
-_HANGUL_WORD = re.compile(r"[가-힣]{2,}")
-
+_HANGUL_WORD = re.compile(r"[가-힣]{2,}")  # ko-ok: matches Korean screen copy
+# ko-ok: model input that reviews Korean screen copy, not harness output
 _PROMPT_HEAD = """너는 {context} UI 카피 감수자다. 아래는 이번에 새로 추가된
 화면 노출 문구 목록이다. **확실한 위반만** 골라라 — 애매하면 통과시킨다(이 판정은
 세션 종료를 차단하는 게이트라 과잉 차단이 더 해롭다).
@@ -82,7 +82,7 @@ def _profile_ui() -> tuple[str | None, str, tuple[str, ...]]:
     except Exception:
         return None, "", ()
     ui = profile.layer("ui")
-    context = str(profile.UI_COPY.get("context") or "이 서비스의")
+    context = str(profile.UI_COPY.get("context") or "이 서비스의")  # ko-ok: part of the Korean review prompt
     terms = tuple(profile.UI_COPY.get("product_terms") or ())
     return ui, context, terms
 
@@ -144,7 +144,7 @@ def _candidate(text: str) -> str | None:
     그대로 보내면 감수자가 문법을 보고 "내부 구현 노출"로 판정하는데, 그건 고칠 것이 없는
     위반이라 세션만 붙잡아 둔다.
     """
-    masked = _TEMPLATE_EXPR.sub("{값}", text).strip()
+    masked = _TEMPLATE_EXPR.sub("{값}", text).strip()  # ko-ok: placeholder inside Korean copy sent to the reviewer
     return masked if _HANGUL_WORD.search(_TEMPLATE_EXPR.sub(" ", text)) else None
 
 
@@ -181,14 +181,14 @@ def _strip_fence(raw: str) -> str:
 
 def _judge(strings: list[str], context: str, terms: tuple[str, ...]) -> list[dict]:
     """Haiku 를 한 번 호출해 감수하고 violations 리스트를 반환한다. 호출이나 파싱 실패는 호출하는 쪽에서 통과 처리한다."""
-    term_note = f"({'·'.join(terms)} 등)" if terms else ""
+    term_note = f"({'·'.join(terms)} 등)" if terms else ""  # ko-ok: part of the Korean review prompt
     prompt = _PROMPT_HEAD.format(context=context, terms=term_note) \
         + "\n".join(f"- {s}" for s in strings[:MAX_STRINGS])[:MAX_CHARS]
     done = subprocess.run(["claude", "-p", prompt, "--model", MODEL],
                           capture_output=True, text=True, encoding="utf-8",
                           errors="replace", timeout=CALL_TIMEOUT_SEC)
     if done.returncode != 0:
-        raise RuntimeError(done.stderr.strip()[:200] or "claude CLI 실패")
+        raise RuntimeError(done.stderr.strip()[:200] or "claude CLI failed")
     data = json.loads(_strip_fence(done.stdout))
     violations = data.get("violations", [])
     return violations if isinstance(violations, list) else []
@@ -205,7 +205,7 @@ def main() -> None:
     try:
         strings = extract_strings(_added_lines(base, ui))
     except Exception as exc:
-        print(f"[UI COPY GATE] diff 를 수집하지 못했다({exc}) — 통과 처리", file=sys.stderr)
+        print(f"[UI COPY GATE] Could not collect the diff ({exc}) — treated as pass", file=sys.stderr)
         sys.exit(0)
     if not strings:
         sys.exit(0)
@@ -221,8 +221,8 @@ def main() -> None:
         try:
             violations = _judge(strings, context, terms)
         except Exception as exc:
-            print(f"[UI COPY GATE] LLM 감수를 하지 못했다({exc.__class__.__name__}: {exc}) — 통과 처리. "
-                  f"문구 {len(strings)}건은 감수되지 않은 상태다.", file=sys.stderr)
+            print(f"[UI COPY GATE] LLM review could not run ({exc.__class__.__name__}: {exc}) — treated as pass. "
+                  f"{len(strings)} strings remain unreviewed.", file=sys.stderr)
             sys.exit(0)
         try:
             cache.write_text(json.dumps(violations, ensure_ascii=False), encoding="utf-8")
@@ -231,9 +231,9 @@ def main() -> None:
 
     if not violations:
         sys.exit(0)
-    record("check_ui_copy", "ui_copy", sid=payload_sid(), msg=f"{len(violations)}건")
-    print(f"[UI COPY GATE] 새 화면 문구 {len(strings)}건 중 위반 후보 {len(violations)}건 — "
-          "고쳐라. 잡힌 단어를 harness_profile.py VOCAB['ui_denylist'] 에 등록하면 다음부터는 UI 라벨 금칙어 검사(검사 6)가 막는다:",
+    record("check_ui_copy", "ui_copy", sid=payload_sid(), msg=f"{len(violations)} found")
+    print(f"[UI COPY GATE] {len(violations)} possible violations in {len(strings)} new screen strings — "
+          "fix them. Add the caught words to harness_profile.py VOCAB['ui_denylist'] and the UI label denylist check (check 6) blocks them from then on:",
           file=sys.stderr)
     for v in violations:
         print(f"  - '{v.get('text', '?')}' — {v.get('reason', '')} → {v.get('suggest', '')}",

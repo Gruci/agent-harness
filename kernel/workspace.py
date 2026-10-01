@@ -195,7 +195,7 @@ def _is_stale(row: str, base: str | None) -> bool:
 
 
 def _report(label: str, rows: list[str], guidance: str) -> list[str]:
-    return [f"[WORKBOARD] {label} {len(rows)}건", *(f"  {row}" for row in rows), guidance]
+    return [f"[WORKBOARD] {label} {len(rows)} found", *(f"  {row}" for row in rows), guidance]
 
 
 def board_residue(sid8: str | None, board: Path | None = None) -> Finding | None:
@@ -218,14 +218,14 @@ def board_residue(sid8: str | None, board: Path | None = None) -> Finding | None
         return None
     lines: list[str] = []
     if mine:
-        reason = "이 세션의" if sid8 else "(세션을 식별할 수 없어 태그 없는 과업만 검사)"
-        lines += _report(f"{reason} 과업 파일이 머지 후에도 남아 있습니다 —", mine,
-                         "머지가 끝난 과업이면 `git worktree remove` → `git branch -d` 를 먼저 끝내고 "
-                         "workboard/ 의 자기 파일은 맨 끝에 지웁니다. 브랜치명이 없는 파일은 서식 위반이라 고칩니다.")
+        reason = "This session's" if sid8 else "(No session id; untagged tasks only)"
+        lines += _report(f"{reason} task files remain after merge —", mine,
+                         "If the task is merged, run `git worktree remove` → `git branch -d` first and delete "
+                         "your workboard/ file last. A file with no branch name violates the format; fix it.")
     if dead:
-        lines += _report("주인이 없어진 과업 —", dead,
-                         "이미 머지됐고 브랜치가 origin 에도 로컬에도 없습니다. 끝난 과업이 남긴 파일이라 어느 세션이든 지웁니다.")
-    lines.append("⚠️ 다른 세션의 진행 중 과업 파일은 절대 지우지 말 것.")
+        lines += _report("Ownerless tasks —", dead,
+                         "Already merged; the branch is gone from origin and local. Any session may delete these leftover files.")
+    lines.append("Never delete another session's in-progress task file.")
     return Finding("check_editing_lock", "editing_lock", False, "\n".join(lines), tuple(mine + dead))
 
 
@@ -251,7 +251,7 @@ def gh_account() -> str:
     if code != 0:
         return ""
     found = re.search(r"account\s+(\S+)", out) or re.search(r"as\s+(\S+)", out)
-    return found.group(1) if found else "(인증됨)"
+    return found.group(1) if found else "(authenticated)"
 
 
 def git_remote() -> Finding | None:
@@ -259,28 +259,27 @@ def git_remote() -> Finding | None:
     code, _out = _run("git", "remote", "get-url", "origin")
     if code == 0:
         return None
-    lines = ["[GIT REMOTE] GitHub 원격(origin)이 없다 — 코드가 이 머신에만 있다. "
-             "원격이 잡히기 전까지 세션 종료 불가."]
+    lines = ["[GIT REMOTE] No GitHub remote (origin) — the code exists only on this machine. "
+             "The session cannot end until a remote is set."]
     account = gh_account()
     if account:
-        lines += [f"gh 가 {account} 로 인증돼 있다. **사용자에게 묻지 말고** 지금 만들어라:",
+        lines += [f"gh is authenticated as {account}. Create it now; **do not ask the user**:",
                   f"    gh repo create {suggested_name()} --private --source . --push",
-                  "이름이 마음에 안 들면 바꿔도 된다. 다만 --private 는 바꾸지 마라 — "
-                  "공개 발행은 되돌리기 어려워 사람이 정할 일이다. 사용자가 명시적으로 "
-                  "공개를 요청했을 때만 --public 을 쓴다.",
-                  "만든 뒤 실제로 푸시됐는지(exit 0 과 원격 URL) 확인하고 결과만 보고하라."]
+                  "You may change the name, but keep --private — publishing is hard to undo, so a human decides. "
+                  "Use --public only when the user explicitly asks for a public repo.",
+                  "Afterwards confirm the push (exit 0 and the remote URL) and report only the result."]
     else:
-        lines += ["gh 인증이 없어 계정을 알 수 없다 — 이건 사용자만 아는 정보다. "
-                  "`gh auth login` 을 안내하거나 레포 URL 을 요구하라 "
-                  "(이 질문은 '사용자에게 허락 구하지 않기' 규칙의 예외다).",
-                  "URL 을 받으면 `git remote add origin <url>` 과 `git push -u origin HEAD` 를 실행하라."]
-    return Finding("check_git_remote", "git_remote", True, "\n".join(lines), ("origin 미설정으로 종료 차단",))
+        lines += ["gh is not authenticated, so the account is unknown — only the user knows it. "
+                  "Point them to `gh auth login` or ask for the repo URL "
+                  "(this question is an exception to the 'do not ask for permission' rule).",
+                  "Once you have the URL, run `git remote add origin <url>` and `git push -u origin HEAD`."]
+    return Finding("check_git_remote", "git_remote", True, "\n".join(lines), ("stop blocked: no origin",))
 
 
 # git 조회 자체가 예외로 실패해도 통과로 치지 않는다(fail-closed). 그때는 `stop_findings` 가 이 finding 을 대신 낸다.
 _REMOTE_UNKNOWN = Finding("check_git_remote", "git_remote", True,
-                          "[GIT REMOTE] origin 이 있는지 확인하지 못했다 — git 실행 실패도 통과가 아니라 차단이다(fail-closed). "
-                          "git 이 도는지 확인하고 원격을 잡아라.", ("origin 판정 불능으로 종료 차단",))
+                          "[GIT REMOTE] Could not confirm origin — a git failure is a block, not a pass (fail-closed). "
+                          "Check that git runs and set the remote.", ("stop blocked: origin check could not run",))
 
 
 # ── ⑯ 남은 목업 ──────────────────────────────────────────────────────────────
@@ -293,11 +292,11 @@ def mockup_residue() -> Finding | None:
                      if p.is_file() and not p.name.startswith("wip_"))
     if not residue:
         return None
-    lines = [f"[MOCKUP RESIDUE] docs/tasks/mockup/ 에 목업 {len(residue)}건이 남아있습니다."]
+    lines = [f"[MOCKUP RESIDUE] Mockups left in docs/tasks/mockup/ — {len(residue)} found."]
     lines += [f"  {path.relative_to(MOCKUP_DIR.parents[2]).as_posix()}" for path in residue]
-    lines += ["판단이 끝난 목업은 비우고 종료하세요 — 채택분은 docs/tasks/archive/<작업>/ 로 옮기고",
-              "반려분은 지웁니다. 검토가 세션을 넘겨 이어지면 wip_ 접두를 붙입니다."]
-    return Finding("check_mockup_residue", "mockup_residue", True, "\n".join(lines), (f"{len(residue)}건",))
+    lines += ["Clear decided mockups before ending — move adopted ones to docs/tasks/archive/<task>/",
+              "and delete rejected ones. If review continues across sessions, add the wip_ prefix."]
+    return Finding("check_mockup_residue", "mockup_residue", True, "\n".join(lines), (f"{len(residue)} found",))
 
 
 # ── ⑰ 남은 과업 산출물 ───────────────────────────────────────────────────────
@@ -342,11 +341,11 @@ def task_residue() -> Finding | None:
     leftover = task_leftovers()
     if not leftover:
         return None
-    lines = [f"[TASK RESIDUE] docs/tasks/ 루트에 산출물 {len(leftover)}건이 남아있습니다."]
+    lines = [f"[TASK RESIDUE] Task files left in the docs/tasks/ root — {len(leftover)} found."]
     lines += [f"  docs/tasks/{path.name}" for path in leftover]
-    lines += ["구현이 끝났으면 docs/tasks/archive/YYYY-MM-DD-{작업명}/ 으로 옮기세요.",
-              "판단이 세션을 넘겨 이어지는 중이면 wip_ 접두를 붙입니다."]
-    return Finding("check_task_residue", "task_residue", True, "\n".join(lines), (f"{len(leftover)}건",))
+    lines += ["If implementation is done, move them to docs/tasks/archive/YYYY-MM-DD-{task-name}/.",
+              "If the decision continues across sessions, add the wip_ prefix."]
+    return Finding("check_task_residue", "task_residue", True, "\n".join(lines), (f"{len(leftover)} found",))
 
 
 # ── Codex Stop 묶음 ──────────────────────────────────────────────────────────

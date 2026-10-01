@@ -70,7 +70,7 @@ def check_line_limit(files: list[Path]) -> list[str]:
         if n > MAX_LINES:
             # as_posix() — 형제 검사 전부가 POSIX 표기다. Windows 역슬래시가 섞이면
             # 위반 경로를 키로 쓰는 소비처(allowlist·baseline 대조)가 조용히 빗나간다.
-            bad.append(f"{_rel(f)}: {n}줄 (>{MAX_LINES})")
+            bad.append(f"{_rel(f)}: {n} lines (>{MAX_LINES})")
     return bad
 
 
@@ -84,7 +84,7 @@ def check_header_path_comment(files: list[Path]) -> list[str]:
         first = f.read_text(encoding=READ_ENC).split("\n", 1)[0]
         m = _HEADER_PATH.match(first)
         if m and "/" in m.group(1) and m.group(1) != rel:
-            bad.append(f"{rel}: 헤더 주석 '{m.group(1)}' ≠ 실경로 — 주석을 실경로로 갱신")
+            bad.append(f"{rel}: header comment '{m.group(1)}' ≠ actual path — update the comment to the actual path")
     return bad
 
 
@@ -109,7 +109,7 @@ def untyped_functions(found: facts.FileFacts) -> list[tuple[facts.Function, list
     for fn in found.functions:
         if not fn.public or fn.missing_types is None:
             continue
-        missing = list(fn.missing_types) + (["반환"] if fn.missing_return else [])
+        missing = list(fn.missing_types) + (["return"] if fn.missing_return else [])
         if missing:
             gaps.append((fn, missing))
     return gaps
@@ -134,14 +134,13 @@ def check_closures(files: list[Path]) -> list[str]:
         if found is None:
             continue
         if found.error:
-            bad.append(f"{rel}: 파싱 실패 {found.error}")
+            bad.append(f"{rel}: parse failed {found.error}")
             continue
         lines = f.read_text(encoding=READ_ENC).splitlines()
         for lineno, pair in nested_pairs(found):
             if escape in lines[lineno - 1]:
                 continue
-            bad.append(f"{rel}:{lineno}: 중첩 def {pair} "
-                       f"(불가피하면 `{comment} {escape}: 사유`)")
+            bad.append(f"{rel}:{lineno}: nested def {pair} (if unavoidable, `{comment} {escape}: reason`)")
     return bad
 
 
@@ -158,7 +157,7 @@ def check_func_length(files: list[Path]) -> list[str]:
         if found is None or found.error:
             continue                     # 파싱 실패는 중첩 def 게이트가 이미 보고한다
         for fn, span in long_functions(found):
-            bad.append(f"{rel}:{fn.line}: {fn.name} {span}줄 (>{MAX_FUNC_LINES})")
+            bad.append(f"{rel}:{fn.line}: {fn.name} {span} lines (>{MAX_FUNC_LINES})")
     return bad
 
 
@@ -172,8 +171,8 @@ def check_type_checking_future(files: list[Path]) -> list[str]:
     for f in files:
         text = f.read_text(encoding=READ_ENC)
         if "if TYPE_CHECKING:" in text and "from __future__ import annotations" not in text:
-            bad.append(f"{_rel(f)}: TYPE_CHECKING 블록이 있는데 `from __future__ import "
-                       f"annotations` 가 없다 — 3.11 은 어노테이션을 즉시 평가해 NameError")
+            bad.append(f"{_rel(f)}: TYPE_CHECKING block without `from __future__ import "
+                       f"annotations` — 3.11 evaluates annotations eagerly and raises NameError")
     return bad
 
 
@@ -188,7 +187,7 @@ def check_abbrev_names(files: list[Path]) -> list[str]:
         for i, line in enumerate(f.read_text(encoding=READ_ENC).splitlines(), 1):
             m = pattern.match(line)
             if m:
-                bad.append(f"{rel}:{i}: 축약어 변수 {m.group(1)} — {line.strip()[:60]}")
+                bad.append(f"{rel}:{i}: abbreviated variable {m.group(1)} — {line.strip()[:60]}")
     return bad
 
 
@@ -208,7 +207,7 @@ def check_abbrev_prefixes(files: list[Path]) -> list[str]:
                 continue
             m = pattern.search(line)
             if m:
-                bad.append(f"{rel}:{i}: 축약 접두 {m.group(1)} — {stripped[:60]}")
+                bad.append(f"{rel}:{i}: abbreviated prefix {m.group(1)} — {stripped[:60]}")
     return bad
 
 
@@ -229,7 +228,7 @@ def check_ui_jargon(files: list[Path]) -> list[str]:
             code = TRAILING_COMMENT.sub("", line)
             for term in denylist:
                 if term in code:
-                    bad.append(f"{rel}:{i}: UI 금칙어 '{term}' — {stripped[:50]}")
+                    bad.append(f"{rel}:{i}: banned UI term '{term}' — {stripped[:50]}")
     return bad
 
 
@@ -258,8 +257,7 @@ def check_py_any(files: list[Path]) -> list[str]:
             if escape in line or line.lstrip().startswith(comment):
                 continue
             if any_re.search(line):
-                bad.append(f"{rel}:{i}: 임의 타입 → 구체 타입 "
-                           f"(불가피하면 `{comment} {escape}: 사유`)")
+                bad.append(f"{rel}:{i}: arbitrary type → concrete type (if unavoidable, `{comment} {escape}: reason`)")
     return bad
 
 
@@ -280,8 +278,7 @@ def check_type_hints(files: list[Path]) -> list[str]:
         if found is None or found.error:
             continue                     # 파싱 실패는 중첩 def 게이트가 이미 보고한다
         for fn, missing in untyped_functions(found):
-            bad.append(f"{rel}:{fn.line}: {fn.name}() 타입힌트 누락 — "
-                       f"{', '.join(missing)}")
+            bad.append(f"{rel}:{fn.line}: {fn.name}() missing type hints — {', '.join(missing)}")
     return bad
 
 
@@ -292,8 +289,8 @@ def check_secrets(files: list[Path]) -> list[str]:
         rel = _rel(f)
         for i, line in enumerate(f.read_text(encoding=READ_ENC).splitlines(), 1):
             if SECRET_TOKEN.search(line):
-                bad.append(f"{rel}:{i}: 시크릿 토큰 하드코딩 — 설정 모듈 경유로 옮기고, "
-                           f"이미 커밋됐다면 키를 회전하라")
+                bad.append(f"{rel}:{i}: hardcoded secret token — move it behind the settings module; "
+                           f"if already committed, rotate the key")
     return bad
 
 
@@ -338,6 +335,6 @@ def check_undefined_module_constants(files: list[Path]) -> list[str]:
                 continue
             if node.id in bound or not node.id.lstrip("_").isupper():
                 continue
-            bad.append(f"{_rel(f)}:{node.lineno}: 미정의 모듈 상수 {node.id} — "
-                       f"개명·삭제에서 소비처를 놓쳤다. 호출 시점 NameError 가 된다")
+            bad.append(f"{_rel(f)}:{node.lineno}: undefined module constant {node.id} — "
+                       f"a rename or delete missed a consumer. It raises NameError when called")
     return bad

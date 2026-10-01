@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
-PRESET_SUMMARY = "스택 미정 — 사용자와 업무 분류 및 언어를 정한 뒤 조립한다"
-PRESET_FITS = "새 프로젝트. 첫 코드 전에 그래프와 검사 도구 연결을 완료한다"
+PRESET_SUMMARY = "Stack not chosen — assemble after deciding the classification and language with the user"
+PRESET_FITS = "New project. Finish the graph and check tool wiring before the first code"
 PROFILE_SCHEMA = 1
 STAGE = "greenfield"
 

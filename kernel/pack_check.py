@@ -51,29 +51,29 @@ Verdict = tuple[str, str, str]     # (등급, slug, 사유)
 
 def _judge_gate(slug: str, example: Mapping[str, object], analyzer: facts.Analyzer, ext: str) -> Verdict:
     if not all(isinstance(example.get(case), str) for case in ("violating", "passing")):
-        return ("미검증", slug, "예제 서식 오류 — violating·passing 소스 문자열이 필요")
+        return ("unverified", slug, "bad example format — needs violating and passing source strings")
     for case, expected in (("violating", True), ("passing", False)):
         found = analyzer.analyze(str(example[case]), f"{slug}_{case}{ext}")
         if found.error:
-            return ("미검증", slug, f"{case} 예제 파싱 실패: {found.error}")
+            return ("unverified", slug, f"{case} example parse failed: {found.error}")
         if bool(_JUDGE[slug](found)) != expected:
-            return ("미검증", slug, "위반 예제가 안 잡힘" if expected else "통과 예제가 잡힘")
-    return ("1급", slug, "위반 예제 검출·통과 예제 통과")
+            return ("unverified", slug, "violating example not caught" if expected else "passing example flagged")
+    return ("verified", slug, "violating example caught, passing example passed")
 
 
 def _judge_kind(kind: str, example: Mapping[str, object], analyzer: facts.Analyzer, ext: str) -> Verdict:
     source, expect = example.get("source"), example.get("expect")
     if not isinstance(source, str) or not isinstance(expect, (list, tuple)) or not expect:
-        return ("미검증", kind, "예제 서식 오류 — source 문자열과 expect 목록이 필요")
+        return ("unverified", kind, "bad example format — needs a source string and an expect list")
     found = analyzer.analyze(source, str(example.get("path") or f"{kind}{ext}"))
     if found.error:
-        return ("미검증", kind, f"예제 파싱 실패: {found.error}")
+        return ("unverified", kind, f"example parse failed: {found.error}")
     have = ({item.module for item in found.imports if item.module} if kind == "imports"
             else set(found.top_symbols))
     missing = [str(name) for name in expect if name not in have]
     if missing:
-        return ("미검증", kind, f"기대한 값이 안 나옴: {', '.join(missing)}")
-    return ("1급", kind, f"{', '.join(str(name) for name in expect)} 산출")
+        return ("unverified", kind, f"expected values missing: {', '.join(missing)}")
+    return ("verified", kind, f"produced {', '.join(str(name) for name in expect)}")
 
 
 def assess(pack: Mapping[str, object]) -> list[Verdict]:
@@ -97,11 +97,11 @@ def assess(pack: Mapping[str, object]) -> list[Verdict]:
                 continue
             example = fixtures.get(slug)
             if not isinstance(example, Mapping):
-                verdicts.append(("미검증", slug, "예제 없음"))
+                verdicts.append(("unverified", slug, "no example"))
             elif analyzer is None:
-                verdicts.append(("미검증", slug, reason))
+                verdicts.append(("unverified", slug, reason))
             elif _NEEDS.get(slug, slug) not in analyzer.kinds:
-                verdicts.append(("미검증", slug, f"분석기가 {_NEEDS.get(slug, slug)} 사실을 내지 않음"))
+                verdicts.append(("unverified", slug, f"analyzer does not produce {_NEEDS.get(slug, slug)} facts"))
             elif slug in GATE_SLUGS:
                 verdicts.append(_judge_gate(slug, example, analyzer, ext))
             else:
@@ -115,18 +115,18 @@ def _judge_route(example: Mapping[str, object], pattern: str) -> Verdict:
     """서버팩의 라우트 예제. 게이트와 같은 헬퍼(`orphan_api`)로 인식·소비를 판정한다."""
     slug = "orphan_api"
     if not all(isinstance(example.get(case), str) for case in ("route", "consumer", "stranger")):
-        return ("미검증", slug, "예제 서식 오류 — route·consumer·stranger 소스 문자열이 필요")
+        return ("unverified", slug, "bad example format — needs route, consumer and stranger source strings")
     routes = orphan_api.routes_in(str(example["route"]), pattern)
     if len(routes) != 1:
-        return ("미검증", slug, f"route 예제에서 라우트 {len(routes)}개 인식 — 정확히 하나여야 함")
+        return ("unverified", slug, f"route example yields {len(routes)} routes — must be exactly one")
     route = routes[0][1]
     if len(orphan_api.literal_prefix(route)) < orphan_api.MIN_PREFIX_LEN:
-        return ("미검증", slug, f"라우트 `{route}` 의 고정 접두가 너무 짧아 비교 불가")
+        return ("unverified", slug, f"route `{route}` has too short a fixed prefix to compare")
     if not orphan_api.consumed(route, str(example["consumer"])):
-        return ("미검증", slug, "consumer 예제가 소비로 안 잡힘")
+        return ("unverified", slug, "consumer example not counted as a consumer")
     if orphan_api.consumed(route, str(example["stranger"])):
-        return ("미검증", slug, "stranger 예제가 소비로 잡힘")
-    return ("1급", slug, f"라우트 `{route}` 인식·consumer 통과·stranger 검출")
+        return ("unverified", slug, "stranger example counted as a consumer")
+    return ("verified", slug, f"route `{route}` recognized, consumer passed, stranger caught")
 
 
 def _assess_server(pack: Mapping[str, object]) -> list[Verdict]:
@@ -135,7 +135,7 @@ def _assess_server(pack: Mapping[str, object]) -> list[Verdict]:
     for slug in SERVER_SLUGS:
         example = fixtures.get(slug)   # type: ignore[union-attr]  # framework.load_one 이 매핑임을 검증했다
         if not isinstance(example, Mapping):
-            verdicts.append(("미검증", slug, "예제 없음"))
+            verdicts.append(("unverified", slug, "no example"))
         else:
             verdicts.append(_judge_route(example, str(pack["ROUTE_PATTERN"])))
     return verdicts
@@ -153,7 +153,7 @@ def _lint_examples(pack: Mapping[str, object], npm_dir: Path,
                 target = scratch / f"{slug}_{case}{ext}"
                 target.write_text(str(example[case]), encoding="utf-8")
                 targets.append(target)
-        return linters.eslint_report(npm_dir, targets, {}, "토큰", pack)
+        return linters.eslint_report(npm_dir, targets, {}, "tokens", pack)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
 
@@ -166,25 +166,25 @@ def _assess_ui(pack: Mapping[str, object]) -> list[Verdict]:
     for slug in UI_SLUGS:
         example = fixtures.get(slug)   # type: ignore[union-attr]  # framework.load_one 이 매핑임을 검증했다
         if not isinstance(example, Mapping):
-            verdicts.append(("미검증", slug, "예제 없음"))
+            verdicts.append(("unverified", slug, "no example"))
         elif not all(isinstance(example.get(case), str) for case in ("violating", "passing")):
-            verdicts.append(("미검증", slug, "예제 서식 오류 — violating·passing 소스 문자열이 필요"))
+            verdicts.append(("unverified", slug, "bad example format — needs violating and passing source strings"))
         else:
             examples[slug] = example
     if not examples:
         return verdicts
     npm_dir = linters.ui_npm_dir()
     if npm_dir is None or not linters.ui_eslint_bin(npm_dir):
-        return verdicts + [("미검증", slug, f"eslint 미설치 — {pack['ESLINT_INSTALL']}") for slug in examples]
+        return verdicts + [("unverified", slug, f"eslint not installed — {pack['ESLINT_INSTALL']}") for slug in examples]
     found = _lint_examples(pack, npm_dir, examples)
     for slug in examples:
         hits = found.get(slug, [])
         if not any(f"{slug}_violating" in hit for hit in hits):
-            verdicts.append(("미검증", slug, "위반 예제가 안 잡힘"))
+            verdicts.append(("unverified", slug, "violating example not caught"))
         elif any(f"{slug}_passing" in hit for hit in hits):
-            verdicts.append(("미검증", slug, "통과 예제가 잡힘"))
+            verdicts.append(("unverified", slug, "passing example flagged"))
         else:
-            verdicts.append(("1급", slug, "위반 예제 검출·통과 예제 통과"))
+            verdicts.append(("verified", slug, "violating example caught, passing example passed"))
     return verdicts
 
 
@@ -196,32 +196,32 @@ def assess_framework(pack: Mapping[str, object]) -> list[Verdict]:
 # ── 보고 ─────────────────────────────────────────────────────────────────────
 
 def _summary(verdicts: list[Verdict]) -> str:
-    counts = {grade: sum(1 for item in verdicts if item[0] == grade) for grade in ("1급", "미검증", "N/A")}
+    counts = {grade: sum(1 for item in verdicts if item[0] == grade) for grade in ("verified", "unverified", "N/A")}
     summary = " · ".join(f"{grade} {count}" for grade, count in counts.items())
-    verdict = "1급 팩" if not counts["미검증"] else "미검증이 남아 있으면 1급 팩이 아니다"
+    verdict = "verified pack" if not counts["unverified"] else "unverified items remain — not a verified pack"
     return f"{summary} — {verdict}"
 
 
 def report(name: str, pack: Mapping[str, object], verdicts: list[Verdict]) -> str:
-    engine = {"python": "표준 ast", "treesitter": "tree-sitter", "command": "외부 명령"}.get(
-        lang.analyzer_kind(dict(pack)) or "", "없음")
-    lines = [f"언어팩 {name} (SYNTAX {pack.get('SYNTAX')}) — 분석기: {engine}"]
-    lines += [f"[{grade}] {slug} — {reason}" for grade, slug, reason in verdicts]
+    engine = {"python": "stdlib ast", "treesitter": "tree-sitter", "command": "external command"}.get(
+        lang.analyzer_kind(dict(pack)) or "", "none")
+    lines = [f"language pack {name} (SYNTAX {pack.get('SYNTAX')}) — analyzer: {engine}"]
+    lines += [f"[{grade.upper()}] {slug} — {reason}" for grade, slug, reason in verdicts]
     lines.append(_summary(verdicts))
     return "\n".join(lines)
 
 
 def report_framework(name: str, pack: Mapping[str, object], verdicts: list[Verdict]) -> str:
-    judge = "라우트 인식(kernel/gates/orphan_api.py)" if pack["ROLE"] == "server" else "ESLint 실측(kernel/linters.py)"
-    lines = [f"프레임워크팩 {name} (역할 {pack['ROLE']}) — 판정: {judge}"]
-    lines += [f"[{grade}] {slug} — {reason}" for grade, slug, reason in verdicts]
+    judge = "route recognition (kernel/gates/orphan_api.py)" if pack["ROLE"] == "server" else "ESLint run (kernel/linters.py)"
+    lines = [f"framework pack {name} (role {pack['ROLE']}) — judged by: {judge}"]
+    lines += [f"[{grade.upper()}] {slug} — {reason}" for grade, slug, reason in verdicts]
     lines.append(_summary(verdicts))
     return "\n".join(lines)
 
 
 def _assess_named(name: str) -> tuple[str, list[Verdict]] | None:
     """이름 하나를 언어팩, 프레임워크팩 순으로 찾아 (보고문, 판정). 어느 쪽에도 없으면 None."""
-    if lang.find_pack("언어팩", lang.SHIPPED_DIR, lang.ROOT / lang.PROJECT_DIR, name) is not None:
+    if lang.find_pack("language pack", lang.SHIPPED_DIR, lang.ROOT / lang.PROJECT_DIR, name) is not None:
         pack = lang.load(name)
         verdicts = assess(pack)
         return report(name, pack, verdicts), verdicts
@@ -237,7 +237,7 @@ def main(argv: list[str]) -> int:
         sys.stdout.reconfigure(errors="replace")
     names = argv or [name for name in (profile.LANG, *profile.FRAMEWORK) if name]
     if not names:
-        print("팩 이름이 없다 — 인자로 주거나 프로파일에 LANG·FRAMEWORK 를 적는다")
+        print("no pack name — pass it as an argument or set LANG/FRAMEWORK in the profile")
         return 2
     unverified = False
     for index, name in enumerate(names):
@@ -247,11 +247,11 @@ def main(argv: list[str]) -> int:
             print(exc)
             return 2
         if assessed is None:
-            print(f"팩을 찾을 수 없음: {name}")
+            print(f"pack not found: {name}")
             return 2
         text, verdicts = assessed
         print(("\n" if index else "") + text)
-        unverified = unverified or any(grade == "미검증" for grade, _slug, _reason in verdicts)
+        unverified = unverified or any(grade == "unverified" for grade, _slug, _reason in verdicts)
     return 1 if unverified else 0
 
 

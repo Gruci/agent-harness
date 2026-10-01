@@ -43,7 +43,7 @@ INLINE_CODE = re.compile(r"`[^`]*`")
 # 두 표기를 모두 인정한다 — 내부 MD 의 기본형과 사내 배포용 격식형. 슬롯 3개(무엇을 담나·
 # 무엇을 안 담나·언제 읽나)가 같아야 계약이고, 어휘만 바꾸고 슬롯을 빼면 걸린다.
 ROLE_CONTRACT = re.compile(
-    r"^>\s*(?:담는 것|문서 범위):.*(?:담지 않는 것|제외 범위):.*(?:읽는 시점|열람 시점):",
+    r"^>\s*(?:담는 것|문서 범위):.*(?:담지 않는 것|제외 범위):.*(?:읽는 시점|열람 시점):",  # ko-ok: matches the Korean MD header contract
     re.DOTALL)
 
 
@@ -105,7 +105,7 @@ def _scan_lines(rel: str, lines: list[str], hard: list[str], soft: list[str]) ->
     for number, raw in enumerate(lines, 1):
         if raw.lstrip().startswith("```"):
             if in_fence and _fence_is_tree(block):
-                hard.append(f"{rel}:{fence_start}: ⑬a 코드펜스 트리 덤프 — 파일 목록의 정본은 Glob")
+                hard.append(f"{rel}:{fence_start}: ⑬a tree dump in a code fence — Glob is the source of truth for file lists")
             in_fence = not in_fence
             block = []
             fence_start = number
@@ -118,18 +118,18 @@ def _scan_lines(rel: str, lines: list[str], hard: list[str], soft: list[str]) ->
         prose = INLINE_CODE.sub("", raw)
         items = _prose_items(prose)
         if items > MAX_PROSE_ITEMS:
-            hard.append(f"{rel}:{number}: ⑬b 한 줄에 설명 붙은 나열 {items}개 — 표나 불릿으로 쪼개라")
+            hard.append(f"{rel}:{number}: ⑬b {items} described items on one line — split into a table or bullets")
         depth = _paren_depth(prose)
         if depth > MAX_PAREN_DEPTH:
-            hard.append(f"{rel}:{number}: ⑬c 괄호 {depth}중 중첩 — 문장을 다시 써라")
+            hard.append(f"{rel}:{number}: ⑬c parentheses nested {depth} deep — rewrite the sentence")
         paths = len(PATH_TOKEN.findall(raw))
         if paths >= MAX_PATH_TOKENS:
-            soft.append(f"{rel}:{number}: ⑬f 경로 토큰 {paths}개 — 성분 A·C(파일 목록·소비처)가 다시 들어온 신호")
+            soft.append(f"{rel}:{number}: ⑬f {paths} path tokens — sign that element A/C (file lists, consumers) crept back in")
         if len(SIG_TOKEN.findall(prose)) >= MAX_SIGNATURES:
-            soft.append(f"{rel}:{number}: ⑬g 시그니처 패턴 다수 — 성분 B(시그니처·타입 목록)가 다시 들어온 신호")
+            soft.append(f"{rel}:{number}: ⑬g many signature patterns — sign that element B (signatures, type lists) crept back in")
 
     if rel not in tuple(profile.MD["date_exempt"]) and dates >= MAX_DATES:
-        soft.append(f"{rel}: ⑬e 날짜 태그 {dates}개 — 성분 D 의심(경위는 dev/LESSONS.md 로)")
+        soft.append(f"{rel}: ⑬e {dates} date tags — suspected element D (move incident history to dev/LESSONS.md)")
 
 
 def check_md_style(files: list[Path]) -> tuple[list[str], list[str]]:
@@ -145,7 +145,7 @@ def check_md_style(files: list[Path]) -> tuple[list[str], list[str]]:
         found: list[str] = []
         _scan_lines(rel, lines, found, soft)
         if not _has_role_contract(lines):
-            found.append(f"{rel}:1: ⑬d 머리 역할 계약 누락 — "
+            found.append(f"{rel}:1: ⑬d header role contract missing — "  # ko-ok: cites a Korean doc key
                          f"`> 담는 것: … 담지 않는 것: … 읽는 시점: …`")
         if rel in baseline:
             soft.extend(found)

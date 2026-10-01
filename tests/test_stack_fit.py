@@ -93,12 +93,12 @@ class ToyPackFirstClassTests(ToyPackTestCase):
         by_slug = {slug: (grade, reason) for grade, slug, reason in pack_check.assess(self.load())}
         self.assertEqual(by_slug["type_hints"][0], "N/A")
         for slug in ("closures", "func_limit", "imports", "top_symbols"):
-            self.assertEqual(by_slug[slug][0], "1급", (slug, by_slug[slug]))
-        self.assertIn("1급 팩", pack_check.report("toy", self.load(), list(map(tuple, pack_check.assess(self.load())))))
+            self.assertEqual(by_slug[slug][0], "verified", (slug, by_slug[slug]))
+        self.assertIn("verified pack", pack_check.report("toy", self.load(), list(map(tuple, pack_check.assess(self.load())))))
 
     def test_facts_come_from_the_command(self):
         engine, reason = facts.analyzer_for_pack(self.load(), self.root)
-        self.assertEqual((reason, engine.label, engine.suffixes), ("", "외부 분석기", (".toy",)))
+        self.assertEqual((reason, engine.label, engine.suffixes), ("", "external analyzer", (".toy",)))
         found = engine.analyze('import "db/reads"\nimport "fmt"\n\nfunc Outer {\n  func inner {\n  }\n}\n', "orders/api.toy")
         self.assertIsNone(found.error)
         self.assertEqual(found.module, "orders.api")
@@ -111,24 +111,24 @@ class ToyPackFirstClassTests(ToyPackTestCase):
         pack = self.load()
         engine, _reason = facts.analyzer_for_pack(pack, self.root)
         found = engine.analyze("func A {\n}\n", "a.toy")
-        self.assertIn("분석기 출력 계약 위반", found.error)
+        self.assertIn("analyzer output breaks the contract", found.error)
         self.assertEqual((found.functions, found.module), ((), "a"))
         by_slug = {slug: (grade, reason) for grade, slug, reason in pack_check.assess(pack)}
-        self.assertEqual(by_slug["func_limit"][0], "미검증")
-        self.assertIn("예제 파싱 실패: 분석기 출력 계약 위반", by_slug["func_limit"][1])
+        self.assertEqual(by_slug["func_limit"][0], "unverified")
+        self.assertIn("example parse failed: analyzer output breaks the contract", by_slug["func_limit"][1])
 
     def test_missing_command_is_tool_not_pass(self):
         self.write_pack(("no-such-analyzer-xyz", "facts"))
         pack = self.load()
         analyzer, reason = facts.analyzer_for_pack(pack, self.root)
         self.assertIsNone(analyzer)
-        self.assertTrue(reason.startswith("분석기 명령 no-such-analyzer-xyz 실행 불가"), reason)
+        self.assertTrue(reason.startswith("analyzer command no-such-analyzer-xyz cannot run"), reason)
         with patch.object(profile, "SYNTAX", "toy"), patch.object(profile, "PACK", pack), \
                 patch.object(facts, "ROOT", self.root), patch.dict(facts._SELECTED, clear=True):
             self.assertEqual(facts.unavailable("functions"), reason)
             section = runner._syntax_section("func_limit", "함수 길이", lambda: ["never"], (), True, "", "functions")
         self.assertEqual((section[2], section[3]), ([], ("TOOL", reason)))
-        self.assertEqual({grade for grade, slug, _reason in pack_check.assess(pack) if slug != "type_hints"}, {"미검증"})
+        self.assertEqual({grade for grade, slug, _reason in pack_check.assess(pack) if slug != "type_hints"}, {"unverified"})
 
     def test_reverse_import_is_detected_from_command_facts(self):
         graph = {
@@ -172,7 +172,7 @@ class ContractTests(unittest.TestCase):
                        {**self.GOOD, "functions": [{**self.GOOD["functions"][0], "line": "1"}]}, "not an object"):
             with self.subTest(broken=broken):
                 found = command.convert(broken, "a.toy", "a")
-                self.assertTrue(found.error and found.error.startswith("분석기 출력 계약 위반"), found.error)
+                self.assertTrue(found.error and found.error.startswith("analyzer output breaks the contract"), found.error)
                 self.assertEqual(found.functions, ())
 
     def test_reported_error_is_kept(self):
@@ -203,7 +203,7 @@ class PackKeyTests(TemporaryRootTestCase):
         self.assertEqual((lang.analyzer_kind(go), lang.grammar_module(go)), ("treesitter", "tree_sitter_go"))
         self.assertEqual(lang.grammar_module({**go, "GRAMMAR": "tree_sitter_golang"}), "tree_sitter_golang")
         self.assertIsNone(lang.grammar_module(lang.load("python")))
-        self.assertEqual(facts.analyzer_for_pack(odd, self.root), (None, "odd 구문 분석기가 없어 검사 못 함"))
+        self.assertEqual(facts.analyzer_for_pack(odd, self.root), (None, "no odd syntax analyzer — check could not run"))
 
     def test_framework_template_loads_for_both_roles(self):
         folder = self.root / framework.PROJECT_DIR
@@ -232,10 +232,10 @@ class DoctorTests(unittest.TestCase):
             {"name": "python", "check": [sys.executable, "--version"], "install": "python.org"})}
         missing, text = self.report(pack)
         self.assertEqual(missing, 1)
-        self.assertIn("[없음] toolx", text)
+        self.assertIn("[missing] toolx", text)
         self.assertIn("https://example.com/toolx", text)
-        self.assertIn("[있음] python", text)
-        self.assertIn("설치 요구 1건", text)
+        self.assertIn("[found] python", text)
+        self.assertIn("Missing tools: 1.", text)
 
     def test_framework_pack_requirements_are_reported_too(self):
         server = {"NAME": "srv", "REQUIRES": (
@@ -244,24 +244,24 @@ class DoctorTests(unittest.TestCase):
         with redirect_stdout(out):
             missing = harness_install.print_stack_report(lang.load("python"), [server])
         self.assertEqual(missing, 1)
-        self.assertIn("[없음] toolz", out.getvalue())
+        self.assertIn("[missing] toolz", out.getvalue())
 
     def test_harness_itself_requires_nothing(self):
         missing, text = self.report(profile.PACK)
         self.assertEqual(missing, 0)
-        self.assertIn("설치 요구 0건", text)
-        self.assertIn("표준 ast", text)
+        self.assertIn("0 installs required", text)
+        self.assertIn("stdlib ast", text)
         out = io.StringIO()
         with redirect_stdout(out):
             harness_install.print_language_report()
-        self.assertIn("설치 요구 0건", out.getvalue())
+        self.assertIn("0 installs required", out.getvalue())
 
     def test_analyzer_status_follows_the_pack(self):
         self.assertEqual(harness_install.analyzer_status(lang.load("go"))[0], "tree-sitter")
         self.assertIn("tree_sitter_go", harness_install.analyzer_status(lang.load("go"))[1])
         name, status = harness_install.analyzer_status({**lang.load("go"), "ANALYZER": "command", "ANALYZER_CMD": ("no-such-analyzer-xyz",)})
-        self.assertEqual((name, status.endswith("없음")), ("외부 분석기", True))
-        self.assertEqual(harness_install.analyzer_status(lang.unselected())[0], "없음")
+        self.assertEqual((name, status.endswith("missing")), ("external analyzer", True))
+        self.assertEqual(harness_install.analyzer_status(lang.unselected())[0], "none")
 
 
 if __name__ == "__main__":

@@ -66,13 +66,13 @@ def _parse_gcc(output: str, slug: str) -> list[str]:
 
 
 def _entry_name(entry: dict) -> str:
-    return str(entry.get("slug") or (entry.get("cmd") or ["도구"])[0])
+    return str(entry.get("slug") or (entry.get("cmd") or ["tool"])[0])
 
 
 def missing_tool(entry: dict) -> str:
     """실행 파일이 없으면 그 이름. 있으면 빈 문자열."""
     cmd = entry.get("cmd") or []
-    return "" if (cmd and shutil.which(cmd[0])) else (cmd[0] if cmd else "cmd 미선언")
+    return "" if (cmd and shutil.which(cmd[0])) else (cmd[0] if cmd else "cmd not declared")
 
 
 def run_one(entry: dict) -> tuple[list[str], str]:
@@ -80,24 +80,24 @@ def run_one(entry: dict) -> tuple[list[str], str]:
     slug = _entry_name(entry)
     parser_name = str(entry.get("parse", "gcc"))
     if parser_name != "gcc":                       # 지원하는 출력 형식은 gcc 하나다
-        return [], f"{slug}: 알 수 없는 출력 파서 {parser_name}"
+        return [], f"{slug}: unknown output parser {parser_name}"
     absent = missing_tool(entry)
     if absent:
         hint = entry.get("install") or ""
-        tail = f" — 설치: {hint}" if hint else ""
-        return [], f"{absent} 미설치{tail}"
+        tail = f" — install: {hint}" if hint else ""
+        return [], f"{absent} not installed{tail}"
     try:
         done = subprocess.run(entry["cmd"], cwd=ROOT, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
-        return [], f"{slug}: {TIMEOUT_SECONDS}초 내 응답 없음 — 검사 불능"
+        return [], f"{slug}: no response within {TIMEOUT_SECONDS}s — check could not run"
     except OSError as exc:
-        return [], f"{slug}: 실행 실패 {exc.__class__.__name__}"
+        return [], f"{slug}: run failed {exc.__class__.__name__}"
 
     output = (done.stdout or "") + "\n" + (done.stderr or "")
     found = _parse_gcc(output, slug)
     if done.returncode and not found:
-        return [], f"{slug}: 종료 코드 {done.returncode}, 해석 가능한 진단 없음 — {output.strip()[:300]}"
+        return [], f"{slug}: exit code {done.returncode}, no parsable diagnostics — {output.strip()[:300]}"
     return found, ""
 
 
@@ -108,7 +108,7 @@ def sections() -> list[tuple[str, str, list[str], str]]:
         if not isinstance(entry, dict):
             continue
         slug = _entry_name(entry)
-        title = f"정적 분석({slug})"
+        title = f"Static analysis ({slug})"
         violations, skipped = run_one(entry)
         found.append((f"lint:{slug}", title, violations, skipped))
     return found
@@ -198,25 +198,25 @@ def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]
     except ValueError:
         reason = (done.stderr or done.stdout).strip()[:300]
         for slug in UI_SLUGS:
-            found[slug].append(f"eslint 실행 실패 — {reason}")
+            found[slug].append(f"eslint run failed — {reason}")
         return found
     if not isinstance(report, list) or any(not isinstance(entry, dict) or "filePath" not in entry
                                            for entry in report):
-        return {slug: ["eslint 실행 실패 — 잘못된 JSON 보고서"] for slug in UI_SLUGS}
+        return {slug: ["eslint run failed — invalid JSON report"] for slug in UI_SLUGS}
     for entry in report:
         rel = _rel(Path(entry["filePath"]))
         for message in entry.get("messages", []):
             head = f"{rel}:{message.get('line', 0)}: "
             if message.get("fatal"):
                 for slug in UI_SLUGS:
-                    found[slug].append(head + f"파싱 실패 — {message.get('message', '')[:120]}")
+                    found[slug].append(head + f"parse failed — {message.get('message', '')[:120]}")
                 continue
             tag = _SLUG_TAG.match(message.get("message", ""))
             if tag and tag.group(1) in found:
                 found[tag.group(1)].append(head + _SLUG_TAG.sub("", message["message"]))
     if done.returncode and not any(found.values()):
         reason = (done.stderr or done.stdout).strip()[:300]
-        return {slug: [f"eslint 실행 실패 — 종료 코드 {done.returncode}: {reason}"] for slug in UI_SLUGS}
+        return {slug: [f"eslint run failed — exit code {done.returncode}: {reason}"] for slug in UI_SLUGS}
     return found
 
 
@@ -227,14 +227,14 @@ def run_ui_lint(ui_files: list[Path]) -> UiLint:
     대상 확장자는 프로파일 `UI_EXT` 를 쓴다. 러너가 그 패턴으로 파일을 모았으므로 설정의 files 도 같아야 한다.
     """
     if profile.UI is None:
-        return UiLint({}, "화면 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다")
+        return UiLint({}, "no UI framework pack selected — set FRAMEWORK in the profile")
     npm_dir = ui_npm_dir()
     if not npm_dir or not npm_dir.is_dir():
-        return UiLint({}, "npm 디렉토리 없음 — 프로파일 UI_NPM_DIR 로 지정 (기본은 ui 레이어 첫 세그먼트)")
+        return UiLint({}, "no npm directory — set UI_NPM_DIR in the profile (default: first segment of the ui layer)")
     if not ui_eslint_bin(npm_dir):
-        return UiLint({}, f"{npm_dir.relative_to(ROOT).as_posix()}/node_modules/.bin/eslint 없음 — "
-                          f"설치: {profile.UI['ESLINT_INSTALL']}")
+        return UiLint({}, f"{npm_dir.relative_to(ROOT).as_posix()}/node_modules/.bin/eslint missing — "
+                          f"install: {profile.UI['ESLINT_INSTALL']}")
     tokens = profile.layer_raw("ui_tokens")
-    note = f"{tokens} 또는 CSS 변수" if tokens else "토큰 정본 또는 CSS 변수"
+    note = f"{tokens} or a CSS variable" if tokens else "the token file or a CSS variable"
     ui_pack = {**profile.UI, "UI_EXT": profile.UI_EXT}
     return UiLint(eslint_report(npm_dir, ui_files, ui_allow(npm_dir), note, ui_pack), "")

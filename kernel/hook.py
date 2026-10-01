@@ -29,8 +29,8 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-WIP_HEAD = ("[WIP] 합칠 때 막힐 항목 — worktree 안에서는 막지 않는다. "
-            "push·PR 전 `python -X utf8 -m kernel.runner --verify` 가 exit 0 이어야 나간다.")
+WIP_HEAD = ("[WIP] These will block at merge — not blocked inside a worktree. "
+            "Before push or PR, `python -X utf8 -m kernel.runner --verify` must exit 0.")
 
 def checkable(path: Path) -> bool:
     """Use the same configured source patterns as full and save checks."""
@@ -153,7 +153,7 @@ def check_file(root: Path, path: Path) -> str:
     rel = path.as_posix()
     for fragment, suffix in profile.LEGACY_PATHS:
         if fragment in rel and (suffix is None or path.suffix == suffix):
-            return f"[FAIL] 레거시 경로 편집 금지 (legacy_path) — 1건\n   - {path}: 현행 경로를 사용하라."
+            return f"[FAIL] Legacy path edit (legacy_path) — 1 found\n   - {path}: use the current path."
     return ""
 
 
@@ -177,7 +177,7 @@ def board_overlaps(root: Path, paths: list[Path], sid: str) -> list[str]:
             from kernel import trace
             trace.TRACE = root / "harness_trace.jsonl"
             trace.record("check_workboard_overlap", "workboard_overlap",
-                         sid=sid[:8], msg=f"{len(hits)}건 (codex)")
+                         sid=sid[:8], msg=f"{len(hits)} found (codex)")
         return hits
     except Exception:
         return []
@@ -216,7 +216,7 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str, out: TextIO 
                 errors="replace", timeout=60 if event == "Stop" else 30,
             )
         except (subprocess.TimeoutExpired, OSError) as exc:
-            message = f"검사 불능: {type(exc).__name__}"
+            message = f"Check could not run: {type(exc).__name__}"
             print(message, file=out)
             record_result(root, event, sid, "", message)
             code = max(code, 2 if event == "Stop" else 1)
@@ -229,7 +229,7 @@ def run_checks(root: Path, paths: list[Path], event: str, sid: str, out: TextIO 
         if result.returncode == 3:
             continue
         failure = "[FAIL]" in result.stdout
-        message = "게이트 위반 — 수정 후 재검증하라." if failure else "검사 불능 — 검사기 자체를 점검하라."
+        message = "Gate violation — fix and re-verify." if failure else "Check could not run — inspect the checker itself."
         print(message, file=out)
         print(result.stdout + result.stderr, file=out)
         record_result(root, event, sid, result.stdout, "" if failure else message)
@@ -305,7 +305,7 @@ def refresh_projection(root: Path) -> None:
 def _delegate(root: Path, agent: str, event: str, payload: dict[str, object]) -> int:
     """Re-run the hook with the target checkout's own kernel; an imported kernel package cannot be rebound."""
     if not (root / "kernel" / "hook.py").is_file():
-        raise RuntimeError("대상 체크아웃에 kernel/hook.py 가 없다")
+        raise RuntimeError("target checkout has no kernel/hook.py")
     result = subprocess.run(
         [sys.executable, "-X", "utf8", "-m", "kernel.hook", "--agent", agent, "--event", event],
         cwd=root, input=json.dumps(payload), capture_output=True, text=True,
@@ -314,7 +314,7 @@ def _delegate(root: Path, agent: str, event: str, payload: dict[str, object]) ->
     print(result.stdout, end="")
     print(result.stderr, end="", file=sys.stderr)
     if result.returncode not in (0, 1, 2):
-        raise RuntimeError("대상 체크아웃의 훅이 예상 밖의 종료 코드로 끝났다")
+        raise RuntimeError("the target checkout's hook ended with an unexpected exit code")
     return result.returncode                  # 1 is a notice ([WIP], overlap) — pass it through
 
 
@@ -327,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = read_payload()
     except (ValueError, UnicodeError) as exc:
-        print(f"훅 입력 경고: {exc}", file=sys.stderr)
+        print(f"Hook input warning: {exc}", file=sys.stderr)
         if args.event != "Stop":
             return 1
         payload = {}
@@ -364,10 +364,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.event == "PostToolUse":
             warned = board_overlaps(root, paths, sid)
             if warned:
-                print("[WORKBOARD] 다른 과업이 잡은 곳이다 — 같은 범위면 그 과업 파일의 항목에 줄을 추가해"
-                      " 그 세션에 맡기거나(합류), 그 과업 브랜치에서 worktree 를 따서 이어 작업한다(쌓기)."
-                      " 겹치는 줄이 아니면 그대로 진행해도 된다 (경고이지 차단이 아니다):",
-                      file=sys.stderr)
+                print("[WORKBOARD] Another task claims this area — if the scope is the same, add a line to that task's"
+                      " items and leave it to that session (join), or branch a worktree from that task's branch (stack)."
+                      " If the lines do not overlap, go ahead (warning, not a block):", file=sys.stderr)
                 for line in warned:
                     print(f"  {line}", file=sys.stderr)
                 code = max(code, 1)
@@ -375,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
             print(system_message, file=sys.stderr)  # A blocked turn reads stderr, not JSON.
     except Exception as exc:
         # A broken executable profile is an infrastructure error, not a violation.
-        print(f"검사 불능: {exc}", file=sys.stderr)
+        print(f"Check could not run: {exc}", file=sys.stderr)
         return 2 if args.event == "Stop" else 1
     if code == 0 and args.agent == "codex":
         print(json.dumps({"systemMessage": system_message}, ensure_ascii=False) if system_message else "{}")

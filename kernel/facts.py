@@ -76,7 +76,8 @@ class Analyzer(Protocol):
 
 
 def _no_analyzer(syntax: str | None) -> str:
-    return f"{syntax or '미선언'} 구문 분석기가 없어 검사 못 함"
+    return (f"no {syntax} syntax analyzer — check could not run" if syntax
+            else "no syntax declared in the profile — check could not run")
 
 
 def query_kinds(queries: Mapping[str, object]) -> frozenset[str]:

@@ -80,7 +80,7 @@ def branch_of(row: str) -> str | None:
     접두(`docs/`)와 모양이 같다. 예전 표 서식에서 '첫 칸만' 보던 것과 같은 방어이고, 기준만
     칸 위치에서 필드 이름으로 바꿨다(파일 서식에는 칸이 없다).
     """
-    after = row.split("과업:", 1)
+    after = row.split("과업:", 1)  # ko-ok: task-board file key is Korean
     found = BRANCH_PATTERN.search(after[1] if len(after) > 1 else row)
     return found.group(1) if found else None
 
@@ -91,7 +91,7 @@ def touch_globs(text: str) -> list[str]:
     collecting = False
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped.startswith("- 손대는 곳:"):
+        if stripped.startswith("- 손대는 곳:"):  # ko-ok: task-board file key is Korean
             collecting = True
             continue
         if collecting:

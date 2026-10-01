@@ -194,29 +194,29 @@ def _guarded(paths: list[Path], shared: Path) -> list[tuple[Path, str]]:
 def _register_message(sid8: str) -> str:
     today = date.today().isoformat()
     return "\n".join([
-        f"[ISOLATION] workboard 에 이 세션의 과업 파일이 없다 — 등록부터 한다 (#sid:{sid8}).",
-        "workboard/<영역>-<대상>.md 를 공유 체크아웃에 만든다. 같은 범위의 과업 파일이 이미 있으면 새로 만들지 말고 그 파일 항목에 줄을 추가한다(합류):",
-        "  - 범위: <영역>-<대상>",
-        f"  - 과업: <feat|fix|chore>/<브랜치> #sid:{sid8}",
-        "  - 항목:",
-        "    - [ ] <할 일>",
-        "  - 손대는 곳:",
-        "    - <글로브>",
-        f"  - 시작: {today}",
-        "  - 상태: 진행",
-        "(정본: workboard/README.md 서식)"])
+        f"[ISOLATION] No task file for this session in workboard — register first (#sid:{sid8}).",
+        "Create workboard/<area>-<target>.md in the main checkout. If a task file with the same scope exists, add a line to its items instead (join):",
+        "  - 범위: <area>-<target>",  # ko-ok: shows the task-board format
+        f"  - 과업: <feat|fix|chore>/<branch> #sid:{sid8}",  # ko-ok: shows the task-board format
+        "  - 항목:",  # ko-ok: shows the task-board format
+        "    - [ ] <todo>",
+        "  - 손대는 곳:",  # ko-ok: shows the task-board format
+        "    - <glob>",
+        f"  - 시작: {today}",  # ko-ok: shows the task-board format
+        "  - 상태: 진행",  # ko-ok: shows the task-board format
+        "(Source of truth: workboard/README.md format)"])
 
 
 def _worktree_message(paths: list[Path], lines: int, scope: str, sid8: str, shared: Path) -> str:
     names = " · ".join(_rel_or_name(path, shared) for path in paths)
     name = f"{scope}--{sid8}"
-    base = default_branch() or "<기본브랜치>"
+    base = default_branch() or "<default-branch>"
     return "\n".join([
-        f"[ISOLATION] 메인 체크아웃에서 편집하려 한다 — {names} ({lines}줄).",
-        "구현은 worktree 안에서만 한다. 예외는 workboard/·docs/tasks/ 와 바뀐 줄 1줄 이하다.",
-        f"  git worktree add worktrees/{name} -b <브랜치> origin/{base}",
-        f"  Claude: EnterWorktree(path=\"worktrees/{name}\") · Codex: 그 디렉토리에서 작업",
-        "(정본: workboard/README.md 작업 격리)"])
+        f"[ISOLATION] Editing in the main checkout — {names} ({lines} lines).",
+        "Implement only inside a worktree. Exceptions: workboard/, docs/tasks/, and edits of 1 changed line or less.",
+        f"  git worktree add worktrees/{name} -b <branch> origin/{base}",
+        f"  Claude: EnterWorktree(path=\"worktrees/{name}\") · Codex: work in that directory",
+        "(Source of truth: workboard/README.md work isolation)"])
 
 
 def _rel_or_name(path: Path, shared: Path) -> str:
@@ -238,21 +238,21 @@ def edit_guard(paths: list[Path], sid8: str | None, lines: int,
         return None
     if sid8 is None:
         return Finding(HOOK_NAME, "edit_guard", False,
-                       "[ISOLATION] 세션 식별자를 못 구했다 — 격리 가드를 건너뛴다. 훅을 점검하라.",
-                       ("sid 없음",))
+                       "[ISOLATION] No session id — skipping the isolation guard. Check the hook.",
+                       ("no sid",))
     if any(kind == "unknown" for _path, kind in targets):
         return Finding(HOOK_NAME, "edit_guard", False,
-                       "[ISOLATION] git 조회에 실패해 어느 체크아웃인지 가리지 못했다 — 격리 가드를 건너뛴다.",
-                       ("git 조회 실패",))
+                       "[ISOLATION] git query failed, so the checkout is unknown — skipping the isolation guard.",
+                       ("git query failed",))
     scope = my_scope(sid8, board)
     if scope is None:
-        return Finding(HOOK_NAME, "edit_guard", True, _register_message(sid8), (f"보드 미등록 {sid8}",))
+        return Finding(HOOK_NAME, "edit_guard", True, _register_message(sid8), (f"not on task board {sid8}",))
     on_main = [path for path, kind in targets if kind == "main"]
     if not on_main:
         return None
     return Finding(HOOK_NAME, "edit_guard", True,
                    _worktree_message(on_main, lines, scope, sid8, shared),
-                   tuple(f"메인 편집 {_rel_or_name(path, shared)}" for path in on_main))
+                   tuple(f"main checkout edit {_rel_or_name(path, shared)}" for path in on_main))
 
 
 def exit_command(command: str) -> tuple[str, Path | None] | None:
@@ -286,14 +286,14 @@ def _verdict_lines(stdout: str) -> list[str]:
         if inside:
             kept.append(line)
     if len(kept) > MAX_VERDICT_LINES:
-        kept = kept[:MAX_VERDICT_LINES] + [f"   … 외 {len(kept) - MAX_VERDICT_LINES}줄"]
+        kept = kept[:MAX_VERDICT_LINES] + [f"   … and {len(kept) - MAX_VERDICT_LINES} more lines"]
     return kept
 
 
 def _blocked(name: str, reason: str, detail: list[str]) -> Finding:
-    head = f"[EXIT GATE] `{name}` 전 검사 — {reason}"
-    tail = "통과 전에는 본체로 합치지 않는다. [TOOL]·[DECISION] 도 통과가 아니다."
-    return Finding(HOOK_NAME, "exit_gate", True, "\n".join([head, *detail, tail]), (f"{name} 차단: {reason}",))
+    head = f"[EXIT GATE] check before `{name}` — {reason}"
+    tail = "Do not merge until it passes. [TOOL] and [DECISION] are not a pass."
+    return Finding(HOOK_NAME, "exit_gate", True, "\n".join([head, *detail, tail]), (f"{name} blocked: {reason}",))
 
 
 def exit_gate(command: str, cwd: Path) -> Finding | None:
@@ -304,7 +304,7 @@ def exit_gate(command: str, cwd: Path) -> Finding | None:
     name, target = found
     root = checkout_of(cwd / target if target else cwd)
     if root is None:
-        return _blocked(name, "git 체크아웃을 못 찾았다(fail-closed).", [])
+        return _blocked(name, "git checkout not found (fail-closed).", [])
     command_line = runner_command(root, "--verify")
     if command_line is None:
         return None                           # 하네스가 연결되지 않은 체크아웃이다 — 검사할 러너도 프로파일도 없다
@@ -313,8 +313,8 @@ def exit_gate(command: str, cwd: Path) -> Finding | None:
         done = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=VERIFY_TIMEOUT_SEC)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return _blocked(name, f"러너를 실행하지 못했다: {type(exc).__name__}(fail-closed).", [])
+        return _blocked(name, f"runner could not start: {type(exc).__name__} (fail-closed).", [])
     if done.returncode == 0:
         return None
-    reason = f"{root} 에서 `python -X utf8 -m kernel.runner --verify` 가 exit {done.returncode}."
+    reason = f"`python -X utf8 -m kernel.runner --verify` exited {done.returncode} in {root}."
     return _blocked(name, reason, _verdict_lines(done.stdout) or done.stderr.splitlines()[-5:])

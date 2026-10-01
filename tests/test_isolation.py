@@ -66,7 +66,7 @@ class IsolationTests(unittest.TestCase):
         found = self.guard(self.shared / "kernel" / "x.py", SID, 3)
         self.assertIsNotNone(found)
         self.assertTrue(found.block, found)
-        self.assertIn("[ISOLATION] 메인 체크아웃", found.message)
+        self.assertIn("[ISOLATION] Editing in the main checkout", found.message)
         self.assertIn("worktrees/admin-report-viewers--abcd1234", found.message)
         self.assertIn("EnterWorktree(path=", found.message)
 
@@ -85,7 +85,7 @@ class IsolationTests(unittest.TestCase):
         found = self.guard(self.work / "kernel" / "x.py", STRANGER, 3)
         self.assertIsNotNone(found)
         self.assertTrue(found.block, found)
-        self.assertIn("등록부터", found.message)
+        self.assertIn("register first", found.message)
         self.assertIn(f"#sid:{STRANGER}", found.message)
         self.assertIn("- 상태: 진행", found.message)
 
@@ -107,7 +107,7 @@ class IsolationTests(unittest.TestCase):
         found = self.guard(self.shared / "kernel" / "x.py", None, 3)
         self.assertIsNotNone(found)
         self.assertFalse(found.block, "세션 식별자를 모르면 막지 않고 경고만 한다")
-        self.assertIn("세션 식별자", found.message)
+        self.assertIn("No session id", found.message)
 
     def test_changed_lines(self) -> None:
         from kernel.isolation import changed_lines
@@ -152,9 +152,9 @@ class IsolationTests(unittest.TestCase):
         found = isolation.exit_gate("git push origin HEAD", self.shared)
         self.assertIsNotNone(found)
         self.assertTrue(found.block, found)
-        self.assertIn("[EXIT GATE] `git push`", found.message)
+        self.assertIn("[EXIT GATE] check before `git push`", found.message)
         self.assertIn("[FAIL] 검사 (slug)", found.message)
-        self.assertIn("exit 1", found.message)
+        self.assertIn("exited 1", found.message)
         self._stub_runner("raise RuntimeError('broken runner')\n")
         crashed = isolation.exit_gate("gh pr create", self.shared)
         self.assertIsNotNone(crashed)

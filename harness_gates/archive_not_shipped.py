@@ -15,7 +15,7 @@ from pathlib import Path
 
 from kernel.context import ROOT
 
-TITLE = "작업 archive 배포 금지"
+TITLE = "No task archive in the shipped repo"
 ARCHIVE_PREFIX = "docs/tasks/archive/"
 
 
@@ -33,6 +33,6 @@ def tracked_archive_files() -> list[str]:
 def run(py_files: list[Path], ui_files: list[Path]) -> list[tuple[str, list[str]]]:
     """레포 전체를 한 번에 판정하므로 인자로 받은 파일 목록은 쓰지 않는다. git 이 추적하는 파일 전체를 본다."""
     del py_files, ui_files
-    return [(TITLE, [f"{rel}: 배포본에 작업 archive 가 실려 있다 — "
-                     f"`git rm --cached {rel}` 로 추적만 풀어라. 로컬 파일은 남는다"
+    return [(TITLE, [f"{rel}: task archive is shipped in the repo — "
+                     f"untrack it with `git rm --cached {rel}`. The local file stays"
                      for rel in tracked_archive_files()])]

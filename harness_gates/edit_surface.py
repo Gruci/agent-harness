@@ -18,7 +18,7 @@ from kernel import profile
 from kernel.context import ROOT, read_pairs
 
 SURFACE_FILE = ROOT / "harness_surface.txt"
-TITLE = "편집 표면 래칫(면제·제외 목록)"
+TITLE = "Edit surface ratchet (exemption and exclusion lists)"
 SCOPE_KEY = 'SCOPE["exclude_all"]'
 
 
@@ -38,10 +38,10 @@ def run(py_files: list[Path], ui_files: list[Path]) -> list[tuple[str, list[str]
     """레포 전체를 판정하므로 인자로 받은 파일 목록은 쓰지 않는다. 편집이 있을 때마다 면제·제외 목록 전체를 다시 본다."""
     del py_files, ui_files
     if not SURFACE_FILE.exists():
-        return [(TITLE, [f"{SURFACE_FILE.name} 없음 — 면제·제외 목록을 파일로 고정해 두지 않으면 면제가 "
-                         f"늘어도 아무도 모른다. 프로파일의 현재 선언을 그대로 옮겨 적어 만들어라"])]
+        return [(TITLE, [f"{SURFACE_FILE.name} missing — without a baseline file for the exemption and exclusion lists, "
+                         f"nobody notices when exemptions grow. Create it by copying the profile's current declarations"])]
     added = sorted(current() - frozen())
-    return [(TITLE, [f"{SURFACE_FILE.name}: {key} 에 '{value}' 가 늘었다 — 게이트를 느슨하게 "
-                     f"만드는 변경이다. 면제 말고 코드를 고칠 수 없는지 먼저 보고, 그래도 "
-                     f"필요하면 사유를 dev/REJECTED.md 에 남긴 뒤 이 파일에 행을 더하라"
+    return [(TITLE, [f"{SURFACE_FILE.name}: '{value}' was added to {key} — this loosens a gate. "
+                     f"First see whether the code can be fixed instead of exempted; if it is still needed, "
+                     f"record the reason in dev/REJECTED.md, then add a row to this file"
                      for key, value in added])]

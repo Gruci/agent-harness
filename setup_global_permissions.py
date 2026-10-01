@@ -62,8 +62,8 @@ def configure_claude(check: bool = False) -> int:
         from kernel.codex_permissions import _write_backed_up   # 한 번만 백업하고 쓴다 — Codex 쪽과 같은 계약
 
         _write_backed_up(path, updated)
-    print(f"글로벌 권한 설정 완료: {path}")
-    print("다음 claude 세션부터 승인 프롬프트 없이 실행된다.")
+    print(f"Global permissions configured: {path}")
+    print("From the next claude session, commands run without approval prompts.")
     return 0
 
 

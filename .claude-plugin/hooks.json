@@ -3,7 +3,7 @@
   "hooks": {
     "SessionStart": [{"matcher": "startup|resume|clear|compact", "hooks": [
       {"type": "command", "timeout": 15,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/kernel\" session || echo '[HARNESS] python 을 실행하지 못했다 — python 3.10 이상이 없으면 게이트가 하나도 돌지 않는다.'"}]}],
+       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/kernel\" session || echo '[HARNESS] Could not run python — without python 3.10 or later no gate runs.'"}]}],
     "PreToolUse": [{"matcher": "Bash|PowerShell", "hooks": [
       {"type": "command", "timeout": 15,
        "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_bash_write.py\" --plugin"},

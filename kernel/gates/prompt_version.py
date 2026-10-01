@@ -39,9 +39,9 @@ def check_prompt_version() -> list[str]:
             continue
         new_v = _VERSION.search(new.split("\n", 1)[0])
         if not new_v:
-            bad.append(f"{rel}: 첫 줄에 V<major>.<minor> 버전 헤더가 없다 — 헤더를 붙이고 버전을 올려라")
+            bad.append(f"{rel}: first line has no V<major>.<minor> version header — add one and bump the version")
             continue
         old_v = _VERSION.search(old.split("\n", 1)[0])
         if old_v and old_v.group(0) == new_v.group(0):
-            bad.append(f"{rel}: 본문이 바뀌었는데 헤더 버전이 {new_v.group(0)} 그대로다 — 버전을 올려라")
+            bad.append(f"{rel}: body changed but header version is still {new_v.group(0)} — bump the version")
     return bad

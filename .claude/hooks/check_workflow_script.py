@@ -208,8 +208,8 @@ def main() -> None:
     try:
         payload = read_hook_payload()
     except Exception as exc:
-        print(f"[WORKFLOW GATE] 훅 페이로드 파싱 실패({exc.__class__.__name__}) — "
-              f"model 검사가 동작하지 않는다. 훅을 점검하라.", file=sys.stderr)
+        print(f"[WORKFLOW GATE] Could not parse the hook payload ({exc.__class__.__name__}) — "
+              f"the model check is not running. Inspect the hook.", file=sys.stderr)
         sys.exit(1)
 
     source = script_source(payload.get("tool_input") or {})
@@ -220,23 +220,23 @@ def main() -> None:
     sid = str(payload.get("session_id") or "")
     if lines:
         record("check_workflow_script", "workflow_model", sid=sid,
-               msg=f"model 미지정 agent() {len(lines)}건 — 줄 {lines}")
+               msg=f"agent() without model: {len(lines)} found — lines {lines}")
         print(
-            f"[WORKFLOW GATE] model 을 안 준 `agent()` 호출 {len(lines)}건 — "
-            f"줄 {', '.join(str(n) for n in lines)}.\n"
-            "model 을 지정하지 않으면 메인 루프 모델을 상속한다. 메인이 Fable 이면 모든 워커가 Fable 단가와\n"
-            "Fable 전용 거부 정책까지 상속하고, 거부된 워커는 result 행을 남기지 않아 pipeline 이 끝없이 기다린다.\n"
-            "구현·검수는 `model: 'opus'`, 기계적 팬아웃은 `model: 'sonnet'` 을 명시하라.\n"
-            "`agentType:` 지정도 통과다 — 에이전트 정의 frontmatter 가 모델의 정본이다.\n"
-            "(정본: .claude/agents/orchestrator.md §4-1 Workflow 스폰 계약)",
+            f"[WORKFLOW GATE] `agent()` calls without model: {len(lines)} found — "
+            f"lines {', '.join(str(n) for n in lines)}.\n"
+            "Without model, a call inherits the main loop model. If the main loop is Fable, every worker inherits Fable pricing\n"
+            "and the Fable-only refusal policy, and a refused worker leaves no result row, so the pipeline waits forever.\n"
+            "Set `model: 'opus'` for implementation and review, `model: 'sonnet'` for mechanical fan-out.\n"
+            "Setting `agentType:` also passes — the agent definition frontmatter is the source of truth for the model.\n"
+            "(source of truth: .claude/agents/orchestrator.md §4-1 Workflow spawn contract)",
             file=sys.stderr,
         )
         sys.exit(2)
     if unknown:
         # 판정 불능은 경고다 — 전개·런타임 opts 를 차단하면 정상 스크립트가 막힌다.
-        print(f"[WORKFLOW GATE] `agent()` 호출 {len(unknown)}건은 opts 를 판정하지 못했다 — "
-              f"줄 {', '.join(str(n) for n in unknown)}. model(또는 agentType)이 실제로 "
-              f"명시되는지 직접 확인하라.", file=sys.stderr)
+        print(f"[WORKFLOW GATE] Could not read opts for {len(unknown)} `agent()` calls — "
+              f"lines {', '.join(str(n) for n in unknown)}. Confirm by hand that model (or agentType) "
+              f"is actually set.", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
 

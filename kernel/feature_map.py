@@ -68,22 +68,22 @@ def _cell(value: object) -> str:
 
 
 def markdown(projection: dict) -> str:
-    lines = ["# 기능 지도", "",
+    lines = ["# 기능 지도", "",  # ko-ok: body of the Korean doc feature-map.md (md_style reads its role line)
              "> 담는 것: 정본 그래프와 현재 소스의 자동 투영. 담지 않는 것: 사용자 승인 판정(→ components.json). 읽는 시점: 구조 변경 검토 시.",
-             "", "이 문서는 생성 결과이며 직접 편집하지 않는다.",
+             "", "이 문서는 생성 결과이며 직접 편집하지 않는다.",  # ko-ok: body of the Korean doc feature-map.md
              "컴포넌트 이름과 관계는 선언된 의도이며 이 지도 자체가 승인을 증명하지 않는다.",
-             "소스 근거는 현재 작업 파일의 해시이며 의존 관계의 실제 관측은 별도 게이트에서 검증한다.",
+             "소스 근거는 현재 작업 파일의 해시이며 의존 관계의 실제 관측은 별도 게이트에서 검증한다.",  # ko-ok: body of the Korean doc feature-map.md
              "", "| 컴포넌트 | 상태 | 책임 | 공개 계약 | 현재 소스 수 |", "|---|---|---|---|---|"]
     for node in projection["components"]:
-        contracts = ", ".join(item["id"] for item in node["public"]) or "없음"
+        contracts = ", ".join(item["id"] for item in node["public"]) or "없음"  # ko-ok: body of the Korean doc feature-map.md
         cells = [f"{node['name']} ({node['id']})", node["state"], node["responsibility"], contracts, len(node["sources"])]
         lines.append("| " + " | ".join(_cell(value) for value in cells) + " |")
-    lines.extend(["", "## 선언된 연결", "", "| 출발 | 도착 | 계약 | 종류 |", "|---|---|---|---|"])
+    lines.extend(["", "## 선언된 연결", "", "| 출발 | 도착 | 계약 | 종류 |", "|---|---|---|---|"])  # ko-ok: body of the Korean doc feature-map.md
     for edge in projection["declared_edges"]:
         lines.append("| " + " | ".join(_cell(edge[key]) for key in ("source", "target", "contract", "kind")) + " |")
-    lines.extend(["", "## 분류 검토", "", f"미분류 소스: {len(projection['unclassified'])}개.",
+    lines.extend(["", "## 분류 검토", "", f"미분류 소스: {len(projection['unclassified'])}개.",  # ko-ok: body of the Korean doc feature-map.md
                   f"중복 분류 소스: {len(projection['ambiguous'])}개.",
-                  "세부 소스와 제외 책임 및 외부 연결은 [생성 데이터](feature-map.json)에 기록한다.", ""])
+                  "세부 소스와 제외 책임 및 외부 연결은 [생성 데이터](feature-map.json)에 기록한다.", ""])  # ko-ok: body of the Korean doc feature-map.md
     return "\n".join(lines)
 
 

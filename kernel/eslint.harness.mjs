@@ -18,17 +18,17 @@ const require = createRequire(path.join(process.cwd(), "package.json"));
 
 const parserName = process.env.HARNESS_UI_PARSER;
 if (!parserName) {
-  throw new Error("HARNESS_UI_PARSER 없음 — 러너(kernel/linters.py)가 화면 프레임워크팩의 ESLINT_PARSER 를 넘긴다");
+  throw new Error("HARNESS_UI_PARSER missing — the runner (kernel/linters.py) passes the UI framework pack's ESLINT_PARSER");
 }
 const parser = require(parserName);
 const parserOptions = JSON.parse(process.env.HARNESS_UI_PARSER_OPTIONS || "{}");
 const FILES = JSON.parse(process.env.HARNESS_UI_FILES || "[]");
 if (!FILES.length) {
-  throw new Error("HARNESS_UI_FILES 없음 — 러너(kernel/linters.py)가 화면 프레임워크팩의 UI_EXT 를 넘긴다");
+  throw new Error("HARNESS_UI_FILES missing — the runner (kernel/linters.py) passes the UI framework pack's UI_EXT");
 }
 
 const allow = JSON.parse(process.env.HARNESS_UI_ALLOW || "{}");
-const tokensNote = process.env.HARNESS_UI_TOKENS || "토큰 정본 또는 CSS 변수";
+const tokensNote = process.env.HARNESS_UI_TOKENS || "the token file or a CSS variable";
 
 const HEX = /#[0-9a-fA-F]{3,8}\b/g;
 const RGB_HSL = /\brgba?\s*\(|\bhsla?\s*\(/;
@@ -57,7 +57,7 @@ const rules = {
       return {
         TSAnyKeyword(node) {
           if (okOnLine(context, node, "any-ok")) return;
-          context.report({ node, message: "[ts_any] TS any → 구체 타입 (불가피하면 `// any-ok: 사유`)" });
+          context.report({ node, message: "[ts_any] TS any → concrete type (if unavoidable: `// any-ok: reason`)" });
         },
       };
     },
@@ -67,10 +67,10 @@ const rules = {
     create(context) {
       return {
         "CallExpression[callee.name='fetch']"(node) {
-          context.report({ node, message: "[raw_fetch] 공용 래퍼를 거치지 않는 fetch()" });
+          context.report({ node, message: "[raw_fetch] fetch() outside the shared wrapper" });
         },
         "Identifier[name='axios']"(node) {
-          context.report({ node, message: "[raw_fetch] 공용 래퍼를 거치지 않는 axios" });
+          context.report({ node, message: "[raw_fetch] axios outside the shared wrapper" });
         },
       };
     },
@@ -82,10 +82,10 @@ const rules = {
         const text = stringValue(node);
         if (text === null) return;
         for (const m of text.matchAll(HEX)) {
-          context.report({ node, message: `[hex_literal] hex 리터럴 ${m[0]} — ${tokensNote} 로` });
+          context.report({ node, message: `[hex_literal] hex literal ${m[0]} — use ${tokensNote}` });
         }
         if (RGB_HSL.test(text)) {
-          context.report({ node, message: `[hex_literal] rgb()·hsl() 색 리터럴 — ${tokensNote} 로` });
+          context.report({ node, message: `[hex_literal] rgb()/hsl() color literal — use ${tokensNote}` });
         }
       };
       return { Literal: check, TemplateElement: check };
@@ -101,8 +101,8 @@ const rules = {
       const checkText = (node) => {
         const text = stringValue(node);
         if (text === null) return;
-        if (FIXED_WIDTH.test(text)) report(node, "[responsive] 고정 px 폭 — max-width·%·minmax·clamp 로 (불가피하면 `// px-ok: 사유`)");
-        if (VW.test(text)) report(node, "[responsive] 100vw 는 세로 스크롤바 폭만큼 가로로 넘친다 — 100% 로 바꾼다");
+        if (FIXED_WIDTH.test(text)) report(node, "[responsive] fixed px width — use max-width, %, minmax or clamp (if unavoidable: `// px-ok: reason`)");
+        if (VW.test(text)) report(node, "[responsive] 100vw overflows horizontally by the vertical scrollbar width — use 100%");
       };
       return {
         Literal: checkText,
@@ -111,7 +111,7 @@ const rules = {
           const key = node.key.name || node.key.value;
           const value = stringValue(node.value);
           if (key === "width" && value !== null && PX_VALUE.test(value)) {
-            report(node, "[responsive] 고정 px 폭 — max-width·%·minmax·clamp 로 (불가피하면 `// px-ok: 사유`)");
+            report(node, "[responsive] fixed px width — use max-width, %, minmax or clamp (if unavoidable: `// px-ok: reason`)");
           }
         },
       };
@@ -127,7 +127,7 @@ const rules = {
             const name = ref.identifier.name;
             if (!BROWSER_GLOBALS.has(name)) continue;
             if (okOnLine(context, ref.identifier, "web-ok")) continue;
-            context.report({ node: ref.identifier, message: `[browser_api] 브라우저 API 직접 호출 ${name} — 래퍼를 거쳐 호출한다 (불가피하면 \`// web-ok: 사유\`)` });
+            context.report({ node: ref.identifier, message: `[browser_api] direct browser API call ${name} — go through the wrapper (if unavoidable: \`// web-ok: reason\`)` });
           }
         },
       };
@@ -139,17 +139,17 @@ const rules = {
       let hashchange = false, replaceState = false, hashEvent = false;
       return {
         "CallExpression[callee.object.name='history'][callee.property.name='pushState']"(node) {
-          context.report({ node, message: "[hash_nav] history.pushState — 탐색 깊이를 한 단계 늘리려면 `location.hash = …` 로 대입한다. pushState 는 hashchange 이벤트를 내지 않아 복원 리스너가 실행되지 않는다" });
+          context.report({ node, message: "[hash_nav] history.pushState — assign `location.hash = …` to add a navigation step. pushState fires no hashchange event, so the restore listener never runs" });
         },
         "CallExpression[callee.property.name='addEventListener'][arguments.0.value='popstate']"(node) {
-          context.report({ node, message: "[hash_nav] popstate 리스너 — 해시 복원은 hashchange 리스너 하나로만 한다. popstate 는 같은 문서 안에서 해시를 대입할 때 발생하지 않는다" });
+          context.report({ node, message: "[hash_nav] popstate listener — restore hash state with a single hashchange listener. popstate does not fire when the hash is assigned within the same document" });
         },
         "Literal[value='hashchange']"() { hashchange = true; },
         "MemberExpression[property.name='replaceState']"() { replaceState = true; },
         "Identifier[name='HashChangeEvent']"() { hashEvent = true; },
         "Program:exit"(node) {
           if (hashchange && replaceState && !hashEvent) {
-            context.report({ node, loc: { line: 1, column: 0 }, message: "[hash_nav] hashchange 로 복원하면서 replaceState 로 해시를 고치고 있다 — replaceState 는 이벤트를 내지 않으므로 `window.dispatchEvent(new HashChangeEvent('hashchange'))` 로 깨운다" });
+            context.report({ node, loc: { line: 1, column: 0 }, message: "[hash_nav] restoring on hashchange while fixing the hash with replaceState — replaceState fires no event, so wake the listener with `window.dispatchEvent(new HashChangeEvent('hashchange'))`" });
           }
         },
       };

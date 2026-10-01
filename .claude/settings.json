@@ -35,19 +35,19 @@
           },
           {
             "type": "command",
-            "command": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo '[GIT CHECK] git 저장소가 아니다. 게이트는 git ls-files 로 검사 대상을 모으므로 저장소가 아니면 대상이 0개가 되어 모든 게이트가 아무것도 검사하지 않고, workboard 판정도 돌지 않는다. 코딩 전에 git init 과 .gitignore 부터 만든다.'; git remote get-url origin >/dev/null 2>&1 || echo '[GITHUB CHECK] GitHub 원격(origin)이 설정되지 않아 코드가 이 컴퓨터에만 있다. gh 가 인증돼 있으면 묻지 말고 `gh repo create <폴더명> --private --source . --push` 로 만들어라(--private 는 바꾸지 않는다). 인증이 없을 때만 사용자에게 물어라. Stop 게이트(check_git_remote)가 원격 없이는 세션 종료를 차단한다.'",
+            "command": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo '[GIT CHECK] Not a git repository. Gates collect their targets with git ls-files, so outside a repository there are 0 targets, every gate checks nothing, and the task board check does not run. Before coding, run git init and create .gitignore.'; git remote get-url origin >/dev/null 2>&1 || echo '[GITHUB CHECK] No GitHub remote (origin) is set, so the code lives only on this computer. If gh is authenticated, do not ask; create it with `gh repo create <folder-name> --private --source . --push` (keep --private). Ask the user only when gh is not authenticated. The Stop gate (check_git_remote) blocks session exit without a remote.'",
             "timeout": 10,
             "statusMessage": "Checking git repo"
           },
           {
             "type": "command",
-            "command": "test -f \"$(git rev-parse --show-toplevel)/harness_profile.py\" || echo '[HARNESS SETUP] harness_profile.py 가 없다. 커널이 이 프로젝트를 모르는 상태라 레이어 설정이 필요한 게이트가 전부 [SKIP] 으로 꺼져 있다. 코딩 전에 harness-init 스킬로 온보딩을 진행하라. 사용자에게 스택을 고르라고 묻지 말고 무엇을 만드는지 물은 뒤 프리셋을 근거와 함께 추천하는 것이 그 스킬의 요지다.'; (cd \"$(git rev-parse --show-toplevel)\" && python -X utf8 -m kernel.profile 2>/dev/null)",
+            "command": "test -f \"$(git rev-parse --show-toplevel)/harness_profile.py\" || echo '[HARNESS SETUP] harness_profile.py is missing. The kernel knows nothing about this project, so every gate that needs layer settings is switched off as [SKIP]. Before coding, onboard with the harness-init skill. Its point: do not ask the user to pick a stack; ask what they are building, then recommend a preset with reasons.'; (cd \"$(git rev-parse --show-toplevel)\" && python -X utf8 -m kernel.profile 2>/dev/null)",
             "timeout": 10,
             "statusMessage": "Checking harness profile"
           },
           {
             "type": "command",
-            "command": "python --version >/dev/null 2>&1 || echo '[PYTHON CHECK] python 을 실행할 수 없다. 훅은 exit 2 일 때만 차단하고 실행 실패는 조용히 통과시키므로 Stop 과 PostToolUse 게이트가 전부 동작하지 않는다. 코딩 전에 python PATH부터 복구하라.'; python -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 || echo '[PYTHON CHECK] python 버전이 3.10 보다 낮다. 훅과 커널이 `str | None` 문법을 쓰므로 전 게이트가 SyntaxError 로 조용히 죽는다. 3.10 이상으로 올려라.'",
+            "command": "python --version >/dev/null 2>&1 || echo '[PYTHON CHECK] python cannot run. Hooks block only on exit 2 and silently pass a launch failure, so none of the Stop and PostToolUse gates run. Fix the python PATH before coding.'; python -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 || echo '[PYTHON CHECK] python is older than 3.10. Hooks and the kernel use `str | None` syntax, so every gate dies silently with a SyntaxError. Upgrade to 3.10 or later.'",
             "timeout": 10,
             "statusMessage": "Checking gate interpreters"
           }

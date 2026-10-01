@@ -84,8 +84,7 @@ def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> int:
         return 0
     sid8 = worktree.session_id8(payload)
     if sid8 is None:
-        print("[WORKTREE NAME] 세션 식별자를 못 구했다 — 이름 검사를 건너뛴다. 훅을 점검하라.",
-              file=sys.stderr)
+        print("[WORKTREE NAME] No session id — skipping the name check. Check the hook.", file=sys.stderr)
         return 1
     cwd = payload.get("cwd")
     found = worktree.name_violation(token, sid8, workboard.board_dir(),

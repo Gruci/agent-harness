@@ -61,14 +61,14 @@ PATTERNS = {
 
 # 규칙 자체가 이 언어에서 성립하지 않는 것들. "못 함"이 아니라 "해당 없음"이다.
 NOT_APPLICABLE = {
-    "type_hints": "언어가 타입을 강제하므로 누락이 불가능",
-    "web_async":  "async/await 개념이 없음 (goroutine 은 다른 모델)",
-    "closures":   "클로저가 관용구라 금지가 부적절",
+    "type_hints": "the language enforces types, so none can be missing",
+    "web_async":  "no async/await concept (goroutines are a different model)",
+    "closures":   "closures are idiomatic, so banning them is wrong",
 }
 
 LINTERS = [
     {"slug": "vet", "cmd": ["go", "vet", "./..."],
-     "parse": "gcc", "install": "Go 툴체인에 포함"},
+     "parse": "gcc", "install": "included in the Go toolchain"},
     {"slug": "staticcheck", "cmd": ["staticcheck", "./..."],
      "parse": "gcc", "install": "go install honnef.co/go/tools/cmd/staticcheck@latest"},
 ]

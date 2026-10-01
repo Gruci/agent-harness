@@ -68,25 +68,25 @@ def _print_report(items: list[dict[str, str]]) -> None:
     sessions = len({item.get("sid", "") for item in items})
     first = min(item.get("ts", "") for item in items)[:10]
     last = max(item.get("ts", "") for item in items)[:10]
-    print(f"[회고] 관찰 {len(items)}건 · 세션 {sessions}개 · {first} ~ {last}\n")
+    print(f"[RETRO] {len(items)} trace records · {sessions} sessions · {first} ~ {last}\n")
 
     gates = by_gate(items)
     if gates:
-        print("게이트별")
+        print("By gate")
         for gate, hits, files, gate_first, gate_last in gates:
-            print(f"  {hits:>4}  {gate:<20} 파일 {files}개   {gate_first} ~ {gate_last}")
+            print(f"  {hits:>4}  {gate:<20} {files} files   {gate_first} ~ {gate_last}")
         print()
 
     spots = hot_spots(items)
     if spots:
-        print(f"반복 지점 (같은 게이트·같은 파일 {HOT_SPOT_HITS}회 이상)")
+        print(f"Hot spots (same gate, same file, {HOT_SPOT_HITS}+ times)")
         for gate, path, hits in spots:
             print(f"  {hits:>4}  {gate:<20} {path}")
         print()
 
     kinds = by_kind(items)
     if kinds:
-        print("게이트 밖 마찰")
+        print("Friction outside gates")
         for kind, hits in kinds:
             print(f"  {hits:>4}  {kind}")
         print()
@@ -96,19 +96,19 @@ def main(argv: list[str]) -> int:
     if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
         sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(prog="kernel.retro", allow_abbrev=False)
-    parser.add_argument("--since", default="", help="이 날짜 이후 관찰만 (예: 2026-08-10)")
+    parser.add_argument("--since", default="", help="only trace records after this date (e.g. 2026-08-10)")
     try:
         items = since(parser.parse_args(argv).since)
     except SystemExit as exc:
         return int(exc.code or 0)
     if not items:
-        print("관찰 없음 — 훅이 아직 아무것도 막지 않았거나 기록이 비어 있다.")
+        print("No trace records — hooks have not blocked anything yet, or the trace is empty.")
         return 0
 
     _print_report(items)
-    print("판정은 여기서 하지 않는다. 각 패턴이 규칙 위반인지, 게이트 오탐인지, "
-          "규칙 자체가 이 프로젝트에 안 맞는지는 사람이 정한다.")
-    print("면제 목록을 늘리는 것은 해결책이 아니다 — 면제 목록이 줄어들기만 하게 막는 게이트(편집 표면 래칫)가 그 길을 닫아 두었다.")
+    print("No verdict here. A human decides whether each pattern is a rule violation, "
+          "a gate false positive, or a rule that does not fit this project.")
+    print("Growing the exemption list is not a fix — a gate (the edit-surface ratchet) only lets that list shrink.")
     return 0
 
 

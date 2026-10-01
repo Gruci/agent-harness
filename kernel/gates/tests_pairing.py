@@ -41,8 +41,8 @@ def check_module_test_pairing(py_files: list[Path]) -> list[str]:
         if any(f.stem in stem for stem in test_stems):
             continue
         bad.append(
-            f"{rel}: 대응 행동 테스트 없음 — {tests}test_{f.stem}.py 작성 "
-            f"또는 사유와 함께 {BASELINE_FILE.name} 등재"
+            f"{rel}: no matching behavior test — write {tests}test_{f.stem}.py "
+            f"or list it in {BASELINE_FILE.name} with a reason"
         )
     return bad
 
@@ -68,7 +68,7 @@ def check_ui_logic_test_pairing(ui_files: list[Path]) -> list[str]:
         if not _EXPORT_FN.search(f.read_text(encoding=READ_ENC)):
             continue
         if not f.with_name(f"{f.stem}.test.ts").exists():
-            bad.append(f"{rel}: 대응 행동 테스트 없음 — {f.stem}.test.ts 를 같은 자리에 작성")
+            bad.append(f"{rel}: no matching behavior test — write {f.stem}.test.ts next to it")
     return bad
 
 
@@ -80,5 +80,5 @@ def check_ui_component_test_pairing(ui_files: list[Path]) -> list[str]:
         if f.suffix != ".tsx" or rel.endswith(".test.tsx"):
             continue
         if not f.with_name(f"{f.stem}.test.tsx").exists():
-            bad.append(f"{rel}: 대응 렌더 테스트 없음 — {f.stem}.test.tsx 를 같은 자리에 작성")
+            bad.append(f"{rel}: no matching render test — write {f.stem}.test.tsx next to it")
     return bad

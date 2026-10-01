@@ -291,7 +291,7 @@ def main() -> None:
     except Exception as exc:
         # 하네스 오작동은 비차단(exit 1)이다. 여기서 exit 2 를 내면 Bash 가 통째로 막히고,
         # 셸이 막힌 세션은 복구 수단이 없다.
-        print(f"[BASH GATE] 훅 페이로드 파싱 실패({exc.__class__.__name__}) — 셸 명령 검사가 동작하지 않는다. 훅을 점검하라.",
+        print(f"[BASH GATE] Could not parse the hook payload ({exc.__class__.__name__}) — the shell command check is not running. Inspect the hook.",
               file=sys.stderr)
         sys.exit(1)
 
@@ -309,33 +309,33 @@ def _violation(command: str) -> str | None:
     """첫 위반의 안내문. 절 순서가 곧 우선순위다."""
     targets = blocked_targets(command)
     if targets:
-        return ("[BASH GATE] 셸로 소스 파일을 쓰려 한다 — " + " · ".join(targets) + ".\n"
-                "Edit/Write 툴로 하라. Bash 리다이렉트는 작성 시점 게이트를 우회한다.\n"
-                "임시 산출물이면 스크래치패드 경로로 내보내라(레포 밖은 검사하지 않는다).")
+        return ("[BASH GATE] Writing a source file through the shell — " + " · ".join(targets) + ".\n"
+                "Use the Edit/Write tools. A Bash redirect bypasses the write-time gates.\n"
+                "For a temporary output, write it to the scratchpad path (nothing outside the repo is checked).")
 
     verdict = piped_verdict(command)
     if verdict:
-        return (f"[BASH GATE] `{verdict}` 뒤에 파이프나 체인이 붙어 있다 — 이 명령의 exit code 가 사라진다.\n"
-                "판정 명령은 단독으로 실행하고, 성공을 확인한 뒤 merge 를 별도 호출로 실행하라.")
+        return (f"[BASH GATE] `{verdict}` is followed by a pipe or chain — its exit code is lost.\n"
+                "Run the verdict command alone, confirm it passed, then run the merge as a separate call.")
 
     if auto_merge(command):
-        return ("[BASH GATE] `gh pr merge --auto` — auto 가 기다리는 대상은 branch protection 필수 체크다.\n"
-                "필수 체크가 없는 레포에서 auto 는 기다릴 대상이 없어 즉시 머지한다(기다리는 것처럼 보이기만 한다).\n"
-                "`gh pr checks <PR>` 을 단독 실행해 pass 를 확인한 뒤 `--auto` 없이 머지하라.")
+        return ("[BASH GATE] `gh pr merge --auto` — auto waits only for branch protection required checks.\n"
+                "In a repo with no required checks, auto has nothing to wait for and merges at once (it only looks like waiting).\n"
+                "Run `gh pr checks <PR>` alone, confirm pass, then merge without `--auto`.")
 
     link = outbound_link(command)
     if link:
-        return (f"[BASH GATE] 격리 밖을 가리키는 링크를 만들려 한다 — `{link}`.\n"
-                "worktree 는 격리가 목적이다. 밖으로 링크를 이으면 한쪽을 지울 때 다른 쪽도 같이 지워진다\n"
-                "(원본 프로젝트 사고: node_modules 를 junction 으로 연결했다가 공유 체크아웃 쪽이 비워졌다).\n"
-                "의존성은 그 트리에서 직접 깔아라. 파일이 필요하면 링크 말고 복사하라.")
+        return (f"[BASH GATE] Creating a link that points outside the isolation — `{link}`.\n"
+                "A worktree exists to isolate. A link to the outside means deleting one side also deletes the other\n"
+                "(original project incident: node_modules was linked as a junction and the main checkout's copy was wiped).\n"
+                "Install dependencies directly in that tree. If you need files, copy them instead of linking.")
 
     mutation = shared_tree_mutation(command)
     if mutation:
-        return (f"[BASH GATE] 병렬 작업 중에 공유 메인 체크아웃에서 `{mutation}` 을 실행하려 한다 — 구현과 커밋은 자기 worktree 에서만 한다.\n"
-                "EnterWorktree 로 격리하거나, 이미 만든 worktree 가 있으면 `git -C <worktree경로>` 로 실행하라.\n"
-                "끝난 브랜치를 합치는 중이면 `git merge --ff-only <브랜치>` 로 실행하라.\n"
-                "(정본: workboard/README.md 작업 격리)")
+        return (f"[BASH GATE] Running `{mutation}` in the shared main checkout during parallel work — implement and commit only in your own worktree.\n"
+                "Isolate with EnterWorktree, or if you already have a worktree, run it with `git -C <worktree path>`.\n"
+                "If you are merging a finished branch, run `git merge --ff-only <branch>`.\n"
+                "(source of truth: workboard/README.md, work isolation)")
     return None
 
 

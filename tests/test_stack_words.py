@@ -33,8 +33,8 @@ class StackWordsTests(unittest.TestCase):
     def test_stack_word_in_doc_is_violation(self) -> None:
         bad = stack_words.scan("dev/X.md", "화면은 React 로 만든다.\n서버는 FastAPI.\n")
         self.assertEqual(len(bad), 2, bad)
-        self.assertIn("dev/X.md:1: 스택 이름 'React'", bad[0])
-        self.assertIn("dev/X.md:2: 스택 이름 'FastAPI'", bad[1])
+        self.assertIn("dev/X.md:1: stack name 'React'", bad[0])
+        self.assertIn("dev/X.md:2: stack name 'FastAPI'", bad[1])
 
     def test_all_five_words_are_caught_case_insensitively(self) -> None:
         text = "useApi tanstack colors.ts REACT fastapi\n"

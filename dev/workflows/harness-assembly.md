@@ -18,7 +18,7 @@ tree-sitter 를 설치할 수 없으면 언어팩에 `ANALYZER = "command"` 를 
 그 스크립트의 출력 계약은 `kernel/analyzers/command.py` 헤더를 따른다.
 필요한 도구는 `python -X utf8 harness_install.py --doctor` 가 팩의 `REQUIRES` 로 보고한다.
 설치는 사용자가 동의한 것만 하고, 하네스 본체 개발에는 아무것도 설치하지 않는다.
-`python -X utf8 -m kernel.pack_check <이름>` 에 `[미검증]` 이 없어야 끝난다.
+`python -X utf8 -m kernel.pack_check <이름>` 에 `[UNVERIFIED]` 가 없어야 끝난다.
 무엇이 1급이고 무엇이 N/A 인지와 그 이유를 사용자에게 사람 말로 보고한다.
 
 ## 첫 분류와 승인

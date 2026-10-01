@@ -204,7 +204,7 @@ class SharedHookTests(SharedHookFixture):
         payload.pop("session_id")
         result = self.hook("PreToolUse", payload)
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("세션 식별자", result.stderr)
+        self.assertIn("No session id", result.stderr)
 
     def test_approved_component_edit_refreshes_map_without_new_question(self) -> None:
         source = self.root / "approved-change.py"
@@ -267,13 +267,13 @@ class SharedHookTests(SharedHookFixture):
         result = self.hook("PostToolUse", payload, "claude")
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("[WIP]", result.stderr)
-        self.assertIn("레거시", result.stderr)
+        self.assertIn("Legacy path", result.stderr)
         self.assertTrue((work / "harness_trace.jsonl").exists())
         self.assertFalse((self.root / "harness_trace.jsonl").exists())
         codex = self.hook("PostToolUse", payload)
         self.assertEqual(codex.returncode, 0, codex.stderr)
         message = json.loads(codex.stdout)["systemMessage"]
-        self.assertTrue(message.startswith("[WIP]") and "레거시" in message, message)
+        self.assertTrue(message.startswith("[WIP]") and "Legacy path" in message, message)
 
     def test_outside_checkout_is_rejected(self) -> None:
         outside = Path(self.temp.name) / "outside.py"
@@ -281,7 +281,7 @@ class SharedHookTests(SharedHookFixture):
         result = self.hook("PostToolUse", {
             "cwd": str(self.root), "tool_input": {"file_path": str(outside)}})
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("검사 불능", result.stderr)
+        self.assertIn("Check could not run", result.stderr)
 
     def test_legacy_rule_blocks_existing_path(self) -> None:
         self.write_code("harness_profile.py", PROFILE + "LEGACY_PATHS = (('/retired/', '.py'),)\n")
@@ -289,7 +289,7 @@ class SharedHookTests(SharedHookFixture):
         result = self.hook("PostToolUse", {
             "cwd": str(self.root), "tool_input": {"file_path": "retired/old.py"}})
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertIn("레거시", result.stderr)
+        self.assertIn("Legacy path", result.stderr)
         records = (self.root / "harness_trace.jsonl").read_text(encoding="utf-8").splitlines()
         self.assertEqual(json.loads(records[-1])["kind"], "gate")
 
@@ -301,7 +301,7 @@ class SharedHookTests(SharedHookFixture):
         subprocess.run(["git", "init", "-q", str(other)], check=True)
         result = self.hook("Stop", {"cwd": str(other)})
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertIn("검사 불능", result.stderr)
+        self.assertIn("Check could not run", result.stderr)
 
     def test_profile_crash_warns_on_write_and_blocks_stop(self) -> None:
         self.write_code("harness_profile.py", "raise RuntimeError('broken profile')\n")
@@ -311,7 +311,7 @@ class SharedHookTests(SharedHookFixture):
         stop = self.hook("Stop", payload)
         self.assertEqual(write.returncode, 1, write.stderr)
         self.assertEqual(stop.returncode, 2, stop.stderr)
-        self.assertIn("검사 불능", write.stderr)
+        self.assertIn("Check could not run", write.stderr)
         self.assertNotIn("Traceback", write.stderr)
 
     def test_untracked_harness_sources_do_not_create_file_jobs(self) -> None:
@@ -339,7 +339,7 @@ class SharedHookTests(SharedHookFixture):
         stop = self.hook("Stop", payload)
         self.assertEqual(write.returncode, 1, write.stderr)
         self.assertEqual(stop.returncode, 2, stop.stderr)
-        self.assertIn("검사 불능", stop.stderr)
+        self.assertIn("Check could not run", stop.stderr)
 
     def test_configured_shell_commands_from_nested_cwd(self) -> None:
         nested = self.root / "nested"

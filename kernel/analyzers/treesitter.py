@@ -25,7 +25,7 @@ from pathlib import Path
 
 from kernel import facts, lang
 
-MISSING = "tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치"
+MISSING = "tree-sitter not installed — install it in the initial stack setup"
 _GO_MODULE = re.compile(r"^\s*module\s+(\S+)", re.M)
 
 
@@ -87,13 +87,13 @@ def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]
     package = lang.grammar_module(dict(pack)) or f"tree_sitter_{syntax}"   # 팩의 GRAMMAR 가 정본이고, 비우면 구문 이름에서 만든다
     grammar = _grammar(package, syntax)
     if grammar is None:
-        return None, f"tree-sitter-{syntax} 문법 미설치 — 초기 설정의 스택 맞춤에서 설치"
+        return None, f"tree-sitter-{syntax} grammar not installed — install it in the initial stack setup"
     queries = dict(pack.get("QUERIES") or {})   # type: ignore[call-overload]  # lang.load 가 매핑임을 검증했다
     try:
         language = ts.Language(grammar)
         compiled = {kind: _compile(ts, language, str(source)) for kind, source in queries.items()}
     except Exception as exc:     # 어떤 예외형이든 팩 결함이다 — 설치하라고 안내하면 안 된다
-        return None, f"언어팩 {syntax} QUERIES 컴파일 실패: {type(exc).__name__}: {exc}"
+        return None, f"language pack {syntax} QUERIES failed to compile: {type(exc).__name__}: {exc}"
     return Engine(ts, pack, root, language, compiled), ""
 
 
@@ -178,7 +178,7 @@ class Engine:
         root_node = self._parser.parse(source).root_node
         if root_node.has_error:
             # tree-sitter 는 오류를 품고 계속 파싱한다. 반쪽 사실로 판정하면 조용히 빠지는 위반이 생긴다.
-            return facts.FileFacts(rel, module, error="구문 오류 — tree-sitter 가 ERROR 노드를 냈다")
+            return facts.FileFacts(rel, module, error="syntax error — tree-sitter produced an ERROR node")
         return facts.FileFacts(
             rel=rel, module=module,
             functions=self._functions(root_node, source) if "functions" in self._queries else (),

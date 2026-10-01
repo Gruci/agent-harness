@@ -86,7 +86,7 @@ def test_fresh_install_is_green() -> None:
         second = _run([sys.executable, "-X", "utf8", "harness_install.py"], work)
         out = second.stdout.decode("utf-8", "replace")
         assert second.returncode == 0, out
-        assert "설치 검증 완료" in out, "동결 후 검증이 초록불이 아니다:\n" + out
+        assert "Install verified" in out, "동결 후 검증이 초록불이 아니다:\n" + out
         assert (work / "harness_trace.jsonl").read_text(encoding="utf-8").strip() == "", (
             "하네스 레포 자신의 관찰 기록이 새 프로젝트에 딸려갔다")
         assert not (work / "harness_surface.txt").exists(), "하네스 자신의 표면 동결본이 딸려갔다"
@@ -109,9 +109,9 @@ def test_runner_reports_profile_shape() -> None:
         with (fixture / "harness_profile.py").open("a", encoding="utf-8") as out:
             out.write('\nLAYER = {"read": "db/reads"}\nSCOPE = {"exclude_all": "tests/"}\n')
         output = run_golden.capture(REPO / "kernel", fixture=fixture)
-    assert "[FAIL] 프로파일 형식 (profile_shape)" in output, output
-    assert "모르는 설정 이름 LAYER" in output, output
-    assert "SCOPE['exclude_all'] 는 튜플이어야 한다" in output, output
+    assert "[FAIL] Profile format (profile_shape)" in output, output
+    assert "unknown setting LAYER" in output, output
+    assert "SCOPE['exclude_all'] must be a tuple" in output, output
 
 
 def test_harness_map_catches_ghost_rows() -> None:
@@ -296,7 +296,7 @@ def test_file_mode_prints_no_global_reports() -> None:
     """정본 MD 하나의 작성 시점 검사에 전역 REPORT(경로 참조·stale 노드)가 섞이지 않는다."""
     done = subprocess.run([sys.executable, "-X", "utf8", "-m", "kernel.runner", "--file", "dev/LESSONS.md"],
                           cwd=str(REPO), capture_output=True, text=True, encoding="utf-8")
-    assert "실존하지 않는 경로 참조" not in done.stdout and "revision 이후 바뀜" not in done.stdout, done.stdout
+    assert "reference to a nonexistent path" not in done.stdout and "revision 이후 바뀜" not in done.stdout, done.stdout
 
 
 def demo() -> None:

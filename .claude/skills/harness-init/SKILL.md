@@ -158,8 +158,8 @@ python -X utf8 harness_install.py --doctor
 | 팩 확보 | 커널 탑재 팩이 있으면 쓴다. 없으면 `profiles/lang/_template.py`·`profiles/framework/_template.py` 를 복사해 `profiles/lang/<이름>.py`·`profiles/framework/<이름>.py` 로 만들고 쿼리·패턴·FIXTURES 까지 채운다 |
 | 분석기 선택 | tree-sitter 를 설치할 수 있으면 `ANALYZER = "treesitter"` 다. 설치하지 않겠다면 `ANALYZER = "command"` 로 두고, 그 언어 자신의 도구로 FileFacts JSON 을 내는 스크립트를 만든다. 계약은 `kernel/analyzers/command.py` 헤더다 |
 | 설치 제안 | `--doctor` 가 `REQUIRES` 중 없는 것만 설치 안내와 함께 보고한다. 사용자가 동의한 것만 설치한다 |
-| 1급 판정 | `python -X utf8 -m kernel.pack_check <이름>` 이 `[미검증] 0` 이 될 때까지 팩을 고친다 |
-| 보고 | 무엇이 `[1급]` 이고 무엇이 `[N/A]` 이며 왜 그런지 사람 말로 알린다. `[미검증]` 이 남았으면 어느 검사가 안 지켜지는지 말한다. 조용히 끝내지 않는다 |
+| 1급 판정 | `python -X utf8 -m kernel.pack_check <이름>` 이 `[UNVERIFIED] 0` 이 될 때까지 팩을 고친다 |
+| 보고 | 무엇이 `[VERIFIED]` 이고 무엇이 `[N/A]` 이며 왜 그런지 사람 말로 알린다. `[UNVERIFIED]` 가 남았으면 어느 검사가 안 지켜지는지 말한다. 조용히 끝내지 않는다 |
 
 ## 5. 첫 분류를 제안한다
 

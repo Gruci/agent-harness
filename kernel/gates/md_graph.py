@@ -87,7 +87,7 @@ def check_md_path_refs() -> list[str]:
                     if skip_prefix and token.startswith(skip_prefix):
                         continue
                     if not _ref_exists(token, md.parent):
-                        bad.append(f"{rel_md}:{i}: 실존하지 않는 경로 참조 `{token}`")
+                        bad.append(f"{rel_md}:{i}: reference to a nonexistent path `{token}`")
     return bad
 
 
@@ -135,9 +135,9 @@ def _sync_int_consts(doc: Path, code: Path, marker: str) -> list[str]:
         numbers = {int(n) for n in _NUMBER.findall(line)}
         for name in names:
             if name not in consts:
-                bad.append(f"{rel_doc}:{i}: 문서가 참조한 {name} 가 {_rel(code)} 에 없음")
+                bad.append(f"{rel_doc}:{i}: {name} cited by the doc is not in {_rel(code)}")
             elif numbers and consts[name] not in numbers:
-                bad.append(f"{rel_doc}:{i}: {name}={consts[name]} 인데 문서 값 {sorted(numbers)} 불일치")
+                bad.append(f"{rel_doc}:{i}: {name}={consts[name]} but the doc says {sorted(numbers)}")
     return bad
 
 
@@ -154,9 +154,9 @@ def _sync_env_keys(doc: Path, code: Path, section: str, allow: tuple[str, ...]) 
             if line.strip().startswith("## "):
                 break
             doc_keys.update(_UPPER_TOKEN.findall(line.split("#", 1)[0]))
-    bad = [f"{_rel(code)} 가 읽는 '{k}' 가 {_rel(doc)} 목록에 없음"
+    bad = [f"'{k}' read by {_rel(code)} is not listed in {_rel(doc)}"
            for k in sorted(code_keys - doc_keys)]
-    bad += [f"{_rel(doc)} 의 '{k}' 를 {_rel(code)} 가 읽지 않음(타 모듈 로드 가능 — 확인)"
+    bad += [f"'{k}' in {_rel(doc)} is not read by {_rel(code)} (another module may load it — check)"
             for k in sorted(doc_keys - code_keys - set(allow))]
     return bad
 
@@ -182,7 +182,7 @@ def check_doc_sync(entry: dict[str, object]) -> list[str]:
     if kind == "env_keys":
         return _sync_env_keys(doc, code, str(entry.get("section", "")),
                               tuple(entry.get("allow", ())))   # type: ignore[arg-type]
-    return [f"{_rel(doc)}: 알 수 없는 대조 종류 '{kind}' — 프로파일 DOC_SYNC 확인"]
+    return [f"{_rel(doc)}: unknown sync kind '{kind}' — check the profile DOC_SYNC"]
 
 
 # ── 고아 MD ────────────────────────────────────────────────────────────────────
@@ -227,15 +227,17 @@ def check_md_orphans() -> list[str]:
             if target not in reachable:
                 reachable.add(target)
                 frontier.append(target)
-    return [f"{rel}: 고아 — 허브에서 도달 불가. 라우팅표에 등재하거나 폐기하라"
+    return [f"{rel}: orphan — not reachable from a hub. Add it to a routing table or delete it"
             for rel in sorted(known - reachable)]
 
 
 # ── 하네스 지도 ────────────────────────────────────────────────────────────────
 
+_LABEL = {"훅": "hook", "에이전트": "agent", "스킬": "skill"}  # ko-ok: section names in dev/HARNESS.md → output label
+
 
 def _harness_actuals() -> dict[str, set[str]]:
-    actual: dict[str, set[str]] = {"훅": set(), "에이전트": set(), "스킬": set()}
+    actual: dict[str, set[str]] = {"훅": set(), "에이전트": set(), "스킬": set()}  # ko-ok: section names in dev/HARNESS.md
     settings = ROOT / ".claude" / "settings.json"
     if settings.exists():
         raw = json.loads(settings.read_text(encoding=READ_ENC))
@@ -247,13 +249,13 @@ def _harness_actuals() -> dict[str, set[str]]:
                         # 안내 문구가 섞여 있어(`harness_install.py 를 돌려라`) 파일명처럼
                         # 생긴 문자열이 다 잡히면 지도에 없는 유령 훅이 계속 생긴다.
                         if (ROOT / token).is_file() and token.startswith(".claude/"):
-                            actual["훅"].add(Path(token).name)
+                            actual["훅"].add(Path(token).name)  # ko-ok: section name in dev/HARNESS.md
     agents = ROOT / ".claude" / "agents"
     if agents.is_dir():
-        actual["에이전트"] = {p.stem for p in agents.glob("*.md")}
+        actual["에이전트"] = {p.stem for p in agents.glob("*.md")}  # ko-ok: section name in dev/HARNESS.md
     skills = ROOT / ".claude" / "skills"
     if skills.is_dir():
-        actual["스킬"] = {p.parent.name for p in skills.glob("*/SKILL.md")}
+        actual["스킬"] = {p.parent.name for p in skills.glob("*/SKILL.md")}  # ko-ok: section name in dev/HARNESS.md
     return actual
 
 
@@ -269,7 +271,7 @@ def _map_claims(text: str) -> dict[str, set[str]]:
     훅은 표의 칸 위치가 일정하지 않아 절 안의 백틱 `*.py` 를 전부 본다. 에이전트·스킬은
     표 첫 칸이 이름이라 그 한 토큰만 본다 — 뒤 칸의 설명에 섞인 다른 이름을 배제한다.
     """
-    claims: dict[str, set[str]] = {"훅": set(), "에이전트": set(), "스킬": set()}
+    claims: dict[str, set[str]] = {"훅": set(), "에이전트": set(), "스킬": set()}  # ko-ok: section names in dev/HARNESS.md
     section = ""
     for line in text.splitlines():
         if line.startswith("## "):
@@ -278,7 +280,7 @@ def _map_claims(text: str) -> dict[str, set[str]]:
         if not section or not line.startswith("|"):
             continue
         tokens = _BACKTICK.findall(line)
-        if section == "훅":
+        if section == "훅":  # ko-ok: section name in dev/HARNESS.md
             claims[section].update(t for t in tokens if _HOOK_FILE.fullmatch(t))
         elif tokens and _ITEM_NAME.fullmatch(tokens[0]):
             claims[section].add(tokens[0])
@@ -300,9 +302,9 @@ def check_harness_map() -> list[str]:
         return []
     doc = ROOT / profile.HARNESS_MAP
     if not doc.exists():
-        return [f"{profile.HARNESS_MAP} 없음 — 하네스 지도가 정본이다"]
+        return [f"{profile.HARNESS_MAP} missing — the harness map is the source of truth"]
     text = doc.read_text(encoding=READ_ENC)
-    bad = [f"{profile.HARNESS_MAP}: {kind} '{name}' 이 지도에 없음 — 같은 턴에 등재하라"
+    bad = [f"{profile.HARNESS_MAP}: {_LABEL[kind]} '{name}' is not in the map — add it in the same turn"
            for kind, names in actuals.items() for name in sorted(names) if name not in text]
     live = {Path(rel).name for rel in _tracked_set()}
     return bad + [f"{profile.HARNESS_MAP}: {msg}" for msg in _map_ghosts(text, actuals, live)]
@@ -310,7 +312,7 @@ def check_harness_map() -> list[str]:
 
 def _map_ghosts(text: str, actuals: dict[str, set[str]], live: set[str]) -> list[str]:
     """지도에만 남은 이름. `live` 는 레포에 실존하는 파일 basename 집합이다."""
-    return [f"{kind} '{name}' 은 지도에만 있음 — 실물이 없다. 행을 지워라"
+    return [f"{_LABEL[kind]} '{name}' exists only in the map — no such file. Delete the row"
             for kind, names in _map_claims(text).items()
             for name in sorted(names - actuals[kind]) if name not in live]
 
@@ -406,5 +408,5 @@ def check_md_fn_refs() -> list[str]:
     if not sites:
         return []
     defined = _defined_names(sorted({name for name, _ in sites}))
-    return [f"{where}: 실존하지 않는 함수 참조 `{name}()` — 개명했으면 MD 도 같은 턴에 고친다"
+    return [f"{where}: reference to a nonexistent function `{name}()` — if renamed, fix the MD in the same turn"
             for name, where in sites if name not in defined]

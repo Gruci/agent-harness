@@ -1,138 +1,138 @@
 exit=2
-[REPORT] DEVGUIDE.md: ⑬e 날짜 태그 6개 — 성분 D 의심(경위는 dev/LESSONS.md 로)
-[OK]   프로파일 형식
+[REPORT] DEVGUIDE.md: ⑬e 6 date tags — suspected element D (move incident history to dev/LESSONS.md)
+[OK]   Profile format
 
-[FAIL] 파일 길이 상한 (line_limit) — 1건
-   - utils/long_report.py: 401줄 (>400)
+[FAIL] File length limit (line_limit) — 1 found
+   - utils/long_report.py: 401 lines (>400)
 
-[FAIL] 헤더 경로 주석 (header_path) — 1건
-   - utils/moved.py: 헤더 주석 'utils/old_name.py' ≠ 실경로 — 주석을 실경로로 갱신
+[FAIL] Header path comment (header_path) — 1 found
+   - utils/moved.py: header comment 'utils/old_name.py' ≠ actual path — update the comment to the actual path
 
-[FAIL] 중첩 def(클로저) (closures) — 1건
-   - utils/closure.py:5: 중첩 def outer > inner (불가피하면 `# closure-ok: 사유`)
+[FAIL] Nested def (closure) (closures) — 1 found
+   - utils/closure.py:5: nested def outer > inner (if unavoidable, `# closure-ok: reason`)
 
-[FAIL] 함수 길이 상한 (func_limit) — 1건
-   - utils/long_func.py:4: long_calc 82줄 (>80)
+[FAIL] Function length limit (func_limit) — 1 found
+   - utils/long_func.py:4: long_calc 82 lines (>80)
 
-[FAIL] TYPE_CHECKING↔future annotations 짝 (type_checking_future) — 1건
-   - utils/tc_future.py: TYPE_CHECKING 블록이 있는데 `from __future__ import annotations` 가 없다 — 3.11 은 어노테이션을 즉시 평가해 NameError
+[FAIL] TYPE_CHECKING↔future annotations pair (type_checking_future) — 1 found
+   - utils/tc_future.py: TYPE_CHECKING block without `from __future__ import annotations` — 3.11 evaluates annotations eagerly and raises NameError
 
-[FAIL] 축약 이름 단독 대입 (abbrev_names) — 1건
-   - utils/abbrev.py:3: 축약어 변수 net — net = 0
+[FAIL] Bare abbreviated names (abbrev_names) — 1 found
+   - utils/abbrev.py:3: abbreviated variable net — net = 0
 
-[FAIL] 축약 접두 식별자 (abbrev_prefixes) — 1건
-   - utils/abbrev.py:4: 축약 접두 oper_ — oper_income = 1
+[FAIL] Abbreviated identifier prefixes (abbrev_prefixes) — 1 found
+   - utils/abbrev.py:4: abbreviated prefix oper_ — oper_income = 1
 
-[FAIL] UI 라벨 금칙어 (ui_jargon) — 1건
-   - frontend/src/Label.tsx:1: UI 금칙어 '순신고가' — export const title = "순신고가";
+[FAIL] Banned UI label words (ui_jargon) — 1 found
+   - frontend/src/Label.tsx:1: banned UI term '순신고가' — export const title = "순신고가";
 
-[FAIL] Any 타입힌트 (py_any) — 1건
-   - utils/anyhint.py:5: 임의 타입 → 구체 타입 (불가피하면 `# any-ok: 사유`)
+[FAIL] Any type hints (py_any) — 1 found
+   - utils/anyhint.py:5: arbitrary type → concrete type (if unavoidable, `# any-ok: reason`)
 
-[FAIL] 공개 함수 타입힌트 (type_hints) — 11건
-   - db/conn_loop.py:4: agg() 타입힌트 누락 — 반환
-   - db/reads/bad_write.py:4: wipe() 타입힌트 누락 — conn, 반환
-   - db/reads/core_import.py:5: rows() 타입힌트 누락 — 반환
-   - kofia/collect.py:4: collect() 타입힌트 누락 — 반환
-   - utils/closure.py:4: outer() 타입힌트 누락 — 반환
-   - utils/closure.py:10: wrapped() 타입힌트 누락 — 반환
-   - utils/closure.py:5: inner() 타입힌트 누락 — 반환
-   - utils/closure.py:11: keeper() 타입힌트 누락 — 반환
-   - utils/ssl_utils.py:4: bypass_ssl_verification() 타입힌트 누락 — 반환
-   - web/handlers.py:4: ping() 타입힌트 누락 — 반환
-   - web/routes/errors.py:4: fail() 타입힌트 누락 — 반환
+[FAIL] Public function type hints (type_hints) — 11 found
+   - db/conn_loop.py:4: agg() missing type hints — return
+   - db/reads/bad_write.py:4: wipe() missing type hints — conn, return
+   - db/reads/core_import.py:5: rows() missing type hints — return
+   - kofia/collect.py:4: collect() missing type hints — return
+   - utils/closure.py:4: outer() missing type hints — return
+   - utils/closure.py:10: wrapped() missing type hints — return
+   - utils/closure.py:5: inner() missing type hints — return
+   - utils/closure.py:11: keeper() missing type hints — return
+   - utils/ssl_utils.py:4: bypass_ssl_verification() missing type hints — return
+   - web/handlers.py:4: ping() missing type hints — return
+   - web/routes/errors.py:4: fail() missing type hints — return
 
-[FAIL] 시크릿 토큰 하드코딩 (secrets) — 1건
-   - batches/leak.py:3: 시크릿 토큰 하드코딩 — 설정 모듈 경유로 옮기고, 이미 커밋됐다면 키를 회전하라
-[TOOL] TS any 타입 — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
+[FAIL] Hardcoded secret tokens (secrets) — 1 found
+   - batches/leak.py:3: hardcoded secret token — move it behind the settings module; if already committed, rotate the key
+[TOOL] TS any type — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
 
-[FAIL] 설정 밖 환경변수 조회 (env_access) — 1건
-   - utils/env.py:4: settings.py 밖에서 환경변수 조회 — TOKEN = os.getenv("TOKEN")
-[OK]   await 없는 async 핸들러
+[FAIL] Env var reads outside settings (env_access) — 1 found
+   - utils/env.py:4: environment variable read outside settings.py — TOKEN = os.getenv("TOKEN")
+[OK]   Async handler without await
 
-[FAIL] 전역 SSL 패치 호출 위치 (ssl_bypass) — 1건
-   - web/patch.py:4: 전역 SSL 패치를 진입점 밖에서 호출 — bypass_ssl_verification()
+[FAIL] Global SSL patch call site (ssl_bypass) — 1 found
+   - web/patch.py:4: global SSL patch called outside an entry point — bypass_ssl_verification()
 
-[FAIL] 라우트 에러 응답 형식 (routes_error) — 1건
-   - web/routes/errors.py:5: 에러를 JSONResponse(status 404) 로 반환 — 예외로 올려라
-[TOOL] 공용 래퍼 없는 fetch — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
-[TOOL] 프론트 색 리터럴 — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
-[TOOL] 폰을 깨뜨리는 고정 폭 — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
-[TOOL] 브라우저 API 직접 호출 — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
-[TOOL] 해시 네비게이션 단일 기전 — frontend/node_modules/.bin/eslint 없음 — 설치: npm i -D eslint @typescript-eslint/parser typescript
+[FAIL] Route error response format (routes_error) — 1 found
+   - web/routes/errors.py:5: error returned as JSONResponse(status 404) — raise an exception instead
+[TOOL] fetch without the shared wrapper — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
+[TOOL] Frontend color literals — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
+[TOOL] Fixed widths that break phones — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
+[TOOL] Direct browser API calls — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
+[TOOL] Single hash navigation mechanism — frontend/node_modules/.bin/eslint missing — install: npm i -D eslint @typescript-eslint/parser typescript
 
-[FAIL] 프론트 로직 테스트 짝 (ui_logic_tests) — 1건
-   - frontend/src/calcShare.ts: 대응 행동 테스트 없음 — calcShare.test.ts 를 같은 자리에 작성
+[FAIL] Frontend logic test pairs (ui_logic_tests) — 1 found
+   - frontend/src/calcShare.ts: no matching behavior test — write calcShare.test.ts next to it
 
-[FAIL] 프론트 컴포넌트 테스트 짝 (ui_component_tests) — 1건
-   - frontend/src/Label.tsx: 대응 렌더 테스트 없음 — Label.test.tsx 를 같은 자리에 작성
+[FAIL] Frontend component test pairs (ui_component_tests) — 1 found
+   - frontend/src/Label.tsx: no matching render test — write Label.test.tsx next to it
 
-[FAIL] 루트 직속 잡파일 (root_litter) — 2건
-   - notes_dump.txt: 루트 직속 파일 금지 — 읽는 코드의 패키지 안에 두고, 루트가 맞으면 사유와 함께 프로파일 ROOT_FILES 에 등재하라
-   - unclassified.py: 루트 직속 파일 금지 — 읽는 코드의 패키지 안에 두고, 루트가 맞으면 사유와 함께 프로파일 ROOT_FILES 에 등재하라
-[SKIP] 프롬프트 버전 범프 — 설정에 버전 관리 프롬프트 목록을 안 적었음
+[FAIL] Stray files at repo root (root_litter) — 2 found
+   - notes_dump.txt: no files directly under the root — put it in the package of the code that reads it; if the root is right, list it in the profile ROOT_FILES with a reason
+   - unclassified.py: no files directly under the root — put it in the package of the code that reads it; if the root is right, list it in the profile ROOT_FILES with a reason
+[SKIP] Prompt version bump — no versioned prompts set in the profile
 
-[FAIL] 수집·계산 모듈의 행동 테스트 짝 (test_pairing) — 1건
-   - kofia/collect.py: 대응 행동 테스트 없음 — tests/test_collect.py 작성 또는 사유와 함께 test_pairing_baseline.txt 등재
+[FAIL] Behavior test pairs for collect/compute modules (test_pairing) — 1 found
+   - kofia/collect.py: no matching behavior test — write tests/test_collect.py or list it in test_pairing_baseline.txt with a reason
 
-[FAIL] DDL 저장 타입 잘림 (ddl_types) — 1건
-   - db/schema/tables.py:5: amount REAL — DOUBLE PRECISION(실수)·BIGINT(정수)·NUMERIC(고정소수) 중 하나로. float4 는 2^24 초과 정수를 못 담는다
+[FAIL] Lossy DDL storage types (ddl_types) — 1 found
+   - db/schema/tables.py:5: amount REAL — use DOUBLE PRECISION (real), BIGINT (integer) or NUMERIC (fixed-point). float4 cannot hold integers above 2^24
 
-[FAIL] API 응답 배열 필드 옵셔널 (api_array) — 1건
-   - frontend/src/types/api.ts:items: API 응답 타입의 배열 필드는 옵셔널(`?`)로 — 백엔드 배포가 늦으면 undefined 로 도착해 소비처가 크래시한다. 필수로 둬야 하면 baseline 에 등재
+[FAIL] Optional array fields in API responses (api_array) — 1 found
+   - frontend/src/types/api.ts:items: make array fields in API response types optional (`?`) — if the backend deploys late they arrive as undefined and consumers crash. If it must be required, list it in the baseline
 
-[FAIL] 소비 UI 없는 API 라우트 (orphan_api) — 1건
-   - web/routes/orphan.py:9: `/api/nobody-consumes-this` — 소비하는 화면 코드가 없다. 컴포넌트까지가 한 단위다
+[FAIL] API routes without a consuming UI (orphan_api) — 1 found
+   - web/routes/orphan.py:9: `/api/nobody-consumes-this` — no UI code consumes it. A route is done only when its component exists
 
-[FAIL] 미정의 모듈 상수 (undefined_const) — 1건
-   - utils/stale_const.py:6: 미정의 모듈 상수 DEFAULT_LIMIT — 개명·삭제에서 소비처를 놓쳤다. 호출 시점 NameError 가 된다
+[FAIL] Undefined module constants (undefined_const) — 1 found
+   - utils/stale_const.py:6: undefined module constant DEFAULT_LIMIT — a rename or delete missed a consumer. It raises NameError when called
 
-[FAIL] 선언 본문 중복(정본 재구현) (dup_decl) — 1건
-   - utils/money_a.py:4: 선언 본문 동일(signed_won/won_signed) — 파일 2개가 같은 구현을 들고 있다. 공용 모듈로 뽑고 한 벌만 남긴다. 위치: utils/money_a.py:4, utils/money_b.py:4
-[OK]   블록 중복(선언 안 복붙)
+[FAIL] Duplicate declaration bodies (reimplementation) (dup_decl) — 1 found
+   - utils/money_a.py:4: identical declaration body (signed_won/won_signed) — 2 files carry the same implementation. Move it to a shared module and keep one copy. At: utils/money_a.py:4, utils/money_b.py:4
+[OK]   Duplicate blocks (copy-paste in declarations)
 
-[FAIL] MD 작성 규칙 (md_style) — 4건
-   - DESIGN_GUIDE.md:5: ⑬a 코드펜스 트리 덤프 — 파일 목록의 정본은 Glob
-   - README.md:7: ⑬b 한 줄에 설명 붙은 나열 7개 — 표나 불릿으로 쪼개라
-   - README.md:9: ⑬c 괄호 3중 중첩 — 문장을 다시 써라
-   - notes/GUIDE.md:1: ⑬d 머리 역할 계약 누락 — `> 담는 것: … 담지 않는 것: … 읽는 시점: …`
+[FAIL] MD writing rules (md_style) — 4 found
+   - DESIGN_GUIDE.md:5: ⑬a tree dump in a code fence — Glob is the source of truth for file lists
+   - README.md:7: ⑬b 7 described items on one line — split into a table or bullets
+   - README.md:9: ⑬c parentheses nested 3 deep — rewrite the sentence
+   - notes/GUIDE.md:1: ⑬d header role contract missing — `> 담는 것: … 담지 않는 것: … 읽는 시점: …`
 
-[FAIL] MD 경로 참조 실존 (md_path_refs) — 1건
-   - AGENTS.md:5: 실존하지 않는 경로 참조 `db/reads/gone.py`
+[FAIL] MD path references exist (md_path_refs) — 1 found
+   - AGENTS.md:5: reference to a nonexistent path `db/reads/gone.py`
 
-[FAIL] 고아 MD(허브 도달 불가) (md_orphans) — 1건
-   - notes/GUIDE.md: 고아 — 허브에서 도달 불가. 라우팅표에 등재하거나 폐기하라
+[FAIL] Orphan MD (unreachable from hubs) (md_orphans) — 1 found
+   - notes/GUIDE.md: orphan — not reachable from a hub. Add it to a routing table or delete it
 
-[FAIL] 하네스 지도 대조 (md_harness_map) — 1건
-   - HARNESS.md: 스킬 'runbook' 이 지도에 없음 — 같은 턴에 등재하라
+[FAIL] Harness map match (md_harness_map) — 1 found
+   - HARNESS.md: skill 'runbook' is not in the map — add it in the same turn
 
-[FAIL] 에이전트 모델 정책 (agent_model) — 2건
-   - .claude/agents/auditor.md: model 'sonnet' ≠ 정책 'opus' — 라우팅을 바꾼 거면 프로파일을 같은 커밋에 고쳐라
-   - .claude/agents/auditor.md: effort 'medium' ≠ 정책 'high' — 판단 상향·하향이면 정책을 같은 커밋에 고쳐라
+[FAIL] Agent model policy (agent_model) — 2 found
+   - .claude/agents/auditor.md: model 'sonnet' ≠ policy 'opus' — if you changed the routing, fix the profile in the same commit
+   - .claude/agents/auditor.md: effort 'medium' ≠ policy 'high' — if you raised or lowered effort, fix the policy in the same commit
 
-[FAIL] 사고 절 승격 상태 (lessons_promotion) — 1건
-   - dev/LESSONS.md:5: §1 에 `> 강제:` 선언이 없다 — 게이트를 적거나 `산문 전용 — 사유` 로 적어라
-[OK]   MD 함수 참조 실존
+[FAIL] Incident promotion status (lessons_promotion) — 1 found
+   - dev/LESSONS.md:5: §1 has no `> 강제:` declaration — name a gate or write `산문 전용 — <reason>`
+[OK]   MD function references exist
 
-[FAIL] 문서↔코드 대조(DEVGUIDE.md↔batch_runner.py) (doc_sync:DEVGUIDE.md) — 1건
-   - DEVGUIDE.md:9: BATCH_HOUR=5 인데 문서 값 [0, 3] 불일치
+[FAIL] Doc↔code match (DEVGUIDE.md↔batch_runner.py) (doc_sync:DEVGUIDE.md) — 1 found
+   - DEVGUIDE.md:9: BATCH_HOUR=5 but the doc says [0, 3]
 
-[FAIL] 문서↔코드 대조(DEVGUIDE.md↔settings.py) (doc_sync:DEVGUIDE.md) — 2건
-   - settings.py 가 읽는 'ALPHA_KEY' 가 DEVGUIDE.md 목록에 없음
-   - DEVGUIDE.md 의 'BETA_KEY' 를 settings.py 가 읽지 않음(타 모듈 로드 가능 — 확인)
-[OK]   컴포넌트 그래프 서식
+[FAIL] Doc↔code match (DEVGUIDE.md↔settings.py) (doc_sync:DEVGUIDE.md) — 2 found
+   - 'ALPHA_KEY' read by settings.py is not listed in DEVGUIDE.md
+   - 'BETA_KEY' in DEVGUIDE.md is not read by settings.py (another module may load it — check)
+[OK]   Component graph format
 
-[FAIL] 컴포넌트 분류 (component_classification) — 1건
+[FAIL] Component classification (component_classification) — 1 found
    - unclassified.py: unclassified source; needs_decision
-[OK]   그래프 사용자 결정
+[OK]   Graph user decisions
 
-[FAIL] 공개 계약과 의존 방향 (component_dependencies) — 3건
+[FAIL] Public contracts and dependency direction (component_dependencies) — 3 found
    - utils/env.py:2: external dependency os is not allowed for policy
    - utils/tc_future.py:5: external dependency pathlib is not allowed for policy
    - web/patch.py:2: private module bypass utils.ssl_utils
-[TOOL] 컴포넌트 구문 분석 — db/reads/core_import.py:2: unresolved local import db.core; frontend/src/Consumer.test.tsx: Python analyzer cannot inspect this source; frontend/src/Consumer.tsx: Python analyzer cannot inspect this source; frontend/src/Fixed.test.tsx: Python analyzer cannot inspect this source; frontend/src/Fixed.tsx: Python analyzer cannot inspect this source; frontend/src/HashNav.test.tsx: Python analyzer cannot inspect this source; frontend/src/HashNav.tsx: Python analyzer cannot inspect this source; frontend/src/Hex.test.tsx: Python analyzer cannot inspect this source; frontend/src/Hex.tsx: Python analyzer cannot inspect this source; frontend/src/Label.tsx: Python analyzer cannot inspect this source; frontend/src/RawFetch.test.tsx: Python analyzer cannot inspect this source; frontend/src/RawFetch.tsx: Python analyzer cannot inspect this source; frontend/src/Storage.test.tsx: Python analyzer cannot inspect this source; frontend/src/Storage.tsx: Python analyzer cannot inspect this source; frontend/src/anyts.ts: Python analyzer cannot inspect this source; frontend/src/calcShare.ts: Python analyzer cannot inspect this source; frontend/src/platform.test.ts: Python analyzer cannot inspect this source; frontend/src/platform.ts: Python analyzer cannot inspect this source; frontend/src/types/api.ts: Python analyzer cannot inspect this source; unclassified.py: dependency owner unresolved
-[SKIP] 기능 지도 대조 — resolve graph decisions first
-[OK]   선언 포트의 실행 계약
-[OK]   포트 계약 실행 환경
+[TOOL] Component syntax analysis — db/reads/core_import.py:2: unresolved local import db.core; frontend/src/Consumer.test.tsx: Python analyzer cannot inspect this source; frontend/src/Consumer.tsx: Python analyzer cannot inspect this source; frontend/src/Fixed.test.tsx: Python analyzer cannot inspect this source; frontend/src/Fixed.tsx: Python analyzer cannot inspect this source; frontend/src/HashNav.test.tsx: Python analyzer cannot inspect this source; frontend/src/HashNav.tsx: Python analyzer cannot inspect this source; frontend/src/Hex.test.tsx: Python analyzer cannot inspect this source; frontend/src/Hex.tsx: Python analyzer cannot inspect this source; frontend/src/Label.tsx: Python analyzer cannot inspect this source; frontend/src/RawFetch.test.tsx: Python analyzer cannot inspect this source; frontend/src/RawFetch.tsx: Python analyzer cannot inspect this source; frontend/src/Storage.test.tsx: Python analyzer cannot inspect this source; frontend/src/Storage.tsx: Python analyzer cannot inspect this source; frontend/src/anyts.ts: Python analyzer cannot inspect this source; frontend/src/calcShare.ts: Python analyzer cannot inspect this source; frontend/src/platform.test.ts: Python analyzer cannot inspect this source; frontend/src/platform.ts: Python analyzer cannot inspect this source; frontend/src/types/api.ts: Python analyzer cannot inspect this source; unclassified.py: dependency owner unresolved
+[SKIP] Feature map match — resolve graph decisions first
+[OK]   Runtime contracts of declared ports
+[OK]   Port contract runtime tools
 
-필수 검사 미검증 — 완료로 처리할 수 없다.
+Required checks unverified — cannot be treated as done.

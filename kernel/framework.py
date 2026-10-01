@@ -35,7 +35,7 @@ from kernel.lang import find_pack, list_packs, run_pack, valid_requires
 
 SHIPPED_DIR = Path(__file__).resolve().parent / "frameworks"
 PROJECT_DIR = "profiles/framework"
-KIND = "프레임워크팩"
+KIND = "framework pack"
 
 ROLES = ("server", "ui")
 # 게이트(kernel/gates/layers.py)가 구현한 판정 방식. 팩은 이 중 하나만 고른다.
@@ -70,32 +70,32 @@ def _is_str_seq(value: object) -> bool:
 def _check_server(pack: dict[str, Any], name: str) -> None:
     pattern = pack["ROUTE_PATTERN"]
     if not isinstance(pattern, str) or not pattern:
-        raise ValueError(f"{KIND} ROUTE_PATTERN 은 정규식 문자열이어야 함: {name}")
+        raise ValueError(f"{KIND} ROUTE_PATTERN must be a regex string: {name}")
     try:
         groups = re.compile(pattern).groups
     except re.error as exc:
-        raise ValueError(f"{KIND} ROUTE_PATTERN 이 정규식이 아님: {name}: {exc}") from exc
+        raise ValueError(f"{KIND} ROUTE_PATTERN is not a valid regex: {name}: {exc}") from exc
     if groups < 1:
-        raise ValueError(f"{KIND} ROUTE_PATTERN 은 경로를 그룹 1 로 잡아야 함: {name}")
+        raise ValueError(f"{KIND} ROUTE_PATTERN must capture the path in group 1: {name}")
     if pack["ASYNC_HANDLER"] is not None and pack["ASYNC_HANDLER"] not in ASYNC_HANDLERS:
-        raise ValueError(f"{KIND} ASYNC_HANDLER 는 {' '.join(ASYNC_HANDLERS)} 중 하나여야 함: {name}")
+        raise ValueError(f"{KIND} ASYNC_HANDLER must be one of {' '.join(ASYNC_HANDLERS)}: {name}")
     if not _is_str_seq(pack["STREAM_RETURNS"]):
-        raise ValueError(f"{KIND} STREAM_RETURNS 는 타입 이름 목록이어야 함: {name}")
+        raise ValueError(f"{KIND} STREAM_RETURNS must be a list of type names: {name}")
     kwarg = pack["ERROR_STATUS_KWARG"]
     if kwarg is not None and (not isinstance(kwarg, str) or not kwarg):
-        raise ValueError(f"{KIND} ERROR_STATUS_KWARG 는 키워드 이름이거나 None 이어야 함: {name}")
+        raise ValueError(f"{KIND} ERROR_STATUS_KWARG must be a keyword name or None: {name}")
 
 
 def _check_ui(pack: dict[str, Any], name: str) -> None:
     if not _is_str_seq(pack["UI_EXT"]) or not pack["UI_EXT"]:
-        raise ValueError(f"{KIND} UI_EXT 는 화면 소스 패턴 목록이어야 함: {name}")
+        raise ValueError(f"{KIND} UI_EXT must be a list of UI source patterns: {name}")
     parser = pack["ESLINT_PARSER"]
     if not isinstance(parser, str) or not parser:
-        raise ValueError(f"{KIND} ESLINT_PARSER 는 파서 패키지 이름이어야 함: {name}")
+        raise ValueError(f"{KIND} ESLINT_PARSER must be a parser package name: {name}")
     if not isinstance(pack["PARSER_OPTIONS"], dict):
-        raise ValueError(f"{KIND} PARSER_OPTIONS 는 매핑이어야 함: {name}")
+        raise ValueError(f"{KIND} PARSER_OPTIONS must be a mapping: {name}")
     if not isinstance(pack["ESLINT_INSTALL"], str):
-        raise ValueError(f"{KIND} ESLINT_INSTALL 은 설치 명령 문자열이어야 함: {name}")
+        raise ValueError(f"{KIND} ESLINT_INSTALL must be an install command string: {name}")
     if not pack["ESLINT_INSTALL"]:
         pack["ESLINT_INSTALL"] = f"npm i -D eslint {parser}"
 
@@ -105,16 +105,16 @@ def load_one(name: str) -> dict[str, Any]:
     module = run_pack(KIND, SHIPPED_DIR, ROOT / PROJECT_DIR, name)
     role = getattr(module, "ROLE", None)
     if role not in ROLES:
-        raise ValueError(f"{KIND} ROLE 은 {' '.join(ROLES)} 중 하나여야 함: {name}")
+        raise ValueError(f"{KIND} ROLE must be one of {' '.join(ROLES)}: {name}")
     defaults = _SERVER_DEFAULTS if role == "server" else _UI_DEFAULTS
     pack: dict[str, Any] = {"NAME": name, "ROLE": role, **defaults}
     for key in defaults:
         if hasattr(module, key):
             pack[key] = getattr(module, key)
     if not isinstance(pack["FIXTURES"], dict):
-        raise ValueError(f"{KIND} FIXTURES 는 매핑이어야 함: {name}")
+        raise ValueError(f"{KIND} FIXTURES must be a mapping: {name}")
     if not valid_requires(pack["REQUIRES"]):
-        raise ValueError(f"{KIND} REQUIRES 는 name·check(명령 목록)·install 을 가진 매핑 목록이어야 함: {name}")
+        raise ValueError(f"{KIND} REQUIRES must list mappings of name, check (command list), install: {name}")
     if role == "server":
         _check_server(pack, name)
     else:
@@ -129,6 +129,6 @@ def load(names: tuple[str, ...]) -> dict[str, dict[str, Any] | None]:
         pack = load_one(name)
         held = packs[pack["ROLE"]]
         if held is not None:
-            raise ValueError(f"{KIND} 역할 {pack['ROLE']} 이 둘: {held['NAME']} · {name} — 역할별로 하나만 고른다")
+            raise ValueError(f"{KIND} role {pack['ROLE']} chosen twice: {held['NAME']} · {name} — pick one per role")
         packs[pack["ROLE"]] = pack
     return packs

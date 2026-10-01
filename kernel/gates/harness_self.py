@@ -26,8 +26,8 @@ _FM_EFFORT = re.compile(r"^effort:\s*(\S+)\s*$", re.M)
 
 _GATE_ROW = re.compile(r"^\|\s*([\d·~\s]+)\s*\|")
 _LESSON_HEADING = re.compile(r"^##\s+§(\d+)\s")
-_LESSON_ENFORCE = re.compile(r"^>\s*강제:\s*(.+?)\s*$")
-_LESSON_GATE_REF = re.compile(r"검사\s*([\d·~\s]+)")
+_LESSON_ENFORCE = re.compile(r"^>\s*강제:\s*(.+?)\s*$")   # ko-ok: parses the Korean key in dev/LESSONS.md
+_LESSON_GATE_REF = re.compile(r"검사\s*([\d·~\s]+)")      # ko-ok: parses the Korean key in dev/LESSONS.md
 
 
 def check_agent_model_policy() -> list[str]:
@@ -40,19 +40,19 @@ def check_agent_model_policy() -> list[str]:
         model, effort = spec
         path = ROOT / AGENTS_DIR / f"{name}.md"
         if not path.exists():
-            bad.append(f"{AGENTS_DIR}/{name}.md 없음 — 정책에 등재됐는데 실물이 없다")
+            bad.append(f"{AGENTS_DIR}/{name}.md missing — listed in the policy but the file does not exist")
             continue
         text = path.read_text(encoding=READ_ENC, errors="replace")
         found_model = _FM_MODEL.search(text)
         found_effort = _FM_EFFORT.search(text)
         if not found_model or found_model.group(1) != model:
-            actual = found_model.group(1) if found_model else "없음"
-            bad.append(f"{AGENTS_DIR}/{name}.md: model {actual!r} ≠ 정책 {model!r} — "
-                       f"라우팅을 바꾼 거면 프로파일을 같은 커밋에 고쳐라")
+            actual = found_model.group(1) if found_model else "none"
+            bad.append(f"{AGENTS_DIR}/{name}.md: model {actual!r} ≠ policy {model!r} — "
+                       f"if you changed the routing, fix the profile in the same commit")
         if not found_effort or found_effort.group(1) != effort:
-            actual = found_effort.group(1) if found_effort else "없음"
-            bad.append(f"{AGENTS_DIR}/{name}.md: effort {actual!r} ≠ 정책 {effort!r} — "
-                       f"판단 상향·하향이면 정책을 같은 커밋에 고쳐라")
+            actual = found_effort.group(1) if found_effort else "none"
+            bad.append(f"{AGENTS_DIR}/{name}.md: effort {actual!r} ≠ policy {effort!r} — "
+                       f"if you raised or lowered effort, fix the policy in the same commit")
     return bad
 
 
@@ -108,18 +108,18 @@ def check_lessons_promotion() -> list[str]:
         section = heading.group(1)
         declared = _declared_enforcement(lines, i)
         if not declared:
-            bad.append(f"{doc_name}:{i + 1}: §{section} 에 `> 강제:` 선언이 없다 — "
-                       f"게이트를 적거나 `산문 전용 — 사유` 로 적어라")
+            bad.append(f"{doc_name}:{i + 1}: §{section} has no `> 강제:` declaration — "  # ko-ok: cites a Korean doc key
+                       f"name a gate or write `산문 전용 — <reason>`")
             continue
-        if "산문 전용" in declared:
-            if not declared.split("산문 전용", 1)[1].strip(" —-"):
-                bad.append(f"{doc_name}:{i + 1}: §{section} 산문 전용에 사유가 없다")
+        if "산문 전용" in declared:  # ko-ok: parses the Korean key in dev/LESSONS.md
+            if not declared.split("산문 전용", 1)[1].strip(" —-"):  # ko-ok: parses the Korean key in dev/LESSONS.md
+                bad.append(f"{doc_name}:{i + 1}: §{section} `산문 전용` has no reason")  # ko-ok: cites a Korean doc key
             continue
         cited = _LESSON_GATE_REF.search(declared)
         if not cited or not mapped:
             continue          # 게이트를 이름으로 선언했거나 지도에 번호 표가 없다
         for token in re.findall(r"\d+", cited.group(1)):
             if int(token) not in mapped:
-                bad.append(f"{doc_name}:{i + 1}: §{section} 이 인용한 검사 {token} 이 "
-                           f"{profile.HARNESS_MAP} 게이트 표에 없다")
+                bad.append(f"{doc_name}:{i + 1}: §{section} cites check {token}, "
+                           f"which is not in the {profile.HARNESS_MAP} gate table")
     return bad

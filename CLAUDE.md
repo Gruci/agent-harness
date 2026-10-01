@@ -188,7 +188,7 @@ Codex도 함께 초기화하는 요청이면 `python -X utf8 setup_global_permis
 
 ## 정비 — 하네스가 때를 알린다
 
-월간 감사류(`md-audit`·`code-audit`·`code-debt`·`review-loop`)는 사용자가 시켜서 도는 게 아니다. SessionStart 훅이 레포에서 마지막 실행 후 커밋 수, 경과일, 바뀐 화면 파일, 남은 `debt:` 표시를 재고, 임계치를 넘으면 `[정비]` 로 알린다. 판정 정본은 `kernel/maintenance.py`이고 임계치는 프로파일의 `MAINTENANCE`가 조정한다.
+월간 감사류(`md-audit`·`code-audit`·`code-debt`·`review-loop`)는 사용자가 시켜서 도는 게 아니다. SessionStart 훅이 레포에서 마지막 실행 후 커밋 수, 경과일, 바뀐 화면 파일, 남은 `debt:` 표시를 재고, 임계치를 넘으면 `[MAINTENANCE]` 로 알린다. 판정 정본은 `kernel/maintenance.py`이고 임계치는 프로파일의 `MAINTENANCE`가 조정한다.
 
 **알림이 뜨면 묻지 말고 실행한다.** 다만 현재 요청을 먼저 끝내고, 그다음 같은 세션에서 돌린다. 전부 보고서만 내고 코드는 고치지 않으므로 승인이 필요 없다. 끝나면 `python -X utf8 -m kernel.maintenance --stamp <이름>`으로 기록하고 `harness_maintenance.json`을 커밋한다 — 기록이 공유돼야 주기가 성립한다.
 

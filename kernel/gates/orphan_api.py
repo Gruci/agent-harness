@@ -82,6 +82,6 @@ def check_orphan_api(py_files: list[Path], ui_files: list[Path]) -> list[str]:
     for rel, number, route in declared:
         if consumed(route, ui_source):
             continue
-        orphans.append(f"{rel}:{number}: `{route}` — 소비하는 화면 코드가 없다. "
-                       f"컴포넌트까지가 한 단위다")
+        orphans.append(f"{rel}:{number}: `{route}` — no UI code consumes it. "
+                       f"A route is done only when its component exists")
     return orphans

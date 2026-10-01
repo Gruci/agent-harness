@@ -45,11 +45,11 @@ Section = tuple[str, str, list[str], "Skip | None"]
 
 LOCAL_PACKAGE = "harness_gates"
 
-NO_PY = "검사할 소스 없음"
-NO_UI = "화면 소스 없음"
+NO_PY = "no source files to check"
+NO_UI = "no UI source files"
 # 웹·화면 게이트는 프레임워크팩의 선언을 읽는다. 팩을 안 고르면 조용히 통과하지 않고 이 사유로 [SKIP] 이다.
-NO_SERVER_PACK = "서버 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다"
-NO_UI_PACK = "화면 프레임워크팩 미선택 — 프로파일 FRAMEWORK 에 적는다"
+NO_SERVER_PACK = "no server framework pack selected — set FRAMEWORK in the profile"
+NO_UI_PACK = "no UI framework pack selected — set FRAMEWORK in the profile"
 
 
 def _print_style_reports(reports: list[str]) -> None:
@@ -71,7 +71,7 @@ def _print_sections(sections: list[Section]) -> int:
             print(f"[{grade:<4}] {title} — {reason}")
         elif violations:
             total += len(violations)
-            print(f"\n[FAIL] {title} ({slug}) — {len(violations)}건")
+            print(f"\n[FAIL] {title} ({slug}) — {len(violations)} found")
             for v in violations:
                 print(f"   - {v}")
         else:
@@ -129,7 +129,7 @@ def _framework_section(slug: str, title: str, check: object, args: tuple,
     if server is None:
         return (slug, title, [], ("SKIP", NO_SERVER_PACK))
     if not server[declares]:
-        return (slug, title, [], ("N/A", f"{server['NAME']}: 이 프레임워크에서 성립하지 않음"))
+        return (slug, title, [], ("N/A", f"{server['NAME']}: does not apply to this framework"))
     return _syntax_section(slug, title, check, args, ok, need, "python")
 
 
@@ -154,11 +154,11 @@ def _linter_sections() -> list[Section]:
 
 
 def _need_layer(name: str) -> str:
-    return f"설정에 {name} 폴더를 안 적었음"
+    return f"no {name} folder set in the profile"
 
 
 def _need_symbol(name: str) -> str:
-    return f"설정에 {name} 이름을 안 적었음"
+    return f"no {name} name set in the profile"
 
 
 def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
@@ -175,68 +175,68 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
 
     return [
         # 맨 앞에 둔다. 프로파일 형식이 틀리면 아래 검사 전부가 대상 0건으로 조용히 통과하기 때문이다.
-        _entry("profile_shape", "프로파일 형식", profile.PROFILE_ERRORS, profile.LOADED,
-               "프로파일 없음"),
-        _entry("line_limit", "파일 길이 상한", core.check_line_limit(files), files, NO_PY),
-        _entry("header_path", "헤더 경로 주석", core.check_header_path_comment(files), files, NO_PY),
-        _syntax_section("closures", "중첩 def(클로저)", core.check_closures, (files,), files, NO_PY,
+        _entry("profile_shape", "Profile format", profile.PROFILE_ERRORS, profile.LOADED,
+               "no profile"),
+        _entry("line_limit", "File length limit", core.check_line_limit(files), files, NO_PY),
+        _entry("header_path", "Header path comment", core.check_header_path_comment(files), files, NO_PY),
+        _syntax_section("closures", "Nested def (closure)", core.check_closures, (files,), files, NO_PY,
                         "nesting"),
-        _syntax_section("func_limit", "함수 길이 상한", core.check_func_length, (files,), files, NO_PY,
+        _syntax_section("func_limit", "Function length limit", core.check_func_length, (files,), files, NO_PY,
                         "functions"),
-        _entry("type_checking_future", "TYPE_CHECKING↔future annotations 짝",
+        _entry("type_checking_future", "TYPE_CHECKING↔future annotations pair",
                core.check_type_checking_future(files), files, NO_PY),
-        _entry("abbrev_names", "축약 이름 단독 대입", core.check_abbrev_names(files),
-               files and vocab["abbrev_names"], "설정에 금지할 축약어를 안 적었음"),
-        _entry("abbrev_prefixes", "축약 접두 식별자", core.check_abbrev_prefixes(both),
-               both and vocab["abbrev_prefixes"], "설정에 금지할 축약 접두어를 안 적었음"),
-        _entry("ui_jargon", "UI 라벨 금칙어", core.check_ui_jargon(ui_files),
-               ui_files and vocab["ui_denylist"], "설정에 화면 금칙어를 안 적었음"),
-        _entry("py_any", "Any 타입힌트", core.check_py_any(files), files, NO_PY),
-        _syntax_section("type_hints", "공개 함수 타입힌트", core.check_type_hints, (files,), files, NO_PY,
+        _entry("abbrev_names", "Bare abbreviated names", core.check_abbrev_names(files),
+               files and vocab["abbrev_names"], "no banned abbreviations set in the profile"),
+        _entry("abbrev_prefixes", "Abbreviated identifier prefixes", core.check_abbrev_prefixes(both),
+               both and vocab["abbrev_prefixes"], "no banned abbreviation prefixes set in the profile"),
+        _entry("ui_jargon", "Banned UI label words", core.check_ui_jargon(ui_files),
+               ui_files and vocab["ui_denylist"], "no banned UI words set in the profile"),
+        _entry("py_any", "Any type hints", core.check_py_any(files), files, NO_PY),
+        _syntax_section("type_hints", "Public function type hints", core.check_type_hints, (files,), files, NO_PY,
                         "types"),
-        _entry("secrets", "시크릿 토큰 하드코딩", core.check_secrets(both), both, NO_PY),
-        _ui_entry("ts_any", "TS any 타입", lint, ui_ok, ui_need),
-        _entry("env_access", "설정 밖 환경변수 조회", layers.check_env_access(files),
-               files and settings, "설정에 환경변수 모듈을 안 적었음"),
-        _framework_section("web_async", "await 없는 async 핸들러",
+        _entry("secrets", "Hardcoded secret tokens", core.check_secrets(both), both, NO_PY),
+        _ui_entry("ts_any", "TS any type", lint, ui_ok, ui_need),
+        _entry("env_access", "Env var reads outside settings", layers.check_env_access(files),
+               files and settings, "no settings module set in the profile"),
+        _framework_section("web_async", "Async handler without await",
                            layers.check_web_async_no_await, (files,), web, _need_layer("web"), "ASYNC_HANDLER"),
-        _entry("ssl_bypass", "전역 SSL 패치 호출 위치", layers.check_ssl_bypass_location(files),
+        _entry("ssl_bypass", "Global SSL patch call site", layers.check_ssl_bypass_location(files),
                files and profile.symbol("ssl_bypass"), _need_symbol("ssl_bypass")),
-        _framework_section("routes_error", "라우트 에러 응답 형식",
+        _framework_section("routes_error", "Route error response format",
                            layers.check_routes_error_response, (files,),
                            _under(files, "routes") and profile.symbol("error_response"),
                            _need_symbol("error_response"), "ERROR_STATUS_KWARG"),
-        _ui_entry("raw_fetch", "공용 래퍼 없는 fetch", lint, ui_ok, ui_need),
-        _ui_entry("hex_literal", "프론트 색 리터럴", lint, ui_ok, ui_need),
-        _ui_entry("responsive", "폰을 깨뜨리는 고정 폭", lint, ui_ok, ui_need),
-        _ui_entry("browser_api", "브라우저 API 직접 호출", lint,
+        _ui_entry("raw_fetch", "fetch without the shared wrapper", lint, ui_ok, ui_need),
+        _ui_entry("hex_literal", "Frontend color literals", lint, ui_ok, ui_need),
+        _ui_entry("responsive", "Fixed widths that break phones", lint, ui_ok, ui_need),
+        _ui_entry("browser_api", "Direct browser API calls", lint,
                   ui_ok and profile.ALLOWLIST["ui_platform"],
-                  ui_need if not ui_ok else "설정에 브라우저 API 래퍼를 안 적었음"),
-        _ui_entry("hash_nav", "해시 네비게이션 단일 기전", lint, ui_ok, ui_need),
-        _entry("ui_logic_tests", "프론트 로직 테스트 짝",
+                  ui_need if not ui_ok else "no browser API wrappers set in the profile"),
+        _ui_entry("hash_nav", "Single hash navigation mechanism", lint, ui_ok, ui_need),
+        _entry("ui_logic_tests", "Frontend logic test pairs",
                tests_pairing.check_ui_logic_test_pairing(ui_files), ui_files, NO_UI),
-        _entry("ui_component_tests", "프론트 컴포넌트 테스트 짝",
+        _entry("ui_component_tests", "Frontend component test pairs",
                tests_pairing.check_ui_component_test_pairing(ui_files), ui_files, NO_UI),
-        _entry("root_litter", "루트 직속 잡파일", placement.check_root_litter(),
-               profile.ROOT_FILES, "설정에 루트 허용 파일을 안 적었음"),
-        _entry("prompt_version", "프롬프트 버전 범프", prompt_version.check_prompt_version(),
+        _entry("root_litter", "Stray files at repo root", placement.check_root_litter(),
+               profile.ROOT_FILES, "no allowed root files set in the profile"),
+        _entry("prompt_version", "Prompt version bump", prompt_version.check_prompt_version(),
                profile.VERSIONED_PROMPTS and prompt_version.ready(),
-               "설정에 버전 관리 프롬프트 목록을 안 적었음" if not profile.VERSIONED_PROMPTS
-               else "원격 기본 브랜치 미상 — 비교 기준이 없음"),
-        _entry("test_pairing", "수집·계산 모듈의 행동 테스트 짝",
+               "no versioned prompts set in the profile" if not profile.VERSIONED_PROMPTS
+               else "remote default branch unknown — nothing to compare against"),
+        _entry("test_pairing", "Behavior test pairs for collect/compute modules",
                tests_pairing.check_module_test_pairing(files),
-               profile.BEHAVIOR_TESTED_ROOTS, "설정에 테스트 대상 폴더를 안 적었음"),
-        _entry("ddl_types", "DDL 저장 타입 잘림", schema.check_ddl_lossy_types(files),
+               profile.BEHAVIOR_TESTED_ROOTS, "no tested folders set in the profile"),
+        _entry("ddl_types", "Lossy DDL storage types", schema.check_ddl_lossy_types(files),
                _under(files, "schema"), _need_layer("schema")),
-        _entry("api_array", "API 응답 배열 필드 옵셔널",
+        _entry("api_array", "Optional array fields in API responses",
                api_types.check_api_array_optional(ui_files),
                ui_files and api_types.baseline_ready(),
-               NO_UI if not ui_files else "배열 동결 파일 미생성 — harness_install.py 가 만든다"),
-        _entry("orphan_api", "소비 UI 없는 API 라우트",
+               NO_UI if not ui_files else "array baseline file missing — harness_install.py creates it"),
+        _entry("orphan_api", "API routes without a consuming UI",
                orphan_api.check_orphan_api(files, ui_files),
                (_under(files, "routes") or _under(files, "web")) and ui_files and profile.SERVER,
                server_need),
-        _syntax_section("undefined_const", "미정의 모듈 상수",
+        _syntax_section("undefined_const", "Undefined module constants",
                         core.check_undefined_module_constants, (files,), files, NO_PY, "python"),
     ]
 
@@ -254,27 +254,27 @@ def _doc_sections(full: bool = True) -> list[Section]:
     lessons = profile.LESSONS_DOC
 
     sections: list[Section] = [
-        _entry("md_path_refs", "MD 경로 참조 실존", refs, not greenfield, "greenfield — 리포트로만"),
-        _entry("md_orphans", "고아 MD(허브 도달 불가)", md_graph.check_md_orphans(),
-               profile.HUBS, "설정에 문서 시작점을 안 적었음"),
-        _entry("md_harness_map", "하네스 지도 대조", md_graph.check_harness_map(),
+        _entry("md_path_refs", "MD path references exist", refs, not greenfield, "greenfield — report only"),
+        _entry("md_orphans", "Orphan MD (unreachable from hubs)", md_graph.check_md_orphans(),
+               profile.HUBS, "no doc entry points set in the profile"),
+        _entry("md_harness_map", "Harness map match", md_graph.check_harness_map(),
                (ROOT / ".claude").is_dir() and (map_exists or not greenfield),
-               f"greenfield — {profile.HARNESS_MAP} 아직 없음"),
-        _entry("agent_model", "에이전트 모델 정책", harness_self.check_agent_model_policy(),
-               profile.AGENT_MODEL_POLICY, "설정에 담당 AI 모델 표를 안 적었음"),
-        _entry("lessons_promotion", "사고 절 승격 상태", harness_self.check_lessons_promotion(),
+               f"greenfield — {profile.HARNESS_MAP} does not exist yet"),
+        _entry("agent_model", "Agent model policy", harness_self.check_agent_model_policy(),
+               profile.AGENT_MODEL_POLICY, "no agent model table set in the profile"),
+        _entry("lessons_promotion", "Incident promotion status", harness_self.check_lessons_promotion(),
                lessons and (ROOT / lessons).exists(),
-               f"선언된 {lessons} 가 아직 없음" if lessons else "설정에 사고 기록 문서를 안 적었음"),
-        _entry("md_fn_refs", "MD 함수 참조 실존", md_graph.check_md_fn_refs(),
-               not greenfield, "greenfield — 문서가 코드보다 먼저다"),
+               f"declared {lessons} does not exist yet" if lessons else "no lessons doc set in the profile"),
+        _entry("md_fn_refs", "MD function references exist", md_graph.check_md_fn_refs(),
+               not greenfield, "greenfield — docs come before code"),
     ]
     if not full:                        # 문서↔코드 대조는 양쪽 실물을 맞대는 검사라 --file 모드에는 비교 상대가 없다(중복 검사 34·35 와 같다)
         return sections
     for pair in profile.DOC_SYNC:
-        title = f"문서↔코드 대조({pair['doc']}↔{pair['code']})"
+        title = f"Doc↔code match ({pair['doc']}↔{pair['code']})"
         sections.append(_entry(f"doc_sync:{pair['doc']}", title,
                                md_graph.check_doc_sync(pair),
-                               md_graph.doc_sync_ready(pair), "대조할 양쪽 실물이 아직 없음"))
+                               md_graph.doc_sync_ready(pair), "both sides to compare do not exist yet"))
     return sections
 
 
@@ -286,8 +286,8 @@ def _local_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
             module = importlib.import_module(f"{LOCAL_PACKAGE}.{name}")
             results = module.run(files, ui_files)
         except Exception as exc:                     # 로드 실패를 조용히 넘기면 게이트가 사라진다
-            sections.append((f"local:{name}", f"프로젝트 게이트 {name}",
-                             [f"로드 실패 {exc.__class__.__name__}: {exc}"], None))
+            sections.append((f"local:{name}", f"Project gate {name}",
+                             [f"load failed {exc.__class__.__name__}: {exc}"], None))
             continue
         for title, violations in results:
             sections.append((f"local:{name}", title, violations, None))
@@ -307,13 +307,13 @@ def _build_sections(
                        if files or ui_files else ([], []))
         both = files or ui_files
         sections += [
-            _entry("dup_decl", "선언 본문 중복(정본 재구현)", decl, both, NO_PY),
-            _entry("dup_block", "블록 중복(선언 안 복붙)", block, both, NO_PY),
+            _entry("dup_decl", "Duplicate declaration bodies (reimplementation)", decl, both, NO_PY),
+            _entry("dup_block", "Duplicate blocks (copy-paste in declarations)", block, both, NO_PY),
         ]
     sections += _local_sections(files, ui_files)
     if md_files:
         hard, soft = md_style.check_md_style(md_files)
-        sections.append(("md_style", "MD 작성 규칙", hard, None))
+        sections.append(("md_style", "MD writing rules", hard, None))
         _print_style_reports(soft)
     if include_md:
         sections += _doc_sections(full)
@@ -388,11 +388,11 @@ def main(argv: list[str]) -> int:
     if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
         sys.stdout.reconfigure(errors="replace")
     if profile.PROFILE_ERRORS:
-        _print_sections([("profile_shape", "프로파일 형식", profile.PROFILE_ERRORS, None)])
+        _print_sections([("profile_shape", "Profile format", profile.PROFILE_ERRORS, None)])
         return 1
     if not profile.LOADED:
-        print(f"[SETUP] {profile.PROFILE_FILE} 없음 — 프로젝트를 모르는 상태다. "
-              f"레이어를 요구하는 게이트는 전부 [SKIP] 이다.")
+        print(f"[SETUP] {profile.PROFILE_FILE} missing — the project is unknown. "
+              f"Every gate that needs a layer is [SKIP].")
     full = not (len(argv) >= 2 and argv[0] == "--file")
     if not full:
         files, ui_files, include_md, md_files = _single_file_lists(argv[1])
@@ -406,16 +406,16 @@ def main(argv: list[str]) -> int:
     total = _print_sections(sections)
 
     if "--verify" in argv and any(skip and skip[0] == "TOOL" for _, _, _, skip in sections):
-        print("\n필수 검사 미검증 — 완료로 처리할 수 없다.")
+        print("\nRequired checks unverified — cannot be treated as done.")
         return 2
     violations = [v for _, _, found, _ in sections for v in found]
     if violations and all("needs_decision" in v for v in violations):
-        print("[DECISION] 분류 변경안을 사용자에게 제안하고 응답을 기록하라.")
+        print("[DECISION] Propose the classification change to the user and record the answer.")
         return 3
     if total:
-        print(f"\n총 {total}건 위반.")
+        print(f"\n{total} violations.")
         return 1
-    print("\n전 게이트 통과.")
+    print("\nAll gates passed.")
     return 0
 
 

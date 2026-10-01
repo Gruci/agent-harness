@@ -59,7 +59,7 @@ def check_api_array_optional(ui_files: list[Path]) -> list[str]:
         return []
     frozen = read_list(BASELINE)
     return [
-        f"{item}: API 응답 타입의 배열 필드는 옵셔널(`?`)로 — 백엔드 배포가 늦으면 undefined 로"
-        " 도착해 소비처가 크래시한다. 필수로 둬야 하면 baseline 에 등재"
+        f"{item}: make array fields in API response types optional (`?`) — if the backend deploys late they"
+        " arrive as undefined and consumers crash. If it must be required, list it in the baseline"
         for item in sorted(collect_required_array_fields(ui_files) - frozen)
     ]

@@ -26,10 +26,10 @@ BASELINE_FILE = ROOT / "ddl_types_baseline.txt"
 
 # `"합계" REAL` · `shares_short REAL` · `x FLOAT(24)` — 한 줄에 여러 컬럼이 오므로 finditer.
 LOSSY_FLOAT = re.compile(
-    r'"?([\w가-힣]+)"?\s+(REAL|FLOAT4|FLOAT\s*\(\s*(?:[1-9]|1[0-9]|2[0-4])\s*\))(?=[\s,)])',
+    r'"?([\w가-힣]+)"?\s+(REAL|FLOAT4|FLOAT\s*\(\s*(?:[1-9]|1[0-9]|2[0-4])\s*\))(?=[\s,)])',  # ko-ok: matches Hangul column names in DDL
     re.IGNORECASE,
 )
-SCALED_NUMERIC = re.compile(r'"?([\w가-힣]+)"?\s+NUMERIC\s*\(\s*\d+\s*,\s*[1-9]', re.IGNORECASE)
+SCALED_NUMERIC = re.compile(r'"?([\w가-힣]+)"?\s+NUMERIC\s*\(\s*\d+\s*,\s*[1-9]', re.IGNORECASE)  # ko-ok: matches Hangul column names in DDL
 
 
 def check_ddl_lossy_types(py_files: list[Path]) -> list[str]:
@@ -50,8 +50,8 @@ def check_ddl_lossy_types(py_files: list[Path]) -> list[str]:
                 if f"{rel}:{m.group(1)}" in baseline:
                     continue
                 bad.append(
-                    f"{rel}:{i}: {m.group(1)} {m.group(2)} — DOUBLE PRECISION(실수)·"
-                    f"BIGINT(정수)·NUMERIC(고정소수) 중 하나로. float4 는 2^24 초과 정수를 못 담는다"
+                    f"{rel}:{i}: {m.group(1)} {m.group(2)} — use DOUBLE PRECISION (real), "
+                    f"BIGINT (integer) or NUMERIC (fixed-point). float4 cannot hold integers above 2^24"
                 )
             if "--" in line or "#" in line:   # 같은 줄에 소스 정밀도 근거가 있으면 통과
                 continue
@@ -59,7 +59,7 @@ def check_ddl_lossy_types(py_files: list[Path]) -> list[str]:
                 if f"{rel}:{m.group(1)}" in baseline:
                     continue
                 bad.append(
-                    f"{rel}:{i}: {m.group(1)} NUMERIC 소수 스케일에 소스 정밀도 근거 주석 없음 — "
-                    f"같은 줄에 `-- <소스> 소수 N자리` 를 달 것 (스케일은 소스를 본 사람만 정한다)"
+                    f"{rel}:{i}: {m.group(1)} NUMERIC scale has no source-precision comment — "
+                    f"add `-- <source> N decimal places` on the same line (only someone who saw the source sets the scale)"
                 )
     return bad

@@ -21,8 +21,8 @@ PATTERNS = {
 }
 
 NOT_APPLICABLE = {
-    "type_hints": "tsc 가 이미 검사하므로 중복이다",
-    "py_any":     "TS any 게이트가 이미 같은 것을 본다",
+    "type_hints": "tsc already checks this, so it would duplicate",
+    "py_any":     "the TS any gate already covers this",
 }
 
 LINTERS = [

@@ -269,6 +269,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | `edit_surface` | 면제·제외 목록이 늘어나는 것. 게이트를 느슨하게 만드는 가장 손쉬운 방법이다 |
 | `archive_not_shipped` | 배포본(master)에 `docs/tasks/archive/` 산출물이 추적되는 것. 로컬 보관은 허용, git 추적만 막는다 — clone 해 간 프로젝트는 자기 archive 를 커밋하는 게 맞으므로 커널이 아니라 여기 산다 |
 | `stack_words` | 문서·에이전트에 스택 이름이 되돌아오는 것. 원칙은 프로파일 키로, 스택 관례는 `kernel/frameworks/<이름>.md` 조각으로 둔다는 정리를 잠그는 래칫이다. 허용 위치는 `dev/LESSONS.md`(사고 경위)·조각·픽스처·`docs/tasks/`·벤더 사본이고, 조각에서 생성한 `dev/CONVENTIONS.md` 「스택 관례」 절은 대상이 아니다. 제품 프로젝트는 자기 문서에 자기 스택을 쓰는 게 정상이라 커널이 아니라 여기 산다 |
+| `english_output` | 하네스 출력에 한국어가 돌아오는 것. 출력 영어화를 잠그는 래칫이다. 대상은 `kernel/`·`.claude/hooks/`·`harness_gates/`·`profiles/`·설치 스크립트의 문자열 리터럴(docstring 제외)과 훅 설정의 `echo` 문구다. 한국어 문서·데이터 서식을 읽는 리터럴은 그 줄이나 바로 윗줄의 `# ko-ok: <사유>` 로만 남긴다. 문서는 한국어라 대상이 아니다 |
 
 `edit_surface` 의 동결본은 `harness_surface.txt` 이고, 다른 래칫(줄어들 수만 있게 잠근 목록)처럼 **감소만 허용**한다.
 회고의 판정을 사람이 하는 동안 면제를 늘리는 길이 열려 있으면, 개선 루프는 규칙을 고치는 대신 면제를
@@ -392,7 +393,7 @@ Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain
 프레임워크 판정(13·16)과 미정의 상수(32)는 아직 Python `ast` 다. 13·16 은 서버 프레임워크팩이 판정 방식(`ASYNC_HANDLER`·`ERROR_STATUS_KWARG`)을 선언했을 때만 돌고, 다른 언어에서는 설치 사유가 아니라 "분석기 없음"으로 찍힌다.
 
 팩이 1급인지는 선언이 아니라 `python -X utf8 -m kernel.pack_check <이름>` 이 판정한다.
-팩의 `FIXTURES` 로 위반 예제가 잡히고 통과 예제가 안 잡혀야 `[1급]` 이고, `[미검증]` 이 하나라도 있으면 exit 1 이다.
+팩의 `FIXTURES` 로 위반 예제가 잡히고 통과 예제가 안 잡혀야 `[VERIFIED]` 이고, `[UNVERIFIED]` 가 하나라도 있으면 exit 1 이다.
 새 언어·프레임워크는 `profiles/lang/_template.py`·`profiles/framework/_template.py` 를 복사해 만들고, 초기 설정의 「스택 맞춤」([조립 절차](workflows/harness-assembly.md))이 이 명령으로 1급을 확인한다.
 
 팩의 `REQUIRES` 는 1급으로 돌기 위한 외부 도구의 확인 명령과 설치 안내다. `harness_install.py --doctor` 가 린터 설치 여부, 고른 분석기의 가용성, 미충족 `REQUIRES` 를 보고하고, 설치는 사용자가 정한다. 하네스 자신의 프로파일은 아무것도 요구하지 않는다.
@@ -408,10 +409,10 @@ Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain
 
 - 로더는 `kernel/framework.py`. 선언 목록의 정본은 그 헤더다. 같은 이름을 `profiles/framework/<이름>.py` 에 두면 프로젝트 것이 이긴다.
 - 기본 탑재 팩 두 개(`kernel/frameworks/`)는 이 하네스가 처음 쓰인 프로젝트의 동작을 그대로 옮긴 것이라, 그 둘을 고른 프로젝트의 게이트 출력은 도입 전과 같다(골든으로 고정).
-- 팩을 안 고르면 그 역할의 게이트는 `[SKIP] … 프레임워크팩 미선택` 이다. 조용히 통과하지 않는다.
-- 팩이 판정 방식을 선언하지 않으면 `[N/A] <팩>: 이 프레임워크에서 성립하지 않음` 이다. 못 함과 해당 없음을 가르는 것이 언어팩과 같은 경계다.
+- 팩을 안 고르면 그 역할의 게이트는 `[SKIP] … no server framework pack selected` 류다. 조용히 통과하지 않는다.
+- 팩이 판정 방식을 선언하지 않으면 `[N/A] <팩>: does not apply to this framework` 다. 못 함과 해당 없음을 가르는 것이 언어팩과 같은 경계다.
 - 역할 중복·모르는 이름·틀린 선언은 프로파일 오류(검사 47)다.
-- 1급 여부는 `kernel.pack_check` 가 판정한다. 서버팩은 라우트 예제(route·consumer·stranger)로, 화면팩은 ESLint 실측으로 잰다. ESLint 가 없는 환경의 화면 예제는 `[미검증] eslint 미설치` 다.
+- 1급 여부는 `kernel.pack_check` 가 판정한다. 서버팩은 라우트 예제(route·consumer·stranger)로, 화면팩은 ESLint 실측으로 잰다. ESLint 가 없는 환경의 화면 예제는 `[UNVERIFIED]` 에 eslint 설치 안내가 붙는다.
 - `PROFILE_SCHEMA` 는 올리지 않았다. `FRAMEWORK` 는 선택 항목이라 기존 프로파일은 `[SKIP]` 사유로 새 항목을 알게 된다.
 
 팩은 판정 선언(`<이름>.py`) 옆에 사람용 관례 조각(`<이름>.md`)을 둔다. 초기 설정의 스택 맞춤이 `FRAMEWORK` 가 고른 조각을 `python -X utf8 -m kernel.conventions` 로 `dev/CONVENTIONS.md` 「스택 관례」 절에 넣는다. 절은 표식 주석 사이에 있고 손으로 고치지 않는다 — 고칠 것은 조각이다. 같은 이름의 `profiles/framework/<이름>.md` 가 있으면 프로젝트 것이 이긴다.

@@ -76,39 +76,39 @@ def _is_seq(value: object) -> bool:
 def _shape_errors(mod: Any) -> list[str]:
     """프로파일 원문의 형식 위반을 찾는다. 설정 이름 오타, 튜플 자리에 쓴 문자열, 모르는 하위 키가 대상이다."""
     if mod is None:
-        return [f"{PROFILE_FILE}: PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 인 프로파일과 컴포넌트 그래프를 먼저 구성하라"]
+        return [f"{PROFILE_FILE}: set up a profile with PROFILE_SCHEMA = {_REQUIRED_SCHEMA} and a component graph first"]
     found: list[str] = []
     for name in vars(mod):
         if name.isupper() and len(name) > 1 and name not in _KNOWN_NAMES:
-            found.append(f"{PROFILE_FILE}: 모르는 설정 이름 {name} — 오타면 그 설정은 조용히 무시된다")
+            found.append(f"{PROFILE_FILE}: unknown setting {name} — a typo means the setting is silently ignored")
     for name in _STR_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not isinstance(value, str):
-            found.append(f"{PROFILE_FILE}: {name} 은 문자열이어야 한다 — 지금 값의 타입은 {type(value).__name__}")
+            found.append(f"{PROFILE_FILE}: {name} must be a string — current type is {type(value).__name__}")
     schema = getattr(mod, "PROFILE_SCHEMA", None)
     if getattr(mod, "COMPONENT_GRAPH", "docs/architecture/components.json") != "docs/architecture/components.json":
         found.append(f"{PROFILE_FILE}: COMPONENT_GRAPH must be docs/architecture/components.json")
     if schema != _REQUIRED_SCHEMA or isinstance(schema, bool):
-        found.append(f"{PROFILE_FILE}: 서식 버전 {schema!r} 로는 실행할 수 없다 — PROFILE_SCHEMA = {_REQUIRED_SCHEMA} 이어야 한다")
+        found.append(f"{PROFILE_FILE}: cannot run with schema version {schema!r} — set PROFILE_SCHEMA = {_REQUIRED_SCHEMA}")
     for name in _DICT_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not isinstance(value, dict):
-            found.append(f"{PROFILE_FILE}: {name} 은 dict 여야 한다 — 지금 값의 타입은 {type(value).__name__}")
+            found.append(f"{PROFILE_FILE}: {name} must be a dict — current type is {type(value).__name__}")
     for name in _SEQ_NAMES:
         value = getattr(mod, name, None)
         if value is not None and not _is_seq(value):
-            found.append(f"{PROFILE_FILE}: {name} 은 튜플이어야 한다 — 값 하나면 ('x',) 로 감싼다")
+            found.append(f"{PROFILE_FILE}: {name} must be a tuple — wrap a single value as ('x',)")
     for name, keys in _SUB_KEYS.items():
         mapping = getattr(mod, name, None)
         if not isinstance(mapping, dict):
             continue
         for key, value in mapping.items():
             if key not in keys:
-                found.append(f"{PROFILE_FILE}: {name}[{key!r}] 는 모르는 키다 — 쓸 수 있는 것: {' '.join(keys)}")
+                found.append(f"{PROFILE_FILE}: {name}[{key!r}] is an unknown key — allowed: {' '.join(keys)}")
             elif name in _SEQ_VALUED and value is not None and not _is_seq(value):
-                found.append(f"{PROFILE_FILE}: {name}[{key!r}] 는 튜플이어야 한다 — 문자열 하나면 글자 단위로 쪼개져 검사가 헛돈다")
+                found.append(f"{PROFILE_FILE}: {name}[{key!r}] must be a tuple — a bare string splits into characters")
             elif name in _PATH_VALUED and value is not None and not isinstance(value, str):
-                found.append(f"{PROFILE_FILE}: {name}[{key!r}] 는 경로 문자열이거나 None 이어야 한다")
+                found.append(f"{PROFILE_FILE}: {name}[{key!r}] must be a path string or None")
     return found
 
 
@@ -216,7 +216,7 @@ except ValueError as exc:
 
 def _na_prefixed(entries: dict[str, str], tag: str | None) -> dict[str, str]:
     """N/A 사유 앞에 출처 이름을 미리 붙여 둔다. 러너는 이 문자열을 그대로 출력한다."""
-    label = tag or "미선언"
+    label = tag or "undeclared"
     return {slug: f"{label}: {reason}" for slug, reason in entries.items()}
 
 
@@ -296,9 +296,9 @@ def outdated_notice() -> str:
     template = KERNEL_HOME / "profiles" / "_template.py"
     names = set(_TEMPLATE_NAME.findall(template.read_text(encoding="utf-8"))) if template.exists() else set()
     missing = sorted(n for n in names - set(vars(_MOD) if _MOD else ()) if n not in ("PRESET_SUMMARY", "PRESET_FITS"))
-    return (f"[PROFILE SCHEMA] {PROFILE_FILE} 서식 버전이 {PROFILE_SCHEMA} 인데 커널은 {required} 를 요구한다 — "
-            f"채울 수 있는 새 항목: {' '.join(missing) or '없음'}. profiles/_template.py 의 설명을 보고 "
-            f"채운 뒤 PROFILE_SCHEMA = {required} 로 맞춘다.")
+    return (f"[PROFILE SCHEMA] {PROFILE_FILE} is schema {PROFILE_SCHEMA} but the kernel requires {required} — "
+            f"new settings to fill: {' '.join(missing) or 'none'}. Fill them per profiles/_template.py, "
+            f"then set PROFILE_SCHEMA = {required}.")
 
 
 if __name__ == "__main__":

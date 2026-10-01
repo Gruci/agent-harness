@@ -39,11 +39,11 @@ DEFAULTS: dict[str, dict[str, int]] = {
 }
 
 WHY: dict[str, str] = {
-    "md-audit":            "문서와 코드가 어긋난 곳 찾기",
-    "code-audit":          "필요 이상으로 복잡해진 코드 찾기",
-    "code-debt":           "미뤄둔 작업(`debt:` 표시) 목록 만들기",
-    "review-loop":         "실제 사용자 관점에서 지표와 문구 검수",
-    "harness-retro":       "훅이 막은 기록을 읽고 규칙과 게이트를 손볼지 판정",
+    "md-audit":            "find where docs and code disagree",
+    "code-audit":          "find code that grew more complex than needed",
+    "code-debt":           "list deferred work (`debt:` markers)",
+    "review-loop":         "review metrics and copy from a real user's view",
+    "harness-retro":       "read the hook block trace and decide whether to adjust rules and gates",
 }
 
 DEBT_MARKER = "debt:"
@@ -133,7 +133,7 @@ def _never_ran_reason(name: str) -> str:
     count = len(_sources())
     if count < 20:
         return ""
-    return f"한 번도 안 돌았고 소스가 {count}개까지 늘었다"
+    return f"never run, and sources have grown to {count} files"
 
 
 def _due_for(name: str, entry: dict[str, str]) -> str:
@@ -141,14 +141,14 @@ def _due_for(name: str, entry: dict[str, str]) -> str:
     if name == "code-debt":
         markers = count_debt_markers()
         limit = _threshold(name, "markers")
-        return f"미뤄둔 표시가 {markers}개 쌓였다 (임계 {limit})" if markers >= limit else ""
+        return f"{markers} deferred markers piled up (threshold {limit})" if markers >= limit else ""
 
     # 커밋 수나 경과일이 아니라 쌓인 기록 건수를 재는 항목이라, 아래의 마지막 실행 시점 기준 판정을 거치지 않는다.
     # 한 번도 안 돌았으면 기록 전체를 센다. 그 기록이 첫 회고에서 읽을 자료다.
     if name == "harness-retro":
         seen = retro.count_since(entry.get("date", ""))
         limit = _threshold(name, "traces")
-        return f"마지막 회고 후 훅이 {seen}번 막았다 (임계 {limit})" if seen >= limit else ""
+        return f"hooks blocked {seen} times since the last retro (threshold {limit})" if seen >= limit else ""
 
     if not entry:
         return _never_ran_reason(name)
@@ -156,17 +156,17 @@ def _due_for(name: str, entry: dict[str, str]) -> str:
     commits = _commits_since(entry.get("commit", ""))
     limit_commits = _threshold(name, "commits")
     if limit_commits and commits >= limit_commits:
-        return f"마지막 실행 후 커밋 {commits}개 (임계 {limit_commits})"
+        return f"{commits} commits since the last run (threshold {limit_commits})"
 
     days = _days_since(entry.get("date", ""))
     limit_days = _threshold(name, "days")
     if limit_days and days >= limit_days:
-        return f"마지막 실행 후 {days}일 (임계 {limit_days})"
+        return f"{days} days since the last run (threshold {limit_days})"
 
     changes = _ui_changes_since(entry.get("commit", ""))
     limit_ui = _threshold(name, "ui_changes")
     if limit_ui and changes >= limit_ui:
-        return f"화면 파일 {changes}개 변경 (임계 {limit_ui})"
+        return f"{changes} UI files changed (threshold {limit_ui})"
     return ""
 
 
@@ -192,14 +192,14 @@ def main(argv: list[str]) -> int:
         sys.stdout.reconfigure(errors="replace")
     if len(argv) >= 2 and argv[0] == "--stamp":
         stamp(argv[1])
-        print(f"정비 기록: {argv[1]} — {LEDGER.name} 을 커밋하라")
+        print(f"Maintenance recorded: {argv[1]} — commit {LEDGER.name}")
         return 0
     pending = due()
     if not pending:
-        print("밀린 정비 없음.")
+        print("No overdue maintenance.")
         return 0
     for name, reason in pending:
-        print(f"[정비] {name} — {WHY.get(name, '')}. {reason}")
+        print(f"[MAINTENANCE] {name} — {WHY.get(name, '')}. {reason}")
     return 0
 
 

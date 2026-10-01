@@ -15,8 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 try:
     from kernel.workspace import git_remote  # noqa: E402
 except Exception as exc:
-    print(f"[GIT REMOTE] 커널을 못 읽어 origin 이 있는지 판정할 수 없다({exc.__class__.__name__}) — fail-closed 라 종료를 막는다. "
-          "kernel/workspace.py 를 점검하라.", file=sys.stderr)
+    print(f"[GIT REMOTE] Could not load the kernel, so origin cannot be checked ({exc.__class__.__name__}) — fail-closed, so exit is blocked. "
+          "Inspect kernel/workspace.py.", file=sys.stderr)
     sys.exit(2)
 
 

@@ -38,7 +38,7 @@ class PythonAdapterTests(unittest.TestCase):
         self.assertEqual((agg.line, agg.end_line, agg.public), (1, 2, True))
         self.assertFalse(hidden.public)
         self.assertEqual((go.missing_types, go.missing_return), ((), False))
-        self.assertEqual(core.untyped_functions(found), [(agg, ["conn", "other", "반환"])])
+        self.assertEqual(core.untyped_functions(found), [(agg, ["conn", "other", "return"])])
 
     def test_long_function_span(self):
         found = ADAPTER.analyze("def long_calc():\n" + "    x = 1\n" * 80 + "    return x\n", "utils/long.py")
@@ -80,20 +80,20 @@ class FactsSelectionTests(TemporaryRootTestCase):
         self.assertEqual((reason, analyzer.label), ("", "Python"))
 
     def test_unknown_syntax_is_unverified_not_silent(self):
-        self.assertEqual(facts.select("ruby"), (None, "ruby 구문 분석기가 없어 검사 못 함"))
-        self.assertEqual(facts.select(None)[1], "미선언 구문 분석기가 없어 검사 못 함")
+        self.assertEqual(facts.select("ruby"), (None, "no ruby syntax analyzer — check could not run"))
+        self.assertEqual(facts.select(None)[1], "no syntax declared in the profile — check could not run")
 
     def test_profile_kinds_follow_the_selected_pack(self):
         self.assertEqual(profile.SYNTAX, "python")     # 이 레포의 프로파일은 모든 종류의 사실을 낸다
         for kind in ("functions", "nesting", "types", "imports", "top_symbols", "python"):
             self.assertEqual(facts.unavailable(kind), "")
-        self.assertEqual(facts.unavailable("routes"), "python 구문 분석기가 없어 검사 못 함")
+        self.assertEqual(facts.unavailable("routes"), "no python syntax analyzer — check could not run")
 
     def test_pack_without_engine_keeps_python_only_reason(self):
         go = lang.load("go")
         self.assertEqual(facts.query_kinds(go["QUERIES"]), frozenset({"functions", "nesting", "imports", "top_symbols"}))
         with patch.object(profile, "SYNTAX", "go"), patch.object(profile, "PACK", go), patch.dict(facts._SELECTED, clear=True):
-            self.assertEqual(facts.unavailable("python"), "go 구문 분석기가 없어 검사 못 함")
+            self.assertEqual(facts.unavailable("python"), "no go syntax analyzer — check could not run")
             functions = facts.unavailable("functions")
         self.assertTrue(functions == "" or functions.startswith("tree-sitter"))
 
@@ -128,7 +128,7 @@ class PackKeyTests(TemporaryRootTestCase):
         with patch.object(lang, "ROOT", self.root):
             pack = lang.load("odd")
         self.assertEqual((pack["QUERIES"], pack["MODULE_RULE"], pack["PUBLIC_RULE"], pack["FIXTURES"]), ({}, None, None, {}))
-        self.assertEqual(facts.analyzer_for_pack(pack, self.root), (None, "odd 구문 분석기가 없어 검사 못 함"))
+        self.assertEqual(facts.analyzer_for_pack(pack, self.root), (None, "no odd syntax analyzer — check could not run"))
 
 
 @unittest.skipUnless(HAS_TREE_SITTER, treesitter.MISSING)
@@ -176,13 +176,13 @@ class TreeSitterMissingTests(TemporaryRootTestCase):
 class PackCheckTests(unittest.TestCase):
     def test_python_pack_is_first_class(self):
         verdicts = pack_check.assess(lang.load("python"))
-        self.assertEqual({grade for grade, _slug, _reason in verdicts}, {"1급"})
+        self.assertEqual({grade for grade, _slug, _reason in verdicts}, {"verified"})
         self.assertEqual([slug for _grade, slug, _reason in verdicts], list(pack_check.GATE_SLUGS + pack_check.FACT_KINDS))
 
     def test_missing_fixture_is_unverified(self):
         pack = dict(lang.load("python"))
         pack["FIXTURES"] = {}
-        self.assertEqual({(grade, reason) for grade, _slug, reason in pack_check.assess(pack)}, {("미검증", "예제 없음")})
+        self.assertEqual({(grade, reason) for grade, _slug, reason in pack_check.assess(pack)}, {("unverified", "no example")})
 
     def test_mismatched_examples_are_unverified(self):
         pack = dict(lang.load("python"))
@@ -192,24 +192,24 @@ class PackCheckTests(unittest.TestCase):
         fixtures["imports"] = {"source": "import os\n", "expect": ["db.reads"]}
         pack["FIXTURES"] = fixtures
         by_slug = {slug: (grade, reason) for grade, slug, reason in pack_check.assess(pack)}
-        self.assertEqual(by_slug["func_limit"], ("미검증", "위반 예제가 안 잡힘"))
-        self.assertEqual(by_slug["closures"], ("미검증", "통과 예제가 잡힘"))
-        self.assertEqual(by_slug["imports"], ("미검증", "기대한 값이 안 나옴: db.reads"))
+        self.assertEqual(by_slug["func_limit"], ("unverified", "violating example not caught"))
+        self.assertEqual(by_slug["closures"], ("unverified", "passing example flagged"))
+        self.assertEqual(by_slug["imports"], ("unverified", "expected values missing: db.reads"))
 
     def test_not_applicable_is_not_a_loss(self):
         by_slug = {slug: (grade, reason) for grade, slug, reason in pack_check.assess(lang.load("go"))}
         self.assertEqual((by_slug["closures"][0], by_slug["type_hints"][0]), ("N/A", "N/A"))
         grade, reason = by_slug["func_limit"]
         if HAS_TREE_SITTER:
-            self.assertTrue(grade == "1급" or reason.startswith("tree-sitter-go 문법 미설치"), reason)
+            self.assertTrue(grade == "verified" or reason.startswith("tree-sitter-go grammar not installed"), reason)
         else:
-            self.assertEqual((grade, reason), ("미검증", treesitter.MISSING))
+            self.assertEqual((grade, reason), ("unverified", treesitter.MISSING))
 
     def test_main_reports_and_exits_nonzero_on_unverified(self):
         out = io.StringIO()
         with redirect_stdout(out):
             self.assertEqual(pack_check.main(["python"]), 0)
-        self.assertIn("[1급] func_limit", out.getvalue())
+        self.assertIn("[VERIFIED] func_limit", out.getvalue())
         with redirect_stdout(io.StringIO()):
             self.assertEqual(pack_check.main(["typescript"]), 1)     # 예제 없음 — 선언만으로 1급이 아니다
             self.assertEqual(pack_check.main(["no-such-pack"]), 2)

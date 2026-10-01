@@ -24,9 +24,9 @@ SHIPPED_DIR = Path(__file__).resolve().parent / "frameworks"
 PROJECT_DIR = "profiles/framework"
 DOC = "dev/CONVENTIONS.md"
 
-BEGIN = "<!-- harness:stack-conventions begin (kernel/frameworks/*.md 에서 생성 — 손으로 고치지 않는다) -->"
+BEGIN = "<!-- harness:stack-conventions begin (kernel/frameworks/*.md 에서 생성 — 손으로 고치지 않는다) -->"  # ko-ok: marker matched in the Korean dev/CONVENTIONS.md
 END = "<!-- harness:stack-conventions end -->"
-NONE_LINE = "(선택한 프레임워크팩 없음 — 초기 설정의 스택 맞춤이 채운다)"
+NONE_LINE = "(선택한 프레임워크팩 없음 — 초기 설정의 스택 맞춤이 채운다)"  # ko-ok: body text of the Korean dev/CONVENTIONS.md
 
 _NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_-]*")
 
@@ -34,7 +34,7 @@ _NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_-]*")
 def fragment_path(name: str, root: Path = ROOT) -> Path | None:
     """조각 파일 경로. 프로젝트 쪽(`profiles/framework/`)이 커널 쪽(`kernel/frameworks/`)보다 우선한다."""
     if not _NAME.fullmatch(name):
-        raise ValueError(f"잘못된 프레임워크팩 이름: {name!r}")
+        raise ValueError(f"invalid framework pack name: {name!r}")
     for candidate in (root / PROJECT_DIR / f"{name}.md", SHIPPED_DIR / f"{name}.md"):
         if candidate.is_file():
             return candidate
@@ -56,9 +56,9 @@ def render_conventions(names: tuple[str, ...] | list[str], root: Path = ROOT) ->
     for name in sorted(set(names)):
         path = fragment_path(name, root)
         if path is None:
-            raise ValueError(f"프레임워크팩 조각을 찾을 수 없음: {name} — {SHIPPED_DIR.name}/{name}.md 또는 {PROJECT_DIR}/{name}.md")
+            raise ValueError(f"framework pack fragment not found: {name} — {SHIPPED_DIR.name}/{name}.md or {PROJECT_DIR}/{name}.md")
         rel = f"kernel/frameworks/{name}.md" if path.parent == SHIPPED_DIR else f"{PROJECT_DIR}/{name}.md"
-        parts.append(f"> 조각 정본: `{rel}` — 고칠 것은 이 파일이다.\n\n"
+        parts.append(f"> 조각 정본: `{rel}` — 고칠 것은 이 파일이다.\n\n"  # ko-ok: body text of the Korean dev/CONVENTIONS.md
                      + _body(path.read_text(encoding=READ_ENC)))
     inner = "\n\n".join(parts) if parts else NONE_LINE
     return f"{BEGIN}\n{inner}\n{END}"
@@ -70,7 +70,7 @@ def replace_section(text: str, rendered: str) -> str:
     begins = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
     ends = [i for i, line in enumerate(lines) if line.strip() == END]
     if len(begins) != 1 or len(ends) != 1 or ends[0] < begins[0]:
-        raise ValueError(f"「스택 관례」 표식이 없거나 짝이 안 맞음 — {BEGIN} … {END} 한 쌍이 있어야 한다")
+        raise ValueError(f"stack-conventions markers missing or unpaired — exactly one {BEGIN} … {END} pair is required")
     body = lines[:begins[0]] + rendered.splitlines() + lines[ends[0] + 1:]
     tail = "\n" if text.endswith("\n") else ""
     return "\n".join(body) + tail
@@ -98,8 +98,8 @@ def main(argv: list[str]) -> int:
     except ValueError as exc:
         print(f"[FAIL] {exc}")
         return 1
-    state = "다시 생성" if changed else "이미 최신"
-    print(f"{DOC} 「스택 관례」 {state} — 팩: {' '.join(sorted(set(names))) or '(없음)'}")
+    state = "regenerated" if changed else "already current"
+    print(f"{DOC} stack conventions section {state} — packs: {' '.join(sorted(set(names))) or '(none)'}")
     return 0
 
 

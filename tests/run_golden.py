@@ -122,7 +122,7 @@ def assert_meaningful(actual: str, bare: bool, go: bool) -> None:
     if "Traceback" in actual or "profile_shape)" in actual:
         raise ValueError("Fixture setup failed; do not accept this as a golden")
     required = ("exit=3", "needs_decision") if bare else (
-        ("exit=2", "component_classification", "컴포넌트 구문 분석", "[TOOL]") if go else
+        ("exit=2", "component_classification", "Component syntax analysis", "[TOOL]") if go else
         ("exit=2", "component_classification", "component_dependencies", "unclassified.py", "private module bypass"))
     missing = [marker for marker in required if marker not in actual]
     if missing:

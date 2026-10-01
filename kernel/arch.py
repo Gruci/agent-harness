@@ -33,10 +33,10 @@ def load(name: str | None) -> dict[str, Any]:
     pack: dict[str, Any] = {"NOT_APPLICABLE": {}}
     if name is None:
         return pack
-    module = run_pack("아키텍처팩", SHIPPED_DIR, ROOT / PROJECT_DIR, name)
+    module = run_pack("architecture pack", SHIPPED_DIR, ROOT / PROJECT_DIR, name)
     given = getattr(module, "NOT_APPLICABLE", None)
     if given is not None and not isinstance(given, dict):
-        raise ValueError(f"아키텍처팩 NOT_APPLICABLE는 매핑이어야 함: {name}")
+        raise ValueError(f"architecture pack NOT_APPLICABLE must be a mapping: {name}")
     if given:
         pack["NOT_APPLICABLE"] = dict(given)
     return pack

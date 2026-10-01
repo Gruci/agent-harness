@@ -35,16 +35,16 @@ def _toplevel() -> Path | None:
 def session_notice(root: Path | None) -> str:
     """세션 시작 때 모델에게 줄 몇 줄. 하네스를 연결하지 않은 레포에는 연결 방법만 알린다."""
     if sys.version_info < (3, 10):
-        return "[HARNESS] python 3.10 이상이 필요하다 — 지금 버전으로는 게이트가 돌지 않는다."
+        return "[HARNESS] Python 3.10 or later is required — gates do not run on this version."
     if root is None:
         return ""                             # git 밖이거나 템플릿 설치 — 그 체크아웃의 훅이 맡는다
     if not (root / "harness_profile.py").is_file():
-        return ("[HARNESS] 이 레포는 agent-harness 에 연결되지 않아 게이트가 꺼져 있다. "
-                "사용자가 원할 때만 harness-init 스킬로 연결한다.")
+        return ("[HARNESS] This repo is not connected to agent-harness, so gates are off. "
+                "Connect it with the harness-init skill only when the user asks.")
     from kernel import profile
     command = f'python -X utf8 "{HOME.as_posix()}/kernel"'
-    lines = [f"[HARNESS] 게이트가 켜져 있다. 완료 검증은 `{command} --verify` 의 exit 0 이다 — [SKIP] 은 통과가 아니다.",
-             f"[HARNESS] 하네스 명령은 `{command} <하위 명령>` 이다 — install · pack_check · profile."]
+    lines = [f"[HARNESS] Gates are on. Done means exit 0 from `{command} --verify` — [SKIP] is not a pass.",
+             f"[HARNESS] Harness commands: `{command} <subcommand>` — install · pack_check · profile."]
     notice = profile.outdated_notice()
     return "\n".join([*lines, notice] if notice else lines)
 
@@ -59,8 +59,8 @@ def main(argv: list[str]) -> int:
         print(session_notice(None if template else root))
         return 0
     if root is None or template:
-        print("[HARNESS] git 체크아웃 안에서 실행하라. 템플릿 설치는 그 체크아웃의 "
-              "`python -X utf8 -m kernel.runner` 를 쓴다.", file=sys.stderr)
+        print("[HARNESS] Run this inside a git checkout. A template install uses that checkout's "
+              "`python -X utf8 -m kernel.runner`.", file=sys.stderr)
         return 2
     name, rest = (argv[0], argv[1:]) if argv and not argv[0].startswith("-") else ("runner", argv)
     sys.argv = [name, *rest]

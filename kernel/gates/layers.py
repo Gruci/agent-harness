@@ -41,7 +41,7 @@ def check_env_access(py_files: list[Path]) -> list[str]:
             if stripped.startswith(comment):
                 continue
             if env_re.search(line):
-                bad.append(f"{rel}:{i}: {settings} 밖에서 환경변수 조회 — {stripped[:60]}")
+                bad.append(f"{rel}:{i}: environment variable read outside {settings} — {stripped[:60]}")
     return bad
 
 
@@ -92,7 +92,7 @@ def check_web_async_no_await(py_files: list[Path]) -> list[str]:
                 continue
             if _async_has_await(node) or _is_async_generator(node) or _returns_stream(node, stream_returns):
                 continue
-            bad.append(f"{rel}:{node.lineno}: await 없는 async def '{node.name}' — 동기 def 로 바꿔라")
+            bad.append(f"{rel}:{node.lineno}: async def '{node.name}' has no await — make it a plain def")
     return bad
 
 
@@ -114,7 +114,7 @@ def check_ssl_bypass_location(py_files: list[Path]) -> list[str]:
             if stripped.startswith("#"):
                 continue
             if call_re.search(line):
-                bad.append(f"{rel}:{i}: 전역 SSL 패치를 진입점 밖에서 호출 — {stripped[:50]}")
+                bad.append(f"{rel}:{i}: global SSL patch called outside an entry point — {stripped[:50]}")
     return bad
 
 
@@ -143,6 +143,6 @@ def check_routes_error_response(py_files: list[Path]) -> list[str]:
             for kw in node.value.keywords:
                 if kw.arg == status_kwarg and isinstance(kw.value, ast.Constant) \
                         and isinstance(kw.value.value, int) and kw.value.value >= 400:
-                    bad.append(f"{rel}:{node.lineno}: 에러를 {wrapper}(status "
-                               f"{kw.value.value}) 로 반환 — 예외로 올려라")
+                    bad.append(f"{rel}:{node.lineno}: error returned as {wrapper}(status "
+                               f"{kw.value.value}) — raise an exception instead")
     return bad

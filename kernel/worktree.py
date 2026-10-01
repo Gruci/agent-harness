@@ -208,11 +208,11 @@ def enter_worktree_violation(sid8: str | None) -> Finding:
     """`EnterWorktree(name)` 생성 — 항상 규약 밖이라 조건 없이 차단 문구를 돌려준다."""
     suffix = f"--{sid8}" if sid8 else "--<sid8>"
     return Finding(HOOK_NAME, "worktree_name", True, (
-        "[WORKTREE NAME] EnterWorktree 로 만들면 위치가 `.claude/worktrees/` 로 고정되어 루트 `worktrees/` 규약과 어긋난다.\n"
-        "생성과 진입을 나눠라:\n"
-        f"  git worktree add worktrees/<범위>{suffix} -b <브랜치> origin/<기본브랜치>\n"
-        f"  EnterWorktree(path=\"worktrees/<범위>{suffix}\")\n"
-        "(정본: workboard/README.md 작업 격리)"), ("EnterWorktree 생성",))
+        "[WORKTREE NAME] EnterWorktree creates under `.claude/worktrees/`, which breaks the root `worktrees/` rule.\n"
+        "Create and enter separately:\n"
+        f"  git worktree add worktrees/<scope>{suffix} -b <branch> origin/<default-branch>\n"
+        f"  EnterWorktree(path=\"worktrees/<scope>{suffix}\")\n"
+        "(Source of truth: workboard/README.md work isolation)"), ("EnterWorktree create",))
 
 
 def name_violation(token: str, sid8: str, board: Path | None,
@@ -224,25 +224,25 @@ def name_violation(token: str, sid8: str, board: Path | None,
     name = Path(token).name
     if offending_name(name, sid8) is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
-            f"[WORKTREE NAME] worktree 이름에 세션 식별자가 없다 — `{name}` → `{name}--{sid8}`.\n"
-            "`git worktree list` 만 보고도 누가 어떤 worktree 를 쓰는지 알 수 있어야 하고, 그 연결 키가 보드의 #sid 다.\n"
-            "(정본: workboard/README.md)"), (f"sid 접미 없음 {name}",))
+            f"[WORKTREE NAME] The worktree name has no session id — `{name}` → `{name}--{sid8}`.\n"
+            "`git worktree list` alone must show who uses which worktree; the join key is the task board #sid.\n"
+            "(Source of truth: workboard/README.md)"), (f"no sid suffix {name}",))
     expected = scope_mismatch(name, sid8, board)
     if expected is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
-            f"[WORKTREE NAME] 이름이 내 과업 범위와 다르다 — `{name}` → `{expected}`.\n"
-            "worktree 이름은 workboard 범위 이름을 그대로 쓴다. 그래야 `ls workboard/` 와\n"
-            "`git worktree list` 가 눈으로 바로 조인된다.\n"
-            "(정본: workboard/README.md)"), (f"범위 불일치 {name}",))
+            f"[WORKTREE NAME] The name differs from my task scope — `{name}` → `{expected}`.\n"
+            "Use the workboard scope name as the worktree name, so `ls workboard/` and\n"
+            "`git worktree list` line up at a glance.\n"
+            "(Source of truth: workboard/README.md)"), (f"scope mismatch {name}",))
     shared_root = board.parent if board is not None else None
     misplaced = wrong_location(token, cwd, shared_root)
     if misplaced is not None:
         return Finding(HOOK_NAME, "worktree_name", True, (
-            f"[WORKTREE NAME] worktree 자리가 규약 밖이다 — `{token}` → `{misplaced}`.\n"
-            "자리는 공유 체크아웃 루트의 상대경로 `worktrees/<이름>` 하나로 고정이다.\n"
-            "절대경로·외부 디스크·다른 worktree 안은 받지 않는다. 공유 루트에서 실행한다:\n"
-            f"  git worktree add {misplaced} -b <브랜치> origin/<기본브랜치>\n"
-            "(정본: workboard/README.md 작업 격리)"), (f"자리 규약 밖 {token}",))
+            f"[WORKTREE NAME] The worktree location breaks the rule — `{token}` → `{misplaced}`.\n"
+            "The only allowed location is `worktrees/<name>`, relative to the main checkout root.\n"
+            "No absolute paths, other disks, or paths inside another worktree. Run from the main checkout root:\n"
+            f"  git worktree add {misplaced} -b <branch> origin/<default-branch>\n"
+            "(Source of truth: workboard/README.md work isolation)"), (f"location outside the rule {token}",))
     return None
 
 
@@ -312,9 +312,9 @@ def worktree_residue() -> Finding | None:
     residue = dead_worktrees()
     if not residue:
         return None
-    lines = [f"[WORKTREE RESIDUE] 일이 끝난 worktree {len(residue)}건이 남아있습니다."]
+    lines = [f"[WORKTREE RESIDUE] Finished worktrees remain — {len(residue)} found."]
     for tree in residue:
-        lines.append(f"  {Path(tree['path']).name}  [{tree['branch']}] — 머지 완료·원격 삭제됨")
-    lines.append("`git worktree remove <경로>` → `git branch -d <브랜치>` → 보드 행 제거 순서로 정리한 후 종료하세요.")
-    lines.append("(이 순서를 지켜야 한다. worktree 가 체크아웃하고 있는 브랜치는 git 이 로컬 삭제를 거부한다)")
-    return Finding(HOOK_RESIDUE, "worktree_residue", False, "\n".join(lines), (f"{len(residue)}건",))
+        lines.append(f"  {Path(tree['path']).name}  [{tree['branch']}] — merged, deleted on remote")
+    lines.append("Clean up in this order before ending: `git worktree remove <path>` → `git branch -d <branch>` → remove the task board row.")
+    lines.append("(Keep this order. git refuses to delete a local branch that a worktree has checked out)")
+    return Finding(HOOK_RESIDUE, "worktree_residue", False, "\n".join(lines), (f"{len(residue)} found",))

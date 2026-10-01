@@ -56,12 +56,12 @@ def main() -> None:
 
     record("check_context_diet", "context_diet",
            sid=str(payload.get("session_id") or ""), file=str(path),
-           msg=f"통읽기 차단 — 약 {estimated}토큰 (상한 {LIMIT_TOKENS})")
+           msg=f"Whole-file read blocked — about {estimated} tokens (limit {LIMIT_TOKENS})")
     print(
-        f"[CONTEXT GUARD] {path.name} 약 {estimated:,}토큰 — 통읽기 차단 (상한 {LIMIT_TOKENS:,}).\n"
-        f"  · offset/limit({CHUNK_LIMIT_LINES}줄 이하)으로 필요한 부분만 나눠 읽어라.\n"
-        f"  · 수십 개 파일을 각각 훑어야 하면 Sonnet 에이전트 여러 개에 나눠 맡겨라.\n"
-        f"  (정본: CLAUDE.md 모델 라우팅 — 한 번 읽은 대용량 파일은 남은 세션 동안 매 턴 다시 전송된다)",
+        f"[CONTEXT GUARD] {path.name} is about {estimated:,} tokens — whole-file read blocked (limit {LIMIT_TOKENS:,}).\n"
+        f"  · Read only the parts you need with offset/limit ({CHUNK_LIMIT_LINES} lines or fewer).\n"
+        f"  · If you must scan dozens of files, split them across several Sonnet agents.\n"
+        f"  (source of truth: CLAUDE.md model routing — a large file read once is resent every turn for the rest of the session)",
         file=sys.stderr,
     )
     sys.exit(2)

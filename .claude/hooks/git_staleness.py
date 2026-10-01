@@ -65,15 +65,15 @@ def print_open_tasks() -> None:
         return
     rows = []
     for path, text in task_files(BOARD_DIR):
-        state = _field(text, "상태") or "?"
-        task = _field(text, "과업")
+        state = _field(text, "상태") or "?"  # ko-ok: reads the Korean task-board format
+        task = _field(text, "과업")  # ko-ok: reads the Korean task-board format
         rows.append(f"  {path.stem} [{state}] {task}")
     if not rows:
         return
-    print(f"[WORKBOARD] 열린 과업 {len(rows)}건 — 같은 범위면 새 과업을 만들지 말고, 그 과업 파일에 항목을 추가해 같이 처리하거나 그 브랜치 위에서 이어 작업한다.")
+    print(f"[WORKBOARD] Open tasks: {len(rows)} found — for the same scope, do not create a new task; add an item to that task file or build on that branch.")
     for row in rows:
         print(row)
-    print("  서식과 작업 시작 절차: workboard/README.md")
+    print("  Format and how to start work: workboard/README.md")
 
 
 def main() -> None:
@@ -90,14 +90,14 @@ def main() -> None:
     # 자동 fast-forward 는 ff-only라 커밋을 잃을 수 없다. 로컬 변경과 충돌하는지는 git이 판정한다.
     # 직접 dirty 검사를 했을 때는 늘 바뀌어 있는 tracked 파일 하나 때문에 동기화가 한 번도 실행되지 않은 적이 있다.
     if _git("pull", "--ff-only", "origin", branch, timeout=_FETCH_TIMEOUT_SEC) is not None:
-        print(f"[GIT SYNC] 체크아웃이 {behind}커밋 뒤여서 origin/{branch}로 fast-forward 했다. "
-              f"docs/BACKLOG.md 는 최신이다.")
+        print(f"[GIT SYNC] The checkout was {behind} commits behind, so it fast-forwarded to origin/{branch}. "
+              f"docs/BACKLOG.md is current.")
         return
 
-    print(f"[GIT STALE] 체크아웃이 origin/{branch}보다 {behind}커밋 뒤고 자동 fast-forward(ff-only)가 거부됐다. "
-          f"로컬 변경이 새로 들어온 커밋과 겹친다.\n"
-          f"  docs/BACKLOG.md·소스를 그대로 믿지 마라 — 이미 머지된 과업을 다시 계획하게 된다.\n"
-          f"  작업을 시작하기 전에 `git log --oneline HEAD..origin/{branch}`로 그 사이 무엇이 들어왔는지 먼저 확인하라.")
+    print(f"[GIT STALE] The checkout is {behind} commits behind origin/{branch} and the automatic fast-forward (ff-only) was refused. "
+          f"Local changes overlap the incoming commits.\n"
+          f"  Do not trust docs/BACKLOG.md or the source as is — you would re-plan tasks that are already merged.\n"
+          f"  Before starting work, check what came in with `git log --oneline HEAD..origin/{branch}`.")
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ class IsolationHookTests(SharedHookFixture):
                  "tool_input": {"command": PATCH}}
         codex = self.hook("PreToolUse", patch)
         self.assertEqual(codex.returncode, 2, codex.stderr)
-        self.assertIn("[ISOLATION] 메인 체크아웃", codex.stderr)
+        self.assertIn("[ISOLATION] Editing in the main checkout", codex.stderr)
         self.assertIn("worktrees/kernel-fixture--abcdef12", codex.stderr)
         claude = self.hook("PreToolUse", self.edit_payload(), "claude")
         self.assertEqual(claude.returncode, 2, claude.stderr)
@@ -75,7 +75,7 @@ class IsolationHookTests(SharedHookFixture):
     def test_edit_guard_requires_board_file(self) -> None:
         result = self.hook("PreToolUse", self.edit_payload("ffffffff0000"), "claude")
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertIn("등록부터", result.stderr)
+        self.assertIn("register first", result.stderr)
         self.assertIn("#sid:ffffffff", result.stderr)
         board = self.edit_payload("ffffffff0000", file_path="workboard/a.md", content="1\n2\n3\n")
         board["tool_name"] = "Write"

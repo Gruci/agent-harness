@@ -169,15 +169,15 @@ def _positions(group: list[_Decl]) -> str:
 
 def _decl_violation(group: list[_Decl]) -> str:
     names = "/".join(sorted({d.name for d in group if d.name}))
-    return (f"{group[0].rel}:{group[0].line}: 선언 본문 동일({names}) — 파일 "
-            f"{len({d.rel for d in group})}개가 같은 구현을 들고 있다. 공용 모듈로 뽑고 한 벌만 "
-            f"남긴다. 위치: {_positions(group)}")
+    return (f"{group[0].rel}:{group[0].line}: identical declaration body ({names}) — "
+            f"{len({d.rel for d in group})} files carry the same implementation. Move it to a shared module "
+            f"and keep one copy. At: {_positions(group)}")
 
 
 def _block_violation(group: list[_Decl]) -> str:
-    return (f"{group[0].rel}:{group[0].line}: {BLOCK_WINDOW}줄 블록 동일 — 파일 "
-            f"{len({d.rel for d in group})}개에 같은 덩어리. 함수로 뽑아 공유한다. "
-            f"위치: {_positions(group)}")
+    return (f"{group[0].rel}:{group[0].line}: identical {BLOCK_WINDOW}-line block — "
+            f"{len({d.rel for d in group})} files share the same chunk. Extract a shared function. "
+            f"At: {_positions(group)}")
 
 
 def _block_decls(text: str, rel: str, marks: tuple[str, ...],
@@ -266,9 +266,9 @@ def emit_baselines(py_files: list[Path], ui_files: list[Path]) -> tuple[list[str
     넘어간다. 그래서 정확한 키를 게이트가 직접 출력해 준다.
     """
     decl_groups, block_groups = _analyze(py_files, ui_files)
-    decl_keys = [f"{_key([d.rel for d in g])}\t# 파일 {len({d.rel for d in g})}개 "
+    decl_keys = [f"{_key([d.rel for d in g])}\t# {len({d.rel for d in g})} files "
                  f"{'/'.join(sorted({d.name for d in g if d.name}))}" for g in decl_groups]
-    block_keys = [f"{_key([d.rel for d in g])}\t# 파일 {len({d.rel for d in g})}개"
+    block_keys = [f"{_key([d.rel for d in g])}\t# {len({d.rel for d in g})} files"
                   for g in block_groups]
     return decl_keys, block_keys
 
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     _ui_dir = profile.layer("ui")
     _ui = [f for f in app_code(*profile.UI_EXT, under=_ui_dir)] if _ui_dir else []
     _decl, _block = emit_baselines(_py, _ui)
-    print(f"--- {DECL_BASELINE_FILE} ({len(_decl)}건) ---")
+    print(f"--- {DECL_BASELINE_FILE} ({len(_decl)} found) ---")
     print("\n".join(_decl))
-    print(f"--- {BLOCK_BASELINE_FILE} ({len(_block)}건) ---")
+    print(f"--- {BLOCK_BASELINE_FILE} ({len(_block)} found) ---")
     print("\n".join(_block))

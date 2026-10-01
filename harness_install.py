@@ -28,18 +28,18 @@ PRESET_DIR = KERNEL_HOME / "profiles"
 DEFAULT_PRESET = "_template"
 # 플러그인 설치 — 커널이 프로젝트 밖(플러그인 폴더)에 있다. 업데이트와 배선 검사는 플러그인 런타임의 몫이다.
 PLUGIN = KERNEL_HOME != ROOT
-PLUGIN_UPDATE = "[UPDATE] 플러그인 설치다 — `/plugin update agent-harness@agent-harness` 로 올린다. --upgrade 는 템플릿 전용이다."
+PLUGIN_UPDATE = "[UPDATE] Plugin install — upgrade with `/plugin update agent-harness@agent-harness`. --upgrade is for template installs only."
 
-BASELINE_HEADER = """# harness_baseline.txt — 하네스 설치 시점에 이미 있던 위반의 동결 목록.
+BASELINE_HEADER = """# harness_baseline.txt — baseline of violations that already existed when the harness was installed.
 #
-# 형식: <게이트 slug>\\t<파일 경로>
-# 래칫: 이 파일은 줄어들기만 해야 한다. 파일을 고쳤으면 해당 행을 지운다.
-#       (`python -X utf8 harness_install.py --prune` 이 고쳐진 행을 자동으로 걷어낸다.)
-# 신규 파일은 여기 없으므로 처음부터 전 게이트를 통과해야 한다 — 그게 이 설계의 목적이다.
+# Format: <gate slug>\\t<file path>
+# Ratchet: this file may only shrink. When you fix a file, delete its row.
+#       (`python -X utf8 harness_install.py --prune` removes fixed rows automatically.)
+# New files are not listed here, so they must pass every gate from the start — that is the point of this design.
 """
 
 # 존재해야 게이트가 켜지는 동결 파일. 없으면 그 게이트가 [SKIP] 이다.
-API_BASELINE_HEADER = "# 설치 시점에 동결한 항목 없음 — 필수 배열 필드가 새로 생기면 걸린다\n"
+API_BASELINE_HEADER = "# Nothing was baselined at install — a new required array field is caught\n"
 
 # ── 하네스 자체 업데이트 ────────────────────────────────────────────────────────
 #
@@ -74,17 +74,17 @@ def check_update() -> int:
     try:
         latest = upstream_version()
     except Exception as exc:                                  # 네트워크 오류·404 — 알리기만 하고 끝낸다
-        print(f"[UPDATE] 원류 확인 실패 — {exc.__class__.__name__}: {exc}")
+        print(f"[UPDATE] Could not check upstream — {exc.__class__.__name__}: {exc}")
         return 2
     if not latest:
-        print("[UPDATE] 원류에서 KERNEL_VERSION 을 못 읽었다 — 원류가 아직 버전 상수를 넣기 전의 버전이다")
+        print("[UPDATE] Could not read KERNEL_VERSION upstream — upstream predates the version constant")
         return 2
     if _version_tuple(latest) > _version_tuple(KERNEL_VERSION):
-        print(f"[UPDATE] 하네스 {KERNEL_VERSION} → {latest} 있음.")
-        print("   python -X utf8 harness_install.py --upgrade 가 kernel/ · .claude/hooks/ · profiles/*.py 만 갈아끼운다.")
-        print("   harness_profile.py · 정본 MD · harness_gates/ · docs/ 는 안 건드린다. 설치본은 지금 그대로다.")
+        print(f"[UPDATE] Harness {KERNEL_VERSION} → {latest} available.")
+        print("   python -X utf8 harness_install.py --upgrade replaces only kernel/ · .claude/hooks/ · profiles/*.py.")
+        print("   harness_profile.py · source-of-truth MDs · harness_gates/ · docs/ are not touched. The install is unchanged for now.")
         return 1
-    print(f"[UPDATE] 최신이다 ({KERNEL_VERSION}).")
+    print(f"[UPDATE] Up to date ({KERNEL_VERSION}).")
     return 0
 
 
@@ -96,28 +96,28 @@ def upgrade() -> int:
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
                            text=True, encoding="utf-8").stdout.strip()
     if dirty:
-        print("[UPGRADE] 작업 트리가 깨끗하지 않다 — 커밋하거나 되돌린 뒤 다시 실행하라. 교체는 git 으로 되돌릴 수 있어야 한다.")
+        print("[UPGRADE] The working tree is not clean — commit or revert, then run again. The replacement must be revertible with git.")
         return 2
     with tempfile.TemporaryDirectory() as tmp:
         target = Path(tmp) / "upstream"
         done = subprocess.run(["git", "clone", "-q", "--depth", "1", "--branch", UPSTREAM_BRANCH,
                                UPSTREAM, str(target)], capture_output=True, text=True, encoding="utf-8")
         if done.returncode != 0:
-            print(f"[UPGRADE] 원류 clone 실패 — {done.stderr.strip()[:300]}")
+            print(f"[UPGRADE] Upstream clone failed — {done.stderr.strip()[:300]}")
             return 2
         found = _VERSION_RE.search((target / "kernel" / "__init__.py").read_text(encoding="utf-8"))
         latest = found.group(1) if found else "?"
         for rel in UPGRADE_DIRS:
             shutil.copytree(target / rel, ROOT / rel, dirs_exist_ok=True,
                             ignore=shutil.ignore_patterns("__pycache__"))
-            print(f"[UPGRADE] {rel}/ 갱신 (프로젝트 추가 파일 보존)")
+            print(f"[UPGRADE] {rel}/ updated (files added by the project are kept)")
         for preset in sorted((target / UPGRADE_PRESET_DIR).glob("*.py")):
             shutil.copy2(preset, ROOT / UPGRADE_PRESET_DIR / preset.name)
-        print(f"[UPGRADE] {UPGRADE_PRESET_DIR}/*.py 덮어씀 (lang/·arch/ 오버라이드는 그대로)")
-    print(f"\n[UPGRADE] {KERNEL_VERSION} → {latest}. 다음 순서:")
-    print("   python -X utf8 -m kernel.profile     새로 생긴 프로파일 항목 확인")
-    print("   python -X utf8 -m kernel.runner      모든 게이트 다시 검증")
-    print("   git diff 로 변경을 검토하라. 설정·스킬·공통 절차는 필요한 항목만 병합한다.")
+        print(f"[UPGRADE] {UPGRADE_PRESET_DIR}/*.py overwritten (lang/·arch/ overrides unchanged)")
+    print(f"\n[UPGRADE] {KERNEL_VERSION} → {latest}. Next:")
+    print("   python -X utf8 -m kernel.profile     check new profile entries")
+    print("   python -X utf8 -m kernel.runner      re-verify every gate")
+    print("   Review the changes with git diff. Merge only the settings, skills and shared workflows you need.")
     # 새 프로세스에서 교체된 커널을 읽는다. 현재 프로세스는 이전 모듈을 캐시하고 있다.
     return subprocess.run([sys.executable, "-X", "utf8", "-m", "kernel.harness_setup"],
                           cwd=ROOT).returncode
@@ -156,19 +156,19 @@ def report_install_location() -> bool:
     nested = check_install_location()
     if not nested:
         return True
-    print("[설치 위치] 하네스가 레포 루트가 아니라 하위 폴더에 있다.\n")
-    print(f"   레포 루트 : {ROOT.parents[len(Path(nested).parts) - 1]}")
-    print(f"   하네스    : {ROOT}   (= {nested}/)")
-    print("\n   이 상태로는 훅이 하나도 안 걸린다. `.claude/settings.json` 의 훅 명령은")
-    print("   git 최상위 기준(`$(git rev-parse --show-toplevel)/.claude/hooks/...`)이라, 레포 루트에")
-    print("   `.claude/` 가 없으면 전부 실패한다. 그리고 그 실패는 화면에 아무것도 안 남긴다.")
-    print("\n   고치는 법 — 하네스 내용물을 레포 루트로 올린다:")
+    print("[INSTALL LOCATION] The harness is in a subfolder, not at the repo root.\n")
+    print(f"   repo root : {ROOT.parents[len(Path(nested).parts) - 1]}")
+    print(f"   harness   : {ROOT}   (= {nested}/)")
+    print("\n   In this state no hook runs. The hook commands in `.claude/settings.json` are relative to")
+    print("   the git top level (`$(git rev-parse --show-toplevel)/.claude/hooks/...`), so without `.claude/`")
+    print("   at the repo root every one fails. And that failure leaves nothing on screen.")
+    print("\n   Fix — move the harness contents up to the repo root:")
     print(f"       cd {ROOT.parent}")
     print(f"       git mv {nested}/* {nested}/.[!.]* .  2>/dev/null || "
           f"(mv {nested}/* {nested}/.[!.]* . )")
     print(f"       rmdir {nested}")
     print("       python -X utf8 harness_install.py")
-    print("\n   레포를 새로 시작하는 경우라면 clone 자체를 프로젝트 폴더로 하는 게 낫다:")
+    print("\n   If you are starting a new repo, it is better to clone straight into the project folder:")
     print("       git clone <url> my-project && cd my-project && rm -rf .git && git init")
     return False
 
@@ -181,31 +181,31 @@ def print_language_report() -> None:
     """
     from kernel import arch, lang, linters
 
-    print(f"쓸 수 있는 언어팩: {' '.join(lang.available())}")
-    print(f"쓸 수 있는 아키텍처팩: {' '.join(arch.available())}\n")
-    print(f"현재 설정 — LANG={profile.LANG!r} SYNTAX={profile.SYNTAX!r} ARCH={profile.ARCH!r}")
-    print(f"   서버 소스: {' '.join(profile.SOURCE_EXT)}")
-    print(f"   화면 소스: {' '.join(profile.UI_EXT)}")
+    print(f"Available language packs: {' '.join(lang.available())}")
+    print(f"Available architecture packs: {' '.join(arch.available())}\n")
+    print(f"Current settings — LANG={profile.LANG!r} SYNTAX={profile.SYNTAX!r} ARCH={profile.ARCH!r}")
+    print(f"   server source: {' '.join(profile.SOURCE_EXT)}")
+    print(f"   UI source: {' '.join(profile.UI_EXT)}")
 
     if profile.NOT_APPLICABLE:
-        print("\n이 언어·아키텍처에서 해당 없는 검사 (손실 아님):")
+        print("\nChecks not applicable to this language and architecture (no loss):")
         for slug, why in sorted(profile.NOT_APPLICABLE.items()):
             print(f"   {slug:<16} {why}")
 
     if not profile.LINTERS:
-        print("\n위임할 외부 도구 없음.")
+        print("\nNo external tools to delegate to.")
     else:
-        print("\n외부 도구:")
+        print("\nExternal tools:")
         for entry in profile.LINTERS:
             if not isinstance(entry, dict):
                 continue
             name = str(entry.get("slug") or "?")
             absent = linters.missing_tool(entry)
             if absent:
-                print(f"   [없음] {name:<14} {absent} 설치 안 됨 — {entry.get('install', '설치 방법이 적혀 있지 않다')}")
+                print(f"   [missing] {name:<14} {absent} not installed — {entry.get('install', 'no install instructions given')}")
             else:
-                print(f"   [있음] {name:<14} {' '.join(entry.get('cmd', []))}")
-        print("\n없는 도구는 해당 검사가 [TOOL] 로 꺼진 채 돈다. 통과로 처리되지는 않는다.")
+                print(f"   [found] {name:<14} {' '.join(entry.get('cmd', []))}")
+        print("\nFor a missing tool, its check runs switched off as [TOOL]. It does not count as a pass.")
     print_stack_report(profile.PACK, [pack for pack in (profile.SERVER, profile.UI) if pack])
 
 
@@ -223,17 +223,17 @@ def analyzer_status(pack: dict) -> tuple[str, str]:
 
     kind = lang.analyzer_kind(pack)
     if kind == "python":
-        return "표준 ast", "설치 없음"
+        return "stdlib ast", "nothing to install"
     if kind == "treesitter":
         grammar = lang.grammar_module(pack) or "?"
-        core = "있음" if importlib.util.find_spec("tree_sitter") else "없음"
-        found = "있음" if importlib.util.find_spec(grammar) else "없음"
-        return "tree-sitter", f"tree_sitter {core} · 문법 {grammar} {found}"
+        core = "found" if importlib.util.find_spec("tree_sitter") else "missing"
+        found = "found" if importlib.util.find_spec(grammar) else "missing"
+        return "tree-sitter", f"tree_sitter {core} · grammar {grammar} {found}"
     if kind == "command":
         command = [str(part) for part in pack.get("ANALYZER_CMD") or ()]
-        found = "있음" if command and (shutil.which(command[0]) or (ROOT / command[0]).is_file()) else "없음"
-        return "외부 분석기", f"{' '.join(command)} — 실행 파일 {found}"
-    return "없음", "구문 사실 게이트가 [TOOL] 로 남는다"
+        found = "found" if command and (shutil.which(command[0]) or (ROOT / command[0]).is_file()) else "missing"
+        return "external analyzer", f"{' '.join(command)} — executable {found}"
+    return "none", "syntax fact gates stay [TOOL]"
 
 
 def print_stack_report(pack: dict, frameworks: list[dict] | None = None) -> int:
@@ -243,21 +243,21 @@ def print_stack_report(pack: dict, frameworks: list[dict] | None = None) -> int:
     이 레포에서는 언제나 0 이어야 한다.
     """
     name, status = analyzer_status(pack)
-    print(f"\n구문 분석기: {name} — {status}")
+    print(f"\nSyntax analyzer: {name} — {status}")
     requires = [entry for source in (pack, *(frameworks or ()))
                 for entry in (source.get("REQUIRES") or ()) if isinstance(entry, dict)]
     if not requires:
-        print("팩이 요구하는 도구 없음 — 설치 요구 0건.")
+        print("No tools required by the packs — 0 installs required.")
         return 0
     missing = 0
-    print("팩이 요구하는 도구:")
+    print("Tools required by the packs:")
     for entry in requires:
         if requirement_present(entry):
-            print(f"   [있음] {entry['name']:<14} {' '.join(entry['check'])}")
+            print(f"   [found] {entry['name']:<14} {' '.join(entry['check'])}")
         else:
             missing += 1
-            print(f"   [없음] {entry['name']:<14} 설치: {entry['install'] or '설치 안내가 적혀 있지 않다'}")
-    print(f"설치 요구 {missing}건. 설치할지는 사용자가 정한다 — 없는 채로는 그 팩이 1급이 아니다.")
+            print(f"   [missing] {entry['name']:<14} install: {entry['install'] or 'no install instructions given'}")
+    print(f"Missing tools: {missing}. The user decides whether to install — without them the pack is not a verified pack.")
     return missing
 
 
@@ -288,7 +288,7 @@ def print_presets() -> None:
 
     이름만 나열하면 무엇이 자기 경우인지 모른다. 스택 이름을 아는 사람만 고를 수 있는 목록은 목록이 아니다.
     """
-    print("쓸 수 있는 프리셋:\n")
+    print("Available presets:\n")
     for name in presets():
         summary, fits = _preset_meta(name)
         print(f"  {name}")
@@ -297,7 +297,7 @@ def print_presets() -> None:
         if fits:
             print(f"      → {fits}")
         print()
-    print("고르기 어려우면 claude 를 켜고 \"하네스 깔아줘\" 라고 하라 — 물어보고 골라준다.")
+    print("If you cannot choose, start claude and say \"set up the harness\" — it asks and picks for you.")
 
 
 def install_profile(preset: str) -> bool:
@@ -308,17 +308,17 @@ def install_profile(preset: str) -> bool:
     게이트가 전부 꺼진 채로 통과 표시가 뜬다. 그래서 하네스 자신의 프로파일은 없는 것으로 취급해 덮어쓴다.
     """
     if preset not in profile_modules():
-        raise ValueError(f"사용할 수 없는 프리셋: {preset}")
+        raise ValueError(f"Preset not available: {preset}")
     target = ROOT / profile.PROFILE_FILE
     if target.exists() and not profile.IS_HARNESS_SELF:
-        print(f"[프로파일] {profile.PROFILE_FILE} 이미 있음 — 건드리지 않는다")
+        print(f"[PROFILE] {profile.PROFILE_FILE} already exists — left untouched")
         return False
     if target.exists():
-        print("[프로파일] clone 과 함께 딸려 온 하네스 자신의 프로파일을 이 프로젝트의 것으로 교체한다")
+        print("[PROFILE] Replacing the harness's own profile that came with the clone with this project's profile")
         reset_shipped_state()
     shutil.copy2(PRESET_DIR / f"{preset}.py", target)
-    print(f"[프로파일] {profile.PROFILE_FILE} 생성 (프리셋 {preset})")
-    print("   → 업무 분류를 사용자와 승인하고 언어별 검사 도구를 연결하라.")
+    print(f"[PROFILE] {profile.PROFILE_FILE} created (preset {preset})")
+    print("   → Approve the classification with the user and wire up the language check tools.")
     return True
 
 
@@ -333,26 +333,26 @@ def reset_shipped_state() -> None:
     trace = ROOT / SHIPPED_TRACE
     if trace.exists():
         trace.write_text("", encoding="utf-8")
-        print(f"[동봉 상태] {SHIPPED_TRACE} 비움 — 하네스 레포 자신의 관찰 기록이었다")
+        print(f"[SHIPPED STATE] {SHIPPED_TRACE} emptied — it was the harness repo's own trace")
     surface = ROOT / SHIPPED_SURFACE
     if surface.exists():
         surface.unlink()
-        print(f"[동봉 상태] {SHIPPED_SURFACE} 제거 — 하네스 레포 자신의 면제 동결본이었다. "
-              f"edit_surface 게이트를 켤 때 이 프로젝트의 표면으로 다시 뜬다")
+        print(f"[SHIPPED STATE] {SHIPPED_SURFACE} removed — it was the harness repo's own exemption baseline. "
+              f"It is regenerated from this project's surface when you turn on the edit_surface gate")
 
 
 def install_gate_baselines() -> None:
     path = api_types.BASELINE
     if not path.exists():
         path.write_text(API_BASELINE_HEADER, encoding="utf-8")
-        print(f"[동결 파일] {path.name} 생성 — 이게 없으면 해당 게이트가 [SKIP] 이다")
+        print(f"[BASELINE FILE] {path.name} created — without it that gate is [SKIP]")
 
 
 def report_unlisted_layers() -> None:
     """컴포넌트 분류 정본(그래프)이 있는지 알린다. 검사 경로를 채웠다고 분류가 된 것은 아니다."""
     graph = ROOT / profile.COMPONENT_GRAPH
     if not graph.is_file():
-        print(f"\n[분류 필요] {profile.COMPONENT_GRAPH} 없음 — 첫 코드 전에 사용자와 분류를 승인하라.")
+        print(f"\n[CLASSIFY] {profile.COMPONENT_GRAPH} missing — approve the classification with the user before the first code.")
 
 
 def _write_baseline(pairs: list[tuple[str, str]]) -> None:
@@ -362,7 +362,7 @@ def _write_baseline(pairs: list[tuple[str, str]]) -> None:
 
 def _report(pairs: list[tuple[str, str]], label: str) -> None:
     by_gate = Counter(slug for slug, _path in pairs)
-    print(f"\n{label} — {len(pairs)}건 (게이트 {len(by_gate)}종)")
+    print(f"\n{label} — {len(pairs)} found ({len(by_gate)} gates)")
     for slug in sorted(by_gate, key=lambda s: (-by_gate[s], s)):
         print(f"   {by_gate[slug]:>4}  {slug}")
 
@@ -372,8 +372,8 @@ def _prune() -> int:
     still_broken = set(runner.collect_all_violations()) & frozen
     removed = sorted(frozen - still_broken)
     _write_baseline(sorted(still_broken))
-    _report(removed, "[PRUNE] 고쳐져서 동결 목록에서 뺀 항목")
-    print(f"남은 동결 {len(still_broken)}건.")
+    _report(removed, "[PRUNE] Fixed entries removed from the baseline")
+    print(f"Baseline entries left: {len(still_broken)}.")
     return 0
 
 
@@ -406,7 +406,7 @@ def main(argv: list[str]) -> int:
         from kernel.harness_setup import check_agents
 
         if PLUGIN:
-            print("[AGENTS] 플러그인이 훅을 건다 — 프로젝트 배선 검사는 템플릿 설치에만 해당한다.")
+            print("[AGENTS] The plugin registers the hooks — the project wiring check applies to template installs only.")
             return 0
         return check_agents(ROOT)
 
@@ -430,11 +430,11 @@ def main(argv: list[str]) -> int:
         try:
             created = install_profile(args.preset)
         except ValueError as exc:
-            print(f"[프로파일] {exc}")
+            print(f"[PROFILE] {exc}")
             return 2
         install_gate_baselines()
         if created:
-            print("\n프로파일을 만들었다. 사용자와 스택과 분류 그래프를 정하고 검사 도구를 연결하라.")
+            print("\nProfile created. Decide the stack and classification graph with the user, then wire up the check tools.")
             return 0
 
     if profile.PROFILE_ERRORS:
@@ -448,19 +448,19 @@ def main(argv: list[str]) -> int:
 
     current = runner.collect_all_violations()
     if args.dry_run:
-        _report(current, "[DRY RUN] 현재 위반 (자동 동결하지 않음)")
+        _report(current, "[DRY RUN] Current violations (not baselined automatically)")
         return 0
 
-    _report(current, "[INSTALL] 수정이 필요한 위반")
+    _report(current, "[INSTALL] Violations to fix")
 
     # 신규 위반을 동결하지 않고 실제 검증 결과를 반환한다.
-    print("\n검증 실행:")
+    print("\nRunning verification:")
     code = runner.main(["--verify"])
     if code == 0:
-        print("\n설치 검증 완료 — 위반을 자동 동결하지 않았다.")
+        print("\nInstall verified — no violations were baselined automatically.")
 
     else:
-        print("\n검증을 통과하지 못했다 — 위에 보고된 분류 문제, 검사 설정 문제, 코드 위반을 해결하라.")
+        print("\nVerification failed — fix the classification issues, check configuration issues and code violations reported above.")
 
     return code
 

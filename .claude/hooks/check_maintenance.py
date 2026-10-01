@@ -27,13 +27,13 @@ def main() -> None:
         sys.exit(0)                     # 정비 알림 실패가 세션을 막을 이유는 없다
 
     body = result.stdout.strip()
-    if not body or "밀린 정비 없음" in body:
+    if not body or "No overdue maintenance" in body:
         sys.exit(0)
 
     print(body)
-    print("[정비] 위 항목은 사용자에게 묻지 말고 현재 요청을 끝낸 뒤 자율 실행하라. "
-          "전부 보고서만 내고 코드는 고치지 않는다. 끝나면 "
-          "`python -X utf8 -m kernel.maintenance --stamp <이름>` 으로 기록하고 결과만 보고하라.")
+    print("[MAINTENANCE] Run the items above on your own after finishing the current request; do not ask the user. "
+          "They only produce reports and change no code. When done, "
+          "record it with `python -X utf8 -m kernel.maintenance --stamp <name>` and report only the results.")
     sys.exit(0)
 
 

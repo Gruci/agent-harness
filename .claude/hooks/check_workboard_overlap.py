@@ -75,11 +75,11 @@ def main() -> None:
     if not hits:
         sys.exit(0)
 
-    record("check_workboard_overlap", "workboard_overlap", sid=sid8, msg=f"{len(hits)}건 {target.name}")
-    message = "\n".join([f"[WORKBOARD] 다른 과업이 맡은 파일이다 — {target.name}",
+    record("check_workboard_overlap", "workboard_overlap", sid=sid8, msg=f"{len(hits)} found {target.name}")
+    message = "\n".join([f"[WORKBOARD] Another task owns this file — {target.name}",
                          *(f"  {hit}" for hit in hits),
-                         "같은 화면이면 그 과업 파일에 항목을 추가해 그 세션이 같이 처리하게 하거나, 그 브랜치 위에서 이어 작업한다.",
-                         "겹치는 줄이 아니면 그대로 진행해도 된다 — 경고이지 차단이 아니다."])
+                         "If it is the same screen, add an item to that task file so that session handles it, or build on that branch.",
+                         "If the lines do not overlap, go ahead — this is a warning, not a block."])
     # exit 1 의 stderr 는 모델에 닿지 않는다(훅 문서). exit 0 JSON 으로 모델(additionalContext)과
     # 사용자(systemMessage) 양쪽에 싣는다 — 편집은 그대로 진행된다.
     print(json.dumps({"systemMessage": message,

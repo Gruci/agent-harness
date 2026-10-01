@@ -4,7 +4,7 @@
 
 **A guardrail that keeps AI from wrecking your code**
 
-AI development harness v2.0.0
+AI development harness v2.1.0
 
 [한국어](README.md) · [English](README.en.md)
 
@@ -163,6 +163,7 @@ For a project that already has code, run `--dry-run` first to see current violat
 
 | Version | Changes |
 |:--|:--|
+| **v2.1.0** | Every message the harness prints is now English: check results, hook notices, install and doctor output. Verdicts and exit codes are unchanged. The docs stay Korean. A new check blocks Korean output from coming back. |
 | **v2.0.0** | Installs as a Claude Code plugin (`/plugin install agent-harness@agent-harness`). The same check engine runs in both the template install and the plugin install. The repository is renamed `agent-harness`. The UI design audit skill and the diagram engine with its diagram check are removed; install them separately if needed. |
 | **v1.1.0** | Languages and frameworks move into packs, and setup fits the checks to the stack you choose. Work-copy isolation and the pre-merge check are enforced in both Claude Code and Codex. Finished branches can be merged by fast-forward. A fresh install into a new project now passes its checks. |
 | **v1.0.0** | First public release. |

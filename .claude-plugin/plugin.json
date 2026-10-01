@@ -1,6 +1,6 @@
 {
   "name": "agent-harness",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Gates that mechanically enforce your project rules in Claude Code: checks on every save, at session end, and a full verify before git push. Acts only in repos you connect with harness-init.",
   "author": {"name": "Daehyun Kim", "url": "https://github.com/Gruci"},
   "homepage": "https://github.com/Gruci/agent-harness",

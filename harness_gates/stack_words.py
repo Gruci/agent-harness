@@ -21,7 +21,7 @@ from pathlib import Path
 from kernel import conventions
 from kernel.context import READ_ENC, _rel, candidate_files
 
-TITLE = "스택 단어 래칫(문서·에이전트)"
+TITLE = "Stack-word ratchet (docs and agents)"
 WORDS = re.compile(r"\b(react|fastapi|useapi|tanstack|colors\.ts)\b", re.IGNORECASE)
 ALLOWED = ("dev/LESSONS.md", "kernel/frameworks/", "tests/fixtures/", "docs/tasks/")
 _ALLOWED_REF = re.compile("`(?:" + "|".join(re.escape(prefix) for prefix in ALLOWED) + ")[^`]*`")
@@ -48,8 +48,8 @@ def scan(rel: str, text: str) -> list[str]:
         if generated:
             continue
         for word in WORDS.findall(_ALLOWED_REF.sub("", line)):
-            bad.append(f"{rel}:{number}: 스택 이름 '{word}' — 원칙은 프로파일 키로 가리키고, "
-                       f"스택 관례는 kernel/frameworks/<이름>.md 조각에 둔다")
+            bad.append(f"{rel}:{number}: stack name '{word}' — point to principles by profile key, "
+                       f"and keep stack conventions in the kernel/frameworks/<name>.md fragment")
     return bad
 
 

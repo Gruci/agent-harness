@@ -43,7 +43,7 @@ PATTERNS = {
 
 # 이 언어에서는 규칙 자체가 성립하지 않는 게이트와 그 사유. "못 함"이 아니라 "해당 없음"이다.
 NOT_APPLICABLE = {
-    "type_hints": "언어가 타입을 강제하므로 누락이 불가능",
+    "type_hints": "the language enforces types, so they cannot be missing",
 }
 
 # 위임할 표준 도구. 출력은 `경로:줄: 메시지` (gcc 형식) 이어야 한다.

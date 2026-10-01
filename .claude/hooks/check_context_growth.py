@@ -35,8 +35,8 @@ def main() -> None:
 
     size_mb = size_bytes / 1_000_000
     warning = (
-        f"세션 히스토리가 {size_mb:.0f}MB 쌓였다 — 매 턴 전체가 다시 전송되고 있다. "
-        f"진행 중인 태스크가 끝났다면 /clear로 세션을 나눠라 (CLAUDE.md 모델 라우팅)."
+        f"Session history has reached {size_mb:.0f}MB — all of it is resent every turn. "
+        f"If the current task is done, split the session with /clear (CLAUDE.md model routing)."
     )
     print(
         json.dumps(

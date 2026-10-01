@@ -107,20 +107,20 @@ def _check_analyzer(pack: dict[str, Any], name: str) -> None:
     """분석기 선언과 그 분석기가 필요로 하는 재료가 같이 있는지 본다. 선언만 있고 재료가 없으면 [TOOL] 이 아니라 팩 오류다."""
     kind = pack["ANALYZER"]
     if kind is not None and kind not in ANALYZERS:
-        raise ValueError(f"언어팩 ANALYZER 는 {' '.join(ANALYZERS)} 중 하나여야 함: {name}")
+        raise ValueError(f"language pack ANALYZER must be one of {' '.join(ANALYZERS)}: {name}")
     if kind == "python" and pack["SYNTAX"] != "python":
-        raise ValueError(f"언어팩 ANALYZER='python' 은 SYNTAX='python' 에서만 성립함: {name}")
+        raise ValueError(f"language pack ANALYZER='python' only works with SYNTAX='python': {name}")
     if kind == "treesitter" and not pack["QUERIES"]:
-        raise ValueError(f"언어팩 ANALYZER='treesitter' 는 QUERIES 가 있어야 함: {name}")
+        raise ValueError(f"language pack ANALYZER='treesitter' needs QUERIES: {name}")
     if not _is_str_seq(pack["ANALYZER_CMD"]):
-        raise ValueError(f"언어팩 ANALYZER_CMD 는 명령 문자열 목록이어야 함: {name}")
+        raise ValueError(f"language pack ANALYZER_CMD must be a list of command strings: {name}")
     if kind == "command" and not pack["ANALYZER_CMD"]:
-        raise ValueError(f"언어팩 ANALYZER='command' 는 ANALYZER_CMD 가 있어야 함: {name}")
+        raise ValueError(f"language pack ANALYZER='command' needs ANALYZER_CMD: {name}")
     grammar = pack["GRAMMAR"]
     if grammar is not None and (not isinstance(grammar, str) or not grammar):
-        raise ValueError(f"언어팩 GRAMMAR 는 문법 패키지 모듈 이름이거나 None 이어야 함: {name}")
+        raise ValueError(f"language pack GRAMMAR must be a grammar package module name or None: {name}")
     if not valid_requires(pack["REQUIRES"]):
-        raise ValueError(f"언어팩 REQUIRES 는 name·check(명령 목록)·install 을 가진 매핑 목록이어야 함: {name}")
+        raise ValueError(f"language pack REQUIRES must list mappings of name, check (command list), install: {name}")
 
 
 def valid_requires(requires: object) -> bool:
@@ -134,7 +134,7 @@ def valid_requires(requires: object) -> bool:
 def find_pack(kind: str, shipped: Path, project_dir: Path, name: str) -> Path | None:
     """팩 파일 경로. 같은 이름이면 프로젝트 쪽(`project_dir`)이 커널 쪽(`shipped`)보다 우선한다. 아키텍처팩 로더도 이 함수를 쓴다."""
     if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]*", name):
-        raise ValueError(f"잘못된 {kind} 이름: {name!r}")
+        raise ValueError(f"invalid {kind} name: {name!r}")
     for candidate in (project_dir / f"{name}.py", shipped / f"{name}.py"):
         if candidate.is_file():
             return candidate
@@ -153,15 +153,15 @@ def run_pack(kind: str, shipped: Path, project_dir: Path, name: str) -> ModuleTy
     """팩 파일을 실행한 모듈. 못 찾거나 실행이 실패하면 ValueError — 프로파일 오류로 보고된다."""
     path = find_pack(kind, shipped, project_dir, name)
     if path is None:
-        raise ValueError(f"{kind}을 찾을 수 없음: {name}")
+        raise ValueError(f"{kind} not found: {name}")
     spec = importlib.util.spec_from_file_location(f"_pack_{name}", path)
     if spec is None or spec.loader is None:
-        raise ValueError(f"{kind} 로더를 만들 수 없음: {name}")
+        raise ValueError(f"cannot create a loader for {kind}: {name}")
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
-        raise ValueError(f"{kind} 로드 실패: {name}: {type(exc).__name__}") from exc
+        raise ValueError(f"{kind} load failed: {name}: {type(exc).__name__}") from exc
     return module
 
 
@@ -175,33 +175,33 @@ def load(name: str | None) -> dict[str, Any]:
     pack["PATTERNS"] = dict(DEFAULTS["PATTERNS"])
     if name is None:
         return pack
-    module = run_pack("언어팩", SHIPPED_DIR, ROOT / PROJECT_DIR, name)
+    module = run_pack("language pack", SHIPPED_DIR, ROOT / PROJECT_DIR, name)
     for key in _PACK_KEYS:
         if hasattr(module, key):
             pack[key] = getattr(module, key)
     given = getattr(module, "PATTERNS", None)
     if given is not None and not isinstance(given, dict):
-        raise ValueError(f"언어팩 PATTERNS는 매핑이어야 함: {name}")
+        raise ValueError(f"language pack PATTERNS must be a mapping: {name}")
     if given:
         pack["PATTERNS"].update(given)   # 선언한 것만 덮고 나머지는 기본값 유지
     if not isinstance(pack["NOT_APPLICABLE"], dict):
-        raise ValueError(f"언어팩 NOT_APPLICABLE는 매핑이어야 함: {name}")
+        raise ValueError(f"language pack NOT_APPLICABLE must be a mapping: {name}")
     if not isinstance(pack["EXT"], (tuple, list)) or not pack["EXT"] or not all(
             isinstance(item, str) and item for item in pack["EXT"]):
-        raise ValueError(f"언어팩 EXT는 소스 패턴 목록이어야 함: {name}")
+        raise ValueError(f"language pack EXT must be a list of source patterns: {name}")
     if not isinstance(pack["SYNTAX"], str) or not pack["SYNTAX"]:
-        raise ValueError(f"언어팩 SYNTAX는 이름이어야 함: {name}")
+        raise ValueError(f"language pack SYNTAX must be a name: {name}")
     if not isinstance(pack["LINTERS"], (tuple, list)) or not all(
             isinstance(item, dict) for item in pack["LINTERS"]):
-        raise ValueError(f"언어팩 LINTERS는 검사 선언 목록이어야 함: {name}")
+        raise ValueError(f"language pack LINTERS must be a list of check declarations: {name}")
     if not isinstance(pack["QUERIES"], dict) or not all(
             isinstance(kind, str) and isinstance(source, str) and source for kind, source in pack["QUERIES"].items()):
-        raise ValueError(f"언어팩 QUERIES는 사실 종류→쿼리 문자열 매핑이어야 함: {name}")
+        raise ValueError(f"language pack QUERIES must map fact kinds to query strings: {name}")
     if pack["MODULE_RULE"] is not None and pack["MODULE_RULE"] not in MODULE_RULES:
-        raise ValueError(f"언어팩 MODULE_RULE 은 {' '.join(MODULE_RULES)} 중 하나여야 함: {name}")
+        raise ValueError(f"language pack MODULE_RULE must be one of {' '.join(MODULE_RULES)}: {name}")
     if pack["PUBLIC_RULE"] is not None and pack["PUBLIC_RULE"] not in PUBLIC_RULES:
-        raise ValueError(f"언어팩 PUBLIC_RULE 은 {' '.join(PUBLIC_RULES)} 중 하나여야 함: {name}")
+        raise ValueError(f"language pack PUBLIC_RULE must be one of {' '.join(PUBLIC_RULES)}: {name}")
     if not isinstance(pack["FIXTURES"], dict):
-        raise ValueError(f"언어팩 FIXTURES는 매핑이어야 함: {name}")
+        raise ValueError(f"language pack FIXTURES must be a mapping: {name}")
     _check_analyzer(pack, name)
     return pack

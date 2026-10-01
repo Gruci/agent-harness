@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 try:
     from kernel.workspace import mockup_residue  # noqa: E402
 except Exception as exc:
-    print(f"[MOCKUP RESIDUE] 커널을 못 읽어 판정을 건너뛴다({exc.__class__.__name__}) — kernel/workspace.py 를 점검하라.",
+    print(f"[MOCKUP RESIDUE] Could not load the kernel, so the check is skipped ({exc.__class__.__name__}) — inspect kernel/workspace.py.",
           file=sys.stderr)
     sys.exit(0)
 

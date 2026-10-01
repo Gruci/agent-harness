@@ -1,59 +1,59 @@
 exit=2
-[OK]   프로파일 형식
-[OK]   파일 길이 상한
-[OK]   헤더 경로 주석
-[N/A ] 중첩 def(클로저) — go: 클로저가 관용구라 금지가 부적절
-[TOOL] 함수 길이 상한 — tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치
-[OK]   TYPE_CHECKING↔future annotations 짝
-[SKIP] 축약 이름 단독 대입 — 설정에 금지할 축약어를 안 적었음
-[SKIP] 축약 접두 식별자 — 설정에 금지할 축약 접두어를 안 적었음
-[N/A ] UI 라벨 금칙어 — headless: 화면 레이어가 없는 아키텍처
-[OK]   Any 타입힌트
-[N/A ] 공개 함수 타입힌트 — go: 언어가 타입을 강제하므로 누락이 불가능
+[OK]   Profile format
+[OK]   File length limit
+[OK]   Header path comment
+[N/A ] Nested def (closure) — go: closures are idiomatic, so banning them is wrong
+[TOOL] Function length limit — tree-sitter not installed — install it in the initial stack setup
+[OK]   TYPE_CHECKING↔future annotations pair
+[SKIP] Bare abbreviated names — no banned abbreviations set in the profile
+[SKIP] Abbreviated identifier prefixes — no banned abbreviation prefixes set in the profile
+[N/A ] Banned UI label words — headless: architecture has no UI layer
+[OK]   Any type hints
+[N/A ] Public function type hints — go: the language enforces types, so none can be missing
 
-[FAIL] 시크릿 토큰 하드코딩 (secrets) — 1건
-   - batches/leak.go:3: 시크릿 토큰 하드코딩 — 설정 모듈 경유로 옮기고, 이미 커밋됐다면 키를 회전하라
-[N/A ] TS any 타입 — headless: 화면 레이어가 없는 아키텍처
+[FAIL] Hardcoded secret tokens (secrets) — 1 found
+   - batches/leak.go:3: hardcoded secret token — move it behind the settings module; if already committed, rotate the key
+[N/A ] TS any type — headless: architecture has no UI layer
 
-[FAIL] 설정 밖 환경변수 조회 (env_access) — 1건
-   - utils/env.go:5: settings.go 밖에서 환경변수 조회 — var Token = os.Getenv("TOKEN")
-[N/A ] await 없는 async 핸들러 — headless: 웹 서버가 없는 아키텍처
-[SKIP] 전역 SSL 패치 호출 위치 — 설정에 ssl_bypass 이름을 안 적었음
-[N/A ] 라우트 에러 응답 형식 — headless: 웹 서버가 없는 아키텍처
-[N/A ] 공용 래퍼 없는 fetch — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 프론트 색 리터럴 — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 폰을 깨뜨리는 고정 폭 — headless: 화면 레이어가 없는 아키텍처
-[N/A ] 브라우저 API 직접 호출 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] 해시 네비게이션 단일 기전 — 화면 소스 없음
-[SKIP] 프론트 로직 테스트 짝 — 화면 소스 없음
-[SKIP] 프론트 컴포넌트 테스트 짝 — 화면 소스 없음
-[SKIP] 루트 직속 잡파일 — 설정에 루트 허용 파일을 안 적었음
-[SKIP] 프롬프트 버전 범프 — 설정에 버전 관리 프롬프트 목록을 안 적었음
-[SKIP] 수집·계산 모듈의 행동 테스트 짝 — 설정에 테스트 대상 폴더를 안 적었음
-[SKIP] DDL 저장 타입 잘림 — 설정에 schema 폴더를 안 적었음
-[N/A ] API 응답 배열 필드 옵셔널 — headless: 화면 레이어가 없는 아키텍처
-[SKIP] 소비 UI 없는 API 라우트 — 화면 소스 없음
-[TOOL] 미정의 모듈 상수 — go 구문 분석기가 없어 검사 못 함
-[TOOL] 정적 분석(vet) — go 미설치 — 설치: Go 툴체인에 포함
-[TOOL] 정적 분석(staticcheck) — staticcheck 미설치 — 설치: go install honnef.co/go/tools/cmd/staticcheck@latest
-[OK]   선언 본문 중복(정본 재구현)
-[OK]   블록 중복(선언 안 복붙)
-[OK]   MD 작성 규칙
-[OK]   MD 경로 참조 실존
-[OK]   고아 MD(허브 도달 불가)
-[SKIP] 하네스 지도 대조 — greenfield — HARNESS.md 아직 없음
-[SKIP] 에이전트 모델 정책 — 설정에 담당 AI 모델 표를 안 적었음
-[SKIP] 사고 절 승격 상태 — 설정에 사고 기록 문서를 안 적었음
-[OK]   MD 함수 참조 실존
-[OK]   컴포넌트 그래프 서식
+[FAIL] Env var reads outside settings (env_access) — 1 found
+   - utils/env.go:5: environment variable read outside settings.go — var Token = os.Getenv("TOKEN")
+[N/A ] Async handler without await — headless: architecture has no web server
+[SKIP] Global SSL patch call site — no ssl_bypass name set in the profile
+[N/A ] Route error response format — headless: architecture has no web server
+[N/A ] fetch without the shared wrapper — headless: architecture has no UI layer
+[N/A ] Frontend color literals — headless: architecture has no UI layer
+[N/A ] Fixed widths that break phones — headless: architecture has no UI layer
+[N/A ] Direct browser API calls — headless: architecture has no UI layer
+[SKIP] Single hash navigation mechanism — no UI source files
+[SKIP] Frontend logic test pairs — no UI source files
+[SKIP] Frontend component test pairs — no UI source files
+[SKIP] Stray files at repo root — no allowed root files set in the profile
+[SKIP] Prompt version bump — no versioned prompts set in the profile
+[SKIP] Behavior test pairs for collect/compute modules — no tested folders set in the profile
+[SKIP] Lossy DDL storage types — no schema folder set in the profile
+[N/A ] Optional array fields in API responses — headless: architecture has no UI layer
+[SKIP] API routes without a consuming UI — no UI source files
+[TOOL] Undefined module constants — no go syntax analyzer — check could not run
+[TOOL] Static analysis (vet) — go not installed — install: included in the Go toolchain
+[TOOL] Static analysis (staticcheck) — staticcheck not installed — install: go install honnef.co/go/tools/cmd/staticcheck@latest
+[OK]   Duplicate declaration bodies (reimplementation)
+[OK]   Duplicate blocks (copy-paste in declarations)
+[OK]   MD writing rules
+[OK]   MD path references exist
+[OK]   Orphan MD (unreachable from hubs)
+[SKIP] Harness map match — greenfield — HARNESS.md does not exist yet
+[SKIP] Agent model policy — no agent model table set in the profile
+[SKIP] Incident promotion status — no lessons doc set in the profile
+[OK]   MD function references exist
+[OK]   Component graph format
 
-[FAIL] 컴포넌트 분류 (component_classification) — 1건
+[FAIL] Component classification (component_classification) — 1 found
    - stray.go: unclassified source; needs_decision
-[OK]   그래프 사용자 결정
-[OK]   공개 계약과 의존 방향
-[TOOL] 컴포넌트 구문 분석 — go: tree-sitter 미설치 — 초기 설정의 스택 맞춤에서 설치
-[SKIP] 기능 지도 대조 — resolve graph decisions first
-[OK]   선언 포트의 실행 계약
-[TOOL] 포트 계약 실행 환경 — port contracts: selected syntax analyzer is unavailable
+[OK]   Graph user decisions
+[OK]   Public contracts and dependency direction
+[TOOL] Component syntax analysis — go: tree-sitter not installed — install it in the initial stack setup
+[SKIP] Feature map match — resolve graph decisions first
+[OK]   Runtime contracts of declared ports
+[TOOL] Port contract runtime tools — port contracts: selected syntax analyzer is unavailable
 
-필수 검사 미검증 — 완료로 처리할 수 없다.
+Required checks unverified — cannot be treated as done.
