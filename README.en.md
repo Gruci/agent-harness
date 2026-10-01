@@ -80,6 +80,11 @@ That's all. The rest is reference.
 
 ## What it catches
 
+The rules every session works under. When one is broken the session hears about it right away, and the work cannot merge until it is fixed.
+
+<p align="center"><img src="docs/readme/gate-demo.svg" width="900" alt="A recorded Claude Code session: agent-harness refuses a shell write, blocks a 520-line file, and the agent stops instead of working around the gate."></p>
+<p align="center"><sub>A recorded session with the plugin. The agent tries to write a file through the shell and is refused, writes a 520-line file and hits the 400-line limit, then stops instead of working around the gate. The grey lines are notes added for this README.</sub></p>
+
 A few examples. The full list is in the [harness map](dev/HARNESS.md).
 
 | Caught | Why |
