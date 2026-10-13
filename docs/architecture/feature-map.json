@@ -1,0 +1,14 @@
+{
+  "ambiguous": [],
+  "approval": "not-evaluated",
+  "components": [],
+  "declared_edges": [],
+  "dependency_observation": "static-analysis",
+  "dependency_violations": [],
+  "evidence": "working-tree",
+  "graph_digest": "589f91111ec2c3c2d61470830a0b5cf47136c878007c4af03658e13902b82fd3",
+  "observed_edges": [],
+  "schema": 1,
+  "unclassified": [],
+  "unverified_dependencies": []
+}

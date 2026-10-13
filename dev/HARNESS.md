@@ -1,0 +1,623 @@
+# dev/HARNESS.md — 하네스 지도
+
+> 담는 것: 공용 검사 계약과 런타임별 훅·스킬 연결. 담지 않는 것: 각 항목의 정본 내용(→ `.claude/` 각 파일·`kernel/` 헤더)·세션 행동 규칙(→ `CLAUDE.md`)·이 프로젝트가 무엇인지(→ `PROJECT.md`). 읽는 시점: 하네스를 파악하거나 수정할 때.
+
+하네스를 고치려면 먼저 하네스 전체를 볼 수 있어야 하고, 이 파일이 그 지도다. 하네스 구성이 바뀌면 같은
+턴에 이 파일도 갱신한다. 빠뜨리면 하네스 지도 검사(검사 28)가 실물과 대조해 잡는다.
+
+## 공용 하네스 운영
+
+공통 절차는 [작업 절차 허브](dev/workflows/README.md)가 정본이다.
+각 에이전트의 진입 문서와 스킬은 공통 절차에 자기 도구만 연결한다.
+
+| 책임 | 계약 |
+|---|---|
+| 검사 판정 | `kernel/runner.py`가 양쪽에 같은 결과를 낸다 |
+| 저장·종료 실행 | `kernel/hook.py`가 입력과 오류 등급을 공통 처리한다 |
+| Claude 연결 | 저장·종료 Python 훅과 PreToolUse 래퍼(`check_pretool.py`)가 공통 진입점을 호출한다 |
+| Codex 연결 | `.codex/hooks.json`이 Bash·apply_patch·Edit·Write 실행 전과 patch 후와 Stop에 공통 진입점을 호출한다. 과업 명령 `kernel.task` 도 두 런타임 공용이다 |
+| 설치 진단 | `python -X utf8 harness_install.py --check-agents`로 누락과 배선 불일치를 검사한다 |
+
+### 과업 명령 — 기계 단계는 명령 셋이 한다
+
+판단 단계(범위 인터뷰·research·plan·승인)는 그대로다. 모델이 손으로 밟던 기계 단계만 `python -X utf8 -m kernel.task` 로 접었다.
+정본은 `kernel/task.py`(start·resume·명령줄)와 `kernel/task_finish.py`(finish 상태 기계)이고, 절차는 `workboard/README.md` 다.
+
+| 명령 | 닫는 결함 |
+|---|---|
+| `plan` | 보드 등록이 3단계였는데 산출물은 1단계에 생겨, 계획 중인 범위가 다른 세션에 안 보이고 승인 대기 동안 남은 산출물 검사(⑰)가 턴을 막던 것 |
+| `start` | 손으로 지은 worktree 이름을 훅이 사후에 막던 것. `origin/<기본>` 에서 딴 브랜치에 upstream 이 자동 등록돼 합친 뒤 `branch -d` 가 거부되던 것. 요약 없는 14칸 plan 이 그대로 승인 요청이 되던 것 |
+| `finish` | 합치기 검사가 합치기 전 본체를 보던 것(E). 훅이 더럽힌 추적 파일 때문에 ff 가 거부되던 것(F). 커밋된 적 없는 plan 을 `git mv` 할 수 없던 것(G). 저장 훅이 지도를 갱신했다고 가정하던 것. 래칫 파일 증가가 어디에도 안 남던 것 |
+| `resume` | 새 session_id 로는 자기 과업도 못 고치던 것(H). `/clear` 뒤 열린 과업이 다시 안 들어오던 것 |
+
+finish 는 나올 때 검사(⑧-7)가 지키는 셸 명령이 아니다 — 같은 `verify_checkout` 을 직접 부른다. 손으로 합치는 길은 ⑧-7 이 지킨다.
+
+### 플러그인 배포
+
+같은 커널이 Claude Code 플러그인으로도 깔린다. 레포 루트가 곧 플러그인이고 매니페스트는 `.claude-plugin/` 에 있다.
+
+| 항목 | 계약 |
+|---|---|
+| 싣는 것 | 저장(⑨)·종료(⑬)·셸 쓰기(⑧-1·⑧-3)·나올 때 검사(⑧-7)·되돌릴 수 없는 명령 가드(⑧-8)와 `harness-init` 스킬. 작업 절차 훅과 나머지 스킬은 싣지 않는다 |
+| 도는 곳 | `harness_profile.py` 가 있고 템플릿 커널(`kernel/hook.py`)이 없는 체크아웃. 다른 레포에서는 훅이 exit 0 으로 비킨다 |
+| 루트 | 플러그인 진입점이 `HARNESS_ROOT` 로 프로젝트를 커널에 알린다. 정본은 `kernel/context.py` 다 |
+| 명령 | `python -X utf8 "<플러그인>/kernel" <하위 명령>`. 정본은 `kernel/__main__.py` 헤더이고 경로는 세션 시작 알림이 준다 |
+| 업데이트 | `/plugin update agent-harness@agent-harness`. `--upgrade` 는 템플릿 전용이다 |
+
+Codex에서는 프로젝트와 새 훅 정의를 런타임에서 신뢰해야 실행된다.
+공식 CLI의 `/hooks`에서 확인하며 호스트 앱은 해당 앱의 훅 지원과 신뢰 설정을 확인한다.
+파일 진단 통과는 실제 훅 활성화의 증거가 아니다.
+근거는 [공식 Codex 훅 문서](https://learn.chatgpt.com/docs/hooks)다.
+
+### 전역 자율 실행 초기화
+
+`python -X utf8 setup_global_permissions.py --agent codex`가 Codex 전역 자율 실행을 설치한다.
+`--agent both`는 Claude와 Codex를 모두 초기화한다. 인자 없이 실행하면 기존처럼 Claude를 초기화한다.
+Codex 경로는 `CODEX_HOME`을 우선하고 없으면 사용자 홈의 `.codex`를 사용한다.
+도구 승인 정책은 `never`이며 샌드박스는 전체 접근을 사용한다.
+새 권한 프로파일 형식이 이미 있으면 같은 의미의 전체 접근 프로파일을 사용한다.
+전역 지침은 중요한 모호함의 확정과 구현 전 계획 승인에서만 질문하도록 정한다.
+이미 받은 승인은 다시 요구하지 않는다.
+설치 전 기존 파일을 백업하고 모델·인증·플러그인 설정을 보존한다.
+`python -X utf8 setup_global_permissions.py --agent codex --check`는 쓰기 없이 설치 상태를 확인한다.
+현재 세션에 고정된 제한이나 호스트가 강제한 설정은 사용자 전역 파일보다 우선한다.
+설치 완료와 호스트 적용 완료를 구분하며 새 세션에서 확인한다.
+
+### 저장·종료 계약
+
+저장 훅은 이미 발생한 편집을 취소하지 않고 수정 피드백을 반환한다.
+Codex patch의 모든 추가·수정·이동 대상은 payload의 작업 디렉터리 기준으로 검사한다.
+저장과 종료 검사는 선택한 SOURCE_EXT와 UI_EXT를 같은 기준으로 수집한다.
+종료 시에는 git 추적 파일과 아직 추가하지 않은 소스를 함께 검사한다.
+사용자 결정 대기는 완료가 아니며 Stop은 질문 후 정상적으로 턴을 끝낼 수 있다.
+다른 worktree를 검사할 때는 그 체크아웃의 프로파일과 커널을 사용한다.
+링크드 worktree 안에서는 저장·종료 검사가 판정만 하고 막지 않는다. 대신 합칠 때 막힐 항목을 `[WIP]` 머리말을 붙여 알린다.
+실제 차단은 나올 때 검사(⑧-7)가 맡는다. 나올 때 검사는 worktree 작업을 본체로 합치는 push·PR·merge 직전에 도는 검사다.
+
+알림 채널의 정본은 `kernel/channel.py` 다. 모델이 읽는 본문은 판정 줄과 결정 알림뿐이다 — 저장은 `[FAIL]`·`[DECISION]` 머리와 그 아래 항목, 종료는 `[TOOL]` 까지.
+
+| 알림 | Claude | Codex |
+|---|---|---|
+| worktree 저장 | exit 0 + JSON. `additionalContext` 는 모델에게, `systemMessage` 한 줄은 사용자에게 | exit 0 + `systemMessage` |
+| worktree 종료 | exit 0 + `systemMessage` 한 줄. 모델 몫은 그 체크아웃의 git 디렉터리에 보관했다가 같은 세션의 다음 본 대화 저장이 `[TURN END]` 머리로 한 번만 받는다. 서브에이전트의 저장은 보관본을 가져가지 않는다 | exit 0 + `systemMessage` |
+| 결정 알림만 | 저장은 `additionalContext`. 종료는 `systemMessage` 와 보관 | `systemMessage` |
+
+종료 시점에 모델 채널을 쓰지 않는 이유는 그 채널이 턴을 잇기 때문이다(`dev/LESSONS.md` §26). 다음 저장은 모델이 코드를 고치는 순간이고, 저장 없이 끝내면 나올 때 검사가 같은 목록으로 막는다.
+
+검사를 공용화했다고 해서 모든 도구 정책을 똑같이 강제한다는 뜻은 아니다.
+셸로 편집해 저장 시점 검사를 거치지 않은 경로도 종료 시 전체 검사는 통과해야 한다.
+
+### 작업공간 판정 공유 — worktree 이름·격리 가드·나올 때 검사와 종료 시점 잔존 검사
+
+worktree 이름·위치 검사(⑧-2), 격리 가드(⑧-6), 나올 때 검사(⑧-7), 되돌릴 수 없는 명령 가드(⑧-8), 종료 시점의 작업공간 검사(⑫~⑰)는 Claude와 Codex가 같은 판정 코드를 쓴다.
+판정 코드의 정본은 다섯 파일이고, 셸 명령줄 읽기는 `kernel/shell.py` 하나다.
+
+- `kernel/worktree.py`: 이름, 위치, 범위, 머지가 끝난 worktree, git 이 모르는 `worktrees/` 폴더
+- `kernel/isolation.py`: worktree 주인, 메인 체크아웃, 보드 등록, 본체 전체에 한 번인 1줄 예외
+- `kernel/exit_gate.py`: 합치는 명령 읽기와 나가는 트리 고르기, `--verify` 실행
+- `kernel/irreversible.py`: 기본 브랜치 덮어쓰기, 공유 체크아웃 비우기, 남의 작업 강제 삭제, 레포 밖·공유 폴더 재귀 삭제. 플러그인 코어에서도 돈다 — 나중에 게이트가 다시 잡아 줄 수 없는 손실이라 런타임별로 두지 않는다
+- `kernel/workspace.py`: 보드, git 원격, 목업, 과업 산출물
+- `kernel/shell.py`: 명령줄을 단순 명령·실행 위치·쓰기 대상으로 읽는다. 표준 라이브러리만 써서 Claude 셸 쓰기 훅(⑧-1·⑧-3)도 같은 읽기를 쓴다. 명령은 단순 명령의 머리에서만 찾고, heredoc·감싼 셸·git 전역 옵션·`cd` 를 걷어 낸다
+
+Claude 훅은 페이로드 처리, stderr 출력, trace 기록, exit 코드만 맡는 래퍼이고, Codex 는 `kernel/hook.py` 가 PreToolUse(Bash·apply_patch·Edit·Write)와 Stop 에서 같은 판정을 부른다. PreToolUse 분기는 `kernel/pretool.py` 다.
+차단할지 경고할지는 판정 코드가 정하고, 그 결과를 알리는 채널만 런타임마다 다르다.
+
+| 런타임 | 차단 | 경고 |
+|---|---|---|
+| Claude | exit 2 + stderr | exit 0 + `{"systemMessage": …}` — 사용자 화면에만. PreToolUse 의 ⑧-5 만 `additionalContext` 로 모델에게도 준다 |
+| Codex | exit 2 + stderr | exit 0 + `{"systemMessage": …}` 하나다 — 결정 알림과 저장 후 보드 겹침도 같은 채널이다. 차단이 섞인 턴에는 stderr 에 덧붙인다 |
+
+worktree 안 알림의 채널은 「저장·종료 계약」에 있다. 두 런타임 모두 exit 1 은 검사 불능에만 쓴다.
+
+Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Codex 편집 가드는 apply_patch 의 대상 경로와 `+`·`-` 줄 수로 판정한다.
+도구 사용 전 권한과 나머지 Claude 전용 보조 훅(SessionStart·큰 파일 Read 제한·셸 쓰기·워크플로·UI 카피)은 런타임별로 유지한다.
+
+## 구조
+
+런타임별 훅이 공통 검사 진입점을 호출하고 커널은 프로파일을 통해 프로젝트 규칙을 읽는다.
+프로젝트별 경로와 예외는 프로파일에서 정하며 실행 도구의 입력 형식은 어댑터에서 처리한다.
+
+## Claude 훅 실행 순서
+
+세션 시작부터 종료까지 시간순이다. **차단**은 exit 2 로 진행을 멈추고 모델에게 피드백을 준다.
+**경고**는 exit 0 + `systemMessage` 로 사용자 화면에 띄우되 멈추지 않는다. 모델은 읽지 않는다 — PreToolUse 훅만
+`additionalContext` 로 모델에게도 줄 수 있다. exit 1 은 훅이나 검사기가 돌지 못한 경우에만 쓴다. 화면에
+"hook error" 로 보이므로 그 표시가 사실이어야 한다. 어느 쪽을 쓰는지는 아래 「단계」가 정한다.
+
+| # | 이벤트 | 훅 | 조건 | 결과 |
+|---|--------|----|------|------|
+| ① | SessionStart | `code-master.md` 주입 — 코딩 페르소나(단순성 우선·근본 원인·비타협 안전) | 항상 | 통과 |
+| ② | SessionStart | git·origin 검사 | 저장소 아님 또는 origin 미설정 | 경고 문자열 |
+| ③ | SessionStart | 프로파일 검사 — 판정 `kernel/profile.py` `setup_notice` | `harness_profile.py` 없음, 하네스 레포 자신의 프로파일인데 원류 원격이 없음(설치 전 clone), `LANG` 미선택, 또는 `PROFILE_SCHEMA` 가 커널 요구치보다 낮음(새 항목 목록 고지) | `[HARNESS SETUP]` 경고 문자열 |
+| ④ | SessionStart | 인터프리터 검사 | python 실행 불가 또는 3.10 미만 | 경고 문자열 |
+| ⑤ | SessionStart | `git_staleness.py` | 시작·`/clear`·compact·resume 마다 세션 sid 와 열린 과업 주입(남의 과업에는 인계 명령, worktree 없는 과업에는 그 사실) + 기본 브랜치가 origin 보다 뒤면 정렬 (**정렬만 startup 한정**) | sid 한 줄 · 과업 목록 · ff-only 자동 정렬 |
+| ⑥ | SessionStart | `check_maintenance.py` | 정비 임계치 초과 (**startup 한정**) | 밀린 정비 목록 |
+| ⑦ | UserPromptSubmit | `check_context_growth.py` | transcript 가 임계 초과 | 경고 + `/clear` 권고 |
+| ⑧ | PreToolUse(Read) | `check_context_diet.py` | 추정 토큰이 한도를 넘는데 분할 읽기를 하지 않음 — 레포 안팎을 가리지 않는다 | **차단** |
+| ⑧-1 | PreToolUse(Bash·PowerShell) | `check_bash_write.py` — 읽기 `kernel/shell.py` | 셸로 소스 파일 쓰기(리다이렉트·`tee`·`sed -i`·PowerShell 쓰기 cmdlet, 상대경로는 명령 안의 `cd` 를 따른다), 판정 명령의 exit code 를 파이프·체인으로 삼키기, 병렬 작업 중 공유 트리의 git 변경(끝난 브랜치의 `git merge --ff-only` 는 예외) | **차단** |
+| ⑧-3 | 〃 | `check_bash_write.py` | 트리 밖·의존성 디렉토리를 잇는 junction·symlink 생성 | **차단** |
+| ⑧-2 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit·EnterWorktree·Bash·PowerShell) | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | 새 worktree 이름에 `--<sid8>` 접미 없음, 또는 `EnterWorktree(name)` 생성 | **차단** |
+| ⑧-2 | 〃 | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | worktree 이름 앞부분이 내 workboard 범위와 다름 (내 보드 파일 있을 때만) | **차단** |
+| ⑧-6 | 〃 | `check_pretool.py` — 판정 `kernel/isolation.py`, Codex 공유 | 남의 과업 worktree 편집 — 그 범위 보드 파일의 `#sid` 가 내 sid 가 아님 | **차단** + `kernel.task resume` 명령 |
+| ⑧-6 | 〃 | 〃 | 메인 체크아웃에서 구현 파일 편집 (예외 `workboard/`·`docs/tasks/`·본체 전체에 바뀐 줄 1줄 — 이미 쌓인 커밋 안 된 줄을 더해 센다) | **차단** + `kernel.task start`·진입 명령 |
+| ⑧-6 | 〃 | 〃 | 내 `#sid` 과업 파일 없이 편집 (예외 같음 — 등록 자체는 막지 않는다) | **차단** + `kernel.task start` 명령과 보드 서식 |
+| ⑧-7 | 〃 | `check_pretool.py` — 판정 `kernel/exit_gate.py`, Codex 공유 | `git push`·`gh pr create`·`gh pr merge`·`git merge` 직전 나가는 트리의 체크아웃에서 `--verify` 가 exit 0 아님 (`[TOOL]`·`[DECISION]`·러너 실행 불능 포함). 한 명령줄의 합치는 명령을 전부 검사하고 `cd`·`git -C` 가 체크아웃을 정한다. 본체의 `git merge <과업 브랜치>` 는 그 브랜치의 worktree 를 검사하고, worktree 안 merge 와 `origin/…` 동기화는 대상이 아니다 | **차단** + 위반 목록 |
+| ⑧-8 | 〃 | `check_pretool.py` — 판정 `kernel/irreversible.py`, Codex 와 플러그인 공유 | 되돌릴 수 없는 명령 — 기본 브랜치를 겨눈 강제 push 나 삭제 push, 메인 체크아웃의 `git reset --hard` 와 `git clean -f`, 남의 `#sid` 과업이 잡은 브랜치나 worktree 의 강제 삭제, 레포 밖과 레포 루트와 공유 폴더(`.git`·`workboard`·`worktrees` 와 worktree 폴더)의 재귀 삭제. 자기 브랜치의 강제 push 와 드라이런과 worktree 안 롤백과 임시 폴더와 값 모르는 변수와 패턴 글롭은 통과하고, git 조회는 위험한 모양에서만 한다. worktree 이름 검사와 나올 때 검사보다 먼저 돈다 | **차단** + 무엇을 왜 하려 했는지 사용자에게 보고하고 사람에게 맡기라는 안내 |
+| ⑧-9 | 〃 | `check_pretool.py` — 판정 `kernel/local_hooks.py`, Codex 와 플러그인 공유 | 프로파일 `LOCAL_HOOKS` 가 켠 프로젝트 훅 `harness_hooks/<이름>.py` 의 `check` 가 사유를 돌려줌. 핵심 가드가 전부 통과한 뒤에만 돈다. 훅 자체의 예외는 막지 않고 경고와 `gate_error` 관찰로 남긴다 | `MODE = "block"` 이면 **차단**, `"warn"` 이면 경고 |
+| ⑧-4 | PreToolUse(Workflow) | `check_workflow_script.py` | 스크립트의 `agent(model=…)` 호출에 model 미지정 | **차단** |
+| ⑧-5 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit) | `check_workboard_overlap.py` | 다른 과업의 `손대는 곳` 글로브에 걸리는 파일을 편집 | 경고 (추론) — exit 0 JSON. `systemMessage` 로 사용자에게, `additionalContext` 로 모델에게 넘긴다. 후자는 문서화된 필드지만 실측 확인은 아직이다 |
+| ⑨ | PostToolUse(Edit·Write·MultiEdit) | `check_file_rules.py` | 저장한 파일이 게이트 위반 | **차단** — worktree 안에서는 `[WIP]` 알림(exit 0, 모델은 `additionalContext`) |
+| ⑪ | SubagentStop | `check_agent_return.py` | 반환이 임계 초과 | **차단** — 반환문이 페이로드에 없으면 통과하고 `systemMessage` 로 알린다 |
+| ⑫ | Stop | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | `workboard/` 에 자기 `#sid` 과업 파일이 **머지 후에도** 남아 있음 (진행 중은 통과) | 경고 (추론) |
+| ⑫-1 | 〃 | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | 주인 없는 과업 파일 — 머지됐고 브랜치가 origin·로컬 양쪽에 없음 | 경고 (추론) |
+| ⑬ | Stop | `check_coding_rules.py` | 전체 게이트 검사에서 위반이 남아 있음 | **차단** — worktree 안에서는 `[WIP]` 알림(exit 0, 사용자 한 줄, 모델 몫은 다음 저장에) |
+| ⑭ | Stop | `check_git_remote.py` — 판정 `kernel/workspace.py`, Codex 공유 | GitHub 원격이 설정되지 않음 | 경고 (사람 답이 필요한 조건) — 차단은 `kernel.task finish` 가 한다 |
+| ⑮ | Stop | `check_worktree_residue.py` — 판정 `kernel/worktree.py`, Codex 공유 | 머지 끝난 worktree 가 남아 있음 — upstream 이 자기 브랜치일 때만 push 이력으로 센다 | 경고 (추론) + 정리 순서 제시 |
+| ⑯ | Stop | `check_mockup_residue.py` — 판정 `kernel/workspace.py`, Codex 공유 | `docs/mockup/` 에 판단이 끝난 시안이 남아 있음. 보드에 열린 범위의 폴더 `mockup/<범위>/` 는 검토 중이라 예외이고 `kernel.task finish` 가 archive 로 옮긴다. `wip_` 접두는 하위 호환 예외다 | **차단** |
+| ⑰ | Stop | `check_task_residue.py` — 판정 `kernel/workspace.py`, Codex 공유 | 보드가 비었는데 `docs/tasks/` 루트에 산출물이 남아 있음. 리서치를 시작할 때 `kernel.task plan` 이 보드에 올리므로 승인 대기는 보드가 증명한다. `wip_` 와 최근 24시간 안에 수정한 파일(등록 전에 쓴 산출물)은 예외다 | **차단** |
+| ⑱ | Stop | `check_ui_copy.py` | 브랜치에서 새로 추가된 ui 레이어 문구를 프로파일 `UI_COPY["language"]` 의 언어로 뽑아(한·일·중은 리터럴과 JSX 텍스트, 라틴 문자 언어는 JSX 텍스트만, 주석·테스트 파일 제외) Haiku(별칭 `haiku`) 호출 1회로 감수 — `ui_denylist` 명단에 없는 새 내부어·축약·구어를 잡는다. 같은 문구 집합이면 해시 캐시를 써서 다시 호출하지 않는다. 인프라 실패와 언어 미설정은 `systemMessage` 로 알리고 통과한다 | 경고 (LLM 판정) |
+
+⚠️ **셸 게이트의 매처는 셸을 실행하는 툴을 전부 담아야 한다.** 이 환경에는 `Bash` 와 `PowerShell` 두 개가 있고, `Bash` 만 걸어두면 같은 명령이 `PowerShell` 로 그냥 나간다 — 원본 프로젝트에서 게이트 네 개가 전부 그렇게 무력화된 채 머지됐다(같은 `git switch` 가 Bash 에서는 차단되고 PowerShell 에서는 통과했다). 두 툴의 입력 필드가 똑같이 `command` 라 훅 본문은 손댈 것이 없고, 빠지는 것은 매처 한 단어뿐이라 눈에 안 띈다. 하네스 지도 검사(검사 28)는 훅 이름이 있는지만 보고 **매처 문자열은 보지 못한다**. 그래서 이 규칙은 게이트가 아니라 문서로만 지킨다. **셸 툴이 늘면 매처부터 늘린다.**
+
+### 단계 — 차단이냐 경고냐는 판정 근거가 정한다
+
+훅은 네 단계를 낸다. 어느 단계를 쓸지는 심각도가 아니라 **판정 근거**가 정하고, 단계마다 채널이 다르다.
+판정할 수 없는 경우와 **모델이 지금 고칠 수 없는 조건**은 통과(exit 0)다.
+
+| 단계 | 근거 | 채널 | 해당 훅 |
+|------|------|------|---------|
+| **차단** | **직접 관측** — 검사기가 실제로 위반을 뱉었거나 파일이 실제로 거기 있다 | exit 2 + stderr. 모델이 읽는다 | ⑧ ⑧-1 ⑧-2 ⑧-3 ⑧-4 ⑧-6 ⑧-7 ⑧-8 ⑧-9(block) ⑨ ⑪ ⑬ ⑯ ⑰ |
+| **작업 중 알림** | 링크드 worktree 안의 직접 관측. 고칠 시점이 합칠 때이므로 `[WIP]` 알림만 내고, 차단은 합치기 직전에 나올 때 검사(⑧-7)가 맡는다 | 저장은 exit 0 + `additionalContext`(모델)와 `systemMessage`(사용자). 종료는 `systemMessage` 한 줄이고 모델 몫은 다음 저장에 붙는다 | ⑨ ⑬ (worktree 안) |
+| **경고** | **추론** — git 상태로 "끝났을 것"을 추측하거나, 사람이 적은 글로브로 겹침을 짚거나, LLM 이 문구를 판정한다. 또는 **사람 답이 필요한 조건** — 직접 관측이지만 모델이 지금 고칠 수 없다(원격 없음). 프로젝트 훅의 `warn` 모드는 추론 판정을 관찰 뒤에 올리기 위한 시작 단계다 | exit 0 + `systemMessage`. 사용자만 읽는다. ⑧-5 만 `additionalContext` 로 모델에게도 준다 | ⑫ ⑫-1 ⑭ ⑮ ⑱ ⑧-5 ⑧-9(warn) |
+| **검사 불능** | 훅이나 검사기가 돌지 못했다 — 페이로드 파싱 실패, 시간 초과, 크래시 | exit 1 + stderr. 화면의 "hook error" 표시가 사실이다. 공유 체크아웃 ⑬ 의 크래시만 차단이다 | 전부 |
+
+커널 게이트는 "확실한 위반만 잡는다(오탐 0)"는 원칙을 지킨다. 훅은 같은 원칙을 검출을 **끄는 대신 단계를 낮춰**
+지킨다. 검출을 끄면 남은 잔해가 보이지 않으므로, 사용자에게는 매 턴 알리되 진행은 막지 않는다. 경고의 `systemMessage` 는
+모델에게 닿지 않으므로, 모델이 반드시 읽어야 하는 조건이라면 경고가 아니라 차단이어야 한다. 한편
+추론 판정에는 차단 권한을 주지 않는다. 경고 훅은 이 두 조건 사이에서 쓴다.
+종료 시점 경고에 모델 채널을 주지 않는 이유는 Stop 의 모델 채널이 턴을 잇기 때문이다. 그것은 사실상 차단 권한이고, 모델이 추론을 따르면 §19 의 오판을 실행한다.
+
+이렇게 정한 근거는 추론 계열 훅 두 개가 연달아 오판한 사고다(`dev/LESSONS.md` §19). ⑫ 는 진행 중인 보드 행을 막아
+세션을 잠갔고, ⑮ 는 방금 만든 worktree 를 "머지 완료"로 잘못 판정해 **작업 중인 worktree 를 지우라고** 요구했다.
+차단이면 잘못된 지시를 따르거나 세션이 잠기거나 둘 중 하나다.
+**틀릴 수 있는 판정에는 차단 권한을 주지 않는다.**
+
+⑱ 도 같은 계열이다. Haiku 의 문구 판정은 의견이지 관측이 아니다. 이미 알려진 조어는 UI 라벨 금칙어 검사(검사 6)가
+결정론적으로 막고, 명단에 없는 새 조어는 경고로 알려 명단에 추가하도록 유도한다. 의견만으로 세션을 잠그지 않는다.
+
+### 실패 시 방향 — 훅 오작동과 규칙 위반은 다른 사건이다
+
+훅 오작동을 이유로 차단하면, 복구에 써야 할 툴이 바로 차단된 그 툴이라 세션이 잠긴다.
+
+| 상황 | 방향 | 이유 |
+|------|------|------|
+| 훅 페이로드 파싱 실패 | 검사 불능(exit 1) | Edit·Bash 전면 차단은 훅을 고칠 수단까지 막는다 — ⑨ 를 고치려면 Edit 를 써야 하는데 그 Edit 가 다시 ⑨ 를 거친다 |
+| 러너가 `VERIFY_TIMEOUT_SEC` 안에 안 끝남 | ⑨ ⑬ 모두 검사 불능(exit 1). 나올 때 검사(⑧-7)만 차단이다 — 다른 체크아웃의 커널로 위임한 검사가 시간을 넘겨도 나가는 명령이면 차단(exit 2)이다 | 검사기가 느린 것과 코드가 틀린 것은 다른 사건이다. 모델이 고칠 수 없는 조건이고, 같은 검사를 나올 때 검사가 fail-closed 로 다시 돈다. 위임이 시간을 넘겼다고 push 가 나가면 fail-closed 가 거짓이다 |
+| `kernel/shell.py` 를 못 읽음 | ⑧-1·⑧-3 검사 불능(exit 1) | 읽기 모듈이 깨진 것은 규칙 위반이 아니다. 나올 때 검사와 worktree 이름 검사는 커널 안에서 같은 모듈을 쓰므로 그쪽은 커널 크래시 처리를 따른다 |
+| 검사기 자체 크래시(트레이스백, `[FAIL]` 없음) | ⑨ 검사 불능(exit 1). ⑬ 은 공유 체크아웃에서 차단(exit 2), 링크드 worktree 안에서는 검사 불능(exit 1) — 모두 "규칙 위반"이 아니라 "검사 불능"으로 말한다 | 위반으로 포장하면 모델이 트레이스백을 고칠 코드로 읽고 멀쩡한 파일을 되돌린다. 고칠 대상은 커널이다. worktree 안에서 프로파일이나 커널을 고치는 중의 크래시가 매 턴 종료를 막으면 §25 가 돌아온다 |
+| 규칙 위반 판정 | **차단**(exit 2) | 판정이 나온 경우다 |
+| `session_id` 식별 불가 | 작업 소유권 추론만으로 차단하지 않음 | 남의 행을 삭제할 권한으로 해석하지 않는다 |
+| 보드 행이 끝난 것인지 판정할 수 없음 | 통과 | 보드 오탐은 세션을 끝낼 수 없는 교착으로 이어진다 |
+| 에이전트 반환문을 찾지 못함 | 통과 | 모든 에이전트를 막는 쪽이 더 위험하다(⑪ fail-open) |
+
+작성 시점 검사(⑨)가 막지 않고 넘어가도 세션 끝에 Stop 훅 ⑬ 이 전체를 다시 검사한다. 검사가 두 겹이라
+⑨ 의 검사 불능이 구멍이 되지 않는다. worktree 안에서는 나올 때 검사(⑧-7)가 세 번째 겹이고, 거기서는 시간 초과도 차단이다.
+
+**모델이 지금 고칠 수 없는 조건은 통과시킨다.** 차단은 "고쳐라"는 신호인데 고칠 수단이 없으면
+신호가 아니라 벽이다. 머지 전 보드 행이 그런 경우였다. 행을 지우면 거짓으로 완료를 보고하는 셈이라 모델에게 선택지가 없었다.
+`stop_hook_active` 로 재차단만 빠져나가는 우회는 쓰지 않는다. 조건은 그대로 둔 채 알림만 끄는
+것이라 다음 사람이 왜 막혔는지도 왜 안 막히는지도 못 읽는다. 훅이 도는 건 조건이 참이기
+때문이고, 조건이 틀렸으면 조건을 고친다.
+
+**차단·경고하는 훅은 막을 때마다 관찰을 남긴다.** 기록 모듈은 `kernel/trace.py`,
+실물은 `harness_trace.jsonl` 이고 커밋한다. 훅은 추적 파일에 바로 쓰지 않고 공유 `.git` 안의 대기 파일(`harness-trace.jsonl`)에 쌓는다 —
+본체와 worktree 가 각자 더러워져 ff 합치기가 거부됐기 때문이다(결함 F). 추적 파일은 `kernel.task finish` 가 그 과업 브랜치로 옮겨 커밋하고,
+병렬 과업의 줄은 `.gitattributes` 의 `merge=union` 이 둘 다 남긴다. 회고는 추적 파일과 대기 파일을 합쳐 읽는다.
+기록이 실패해도 차단은 계속된다 — 관찰은 차단보다
+항상 덜 중요하다. 같은 세션의 같은 차단은 한 번만 쌓인다. Stop 훅은 턴마다 실행되므로, 이렇게 하지 않으면
+위반 하나가 다섯 줄로 쌓여 빈도 집계 전체가 틀어진다.
+관찰 한 줄에는 단계(`level`)가 있다 — `block` 은 막았다, `wip` 는 worktree 안 알림이다, `warn` 은 추론이거나 검사 불능이다.
+단계는 중복 키에도 들어간다. 같은 위반이라도 worktree 안 알림과 합칠 때의 차단은 다른 사건이기 때문이다.
+회고는 단계별로 세고, 정비 알림은 관찰 건수를 단계별 구성과 함께 말한다. worktree 알림을 차단으로 세면 집계가 거짓이 된다.
+⑦ 에는 기록을 연결하지 않았다. 게이트가 아니라 세션 위생 경고라 게이트 조정의 근거가 되지 않는다.
+훅은 기록을 `_hookio.record` 로 남긴다. 이 함수는 커널을 불러오지 못해도 예외를 내지 않고 기록을 커널에 위임한다.
+훅 명령은 전부 `python -X utf8` 로 등록한다. 빠지면 Windows cp949 에서 한글 출력이 `UnicodeEncodeError` 로 훅을 죽이고, exit 1 은 통과라 차단 훅이 조용히 꺼진다.
+
+⑥ 만 `startup` matcher 로 분리돼 있고, ⑤ 는 모든 시작 이벤트에서 돌되 fetch·pull 은 `startup` 페이로드에서만 한다.
+`/clear` 와 compact 마다 `git pull` 과 정비 판정이 다시 도는 것을 막으면서도 열린 과업과 세션 sid 는 다시 들어오게 하기 위해서다.
+
+### 임계 상수 — 값의 정본은 코드, 여기엔 왜 그 값인지만
+
+| 상수 | 값 | 정의 | 근거 |
+|------|-----|------|------|
+| `LIMIT_TOKENS` | 16,000 | `check_context_diet.py` | 정리 후 최대 정본 MD 는 통과, 수십 KB 덤프는 차단하는 지점 |
+| `CHUNK_LIMIT_LINES` | 500 | 〃 | 분할 읽기 탈출구 |
+| `MAX_RETURN_CHARS` | 20,000 | `check_agent_return.py` | 상세 반환은 허용, 파일 전문 덤프는 차단 |
+| `WARN_BYTES` | 15,000,000 | `check_context_growth.py` | transcript 크기는 실제 컨텍스트의 3~5배로 잡는 근사치다 — 1M 의 3분의 1 지점 |
+| `MAX_LINES` | 400 | `kernel/gates/core.py` | 파일 단일 책임 하한선 |
+| `MAX_FUNC_LINES` | 80 | 〃 | 파일 상한이 못 보는 축 — 함수 단일 책임 |
+| `FRESH_SEC` | 86,400 | `kernel/workspace.py` | `kernel.task plan` 으로 등록하기 전에 쓴 산출물의 유예 기간 — 하루 늦게 잡아도 오독을 막는 목적은 유지된다 |
+| `MAX_FREE_LINES` | 1 | `kernel/isolation.py` | 오탈자·설정값 1줄 예외의 기계 판정 — 줄 수만 보고 파일 종류는 보지 않는다(사용자 지정). 본체에서는 이미 쌓인 커밋 안 된 줄을 더해 **본체 전체에 한 번**이다 — 편집마다 1줄이면 쉰 번 나눠 격리를 우회할 수 있었다 |
+| `VERIFY_TIMEOUT_SEC` | 120 | `kernel/exit_gate.py` | 러너 한 번의 상한 — 저장(⑨)·종료(⑬)·나올 때 검사(⑧-7)·`task finish` 가 같이 쓴다. 린터 하나(90초)보다 길어야 느린 도구가 자기 `[TOOL]` 줄로 찍히고, 옛 ⑧ 훅 timeout(180초)보다 짧아야 런타임이 훅을 먼저 끊고 push 를 내보내지 않는다. 이 레포에서는 7초 안팎 걸린다. 저장·종료의 초과는 검사 불능, 나올 때 검사의 초과는 차단이다 |
+| `DELEGATE_TIMEOUT_SEC` | 300 | `kernel/hook.py` | 다른 체크아웃의 커널로 저장·종료 훅을 대신 돌릴 때의 상한 — 러너 두 번(저장 `--file` 과 종료 전량)보다 길다 |
+| `PRETOOL_DELEGATE_SEC` | 150 | 〃 | PreToolUse 위임의 상한 — 러너 한 번보다 길고 ⑧ 훅 timeout(180초)보다 짧아야, 나가는 명령의 위임이 시간을 넘겼을 때 런타임이 아니라 이 코드가 차단(exit 2)을 낸다 |
+| `GIT_TIMEOUT_SEC` | 60 | `kernel/task.py` | 과업 명령의 git 한 번 — fetch·push 가 느린 망에서도 끝나는 값 |
+
+훅 설정의 `timeout` 은 그 안의 제한보다 길게 명시한다. 순서는 원류 tests/test_check_execution.py 가 잠근다.
+
+토큰 추정식은 ASCII 4자당 1토큰, 그 외 1자당 1토큰이다. 한글이 UTF-8 3바이트라 바이트로
+재면 3배 과대평가된다.
+
+⑭ 는 턴 종료를 막지 않는다. 막는 자리는 원격이 실제로 필요한 과업 끝내기(`kernel.task finish`)다 — gh 가 인증되지 않았거나
+사용자가 지금 답할 수 없으면 모델이 고칠 수단이 없어, 매 턴 차단은 검사가 아니라 교착이었다(`dev/LESSONS.md` §19).
+그래도 **무엇을 하면 되는지 완성된 명령으로 준다.** `gh` 가 인증돼 있으면
+계정과 폴더 이름을 이미 알기 때문에 사용자에게 물을 게 없다. 인증이 없을 때만 질문이 남는다.
+레포는 항상 `--private` 로 만든다 — 공개 발행은 되돌리기 어려워 사람이 정할 일이다.
+
+## 게이트
+
+판정 정본은 `kernel/gates/`이며 진입점은 `kernel/runner.py`다.
+기술 검사 경로는 `harness_profile.py`의 CHECK_PATHS로 정한다.
+업무 분류와 의존 관계는 [컴포넌트 계약](COMPONENTS.md)이 정본이다.
+
+| # | 게이트 | slug | 무엇을 막나 |
+|---|--------|------|-------------|
+| 1 | 파일 길이 상한 | `line_limit` | 단일 책임을 잃은 파일 |
+| 2 | 중첩 def | `closures` | 테스트할 수 없는 숨은 로직 |
+| 4 | 축약 이름 | `abbrev_names` | 내부 코드가 이름으로 새는 것 |
+| 5 | 축약 접두 | `abbrev_prefixes` | 〃 |
+| 6 | UI 라벨 금칙어 | `ui_jargon` | 사용자에게 노출되는 조어 |
+| 7 | py Any | `py_any` | `Any` 타입으로 게이트를 피해 가는 것 |
+| 8 | 공개 함수 타입힌트 | `type_hints` | 문서화되지 않은 모듈 경계면 |
+| 9 | 시크릿 토큰 | `secrets` | 실키 하드코딩 |
+| 10 | TS any | `ts_any` | 타입체커 strict 우회 — **ESLint 위임** |
+| 12 | 설정 밖 환경변수 | `env_access` | 환경변수 읽는 지점이 흩어지는 것 |
+| 13 | await 없는 async | `web_async` | 비동기인 척하는 동기 핸들러 |
+| 15 | 전역 SSL 패치 위치 | `ssl_bypass` | 검증 우회가 아무 데서나 켜지는 것 |
+| 16 | 라우트 에러 응답 | `routes_error` | 에러 형식이 라우트마다 다른 것 |
+| 17 | 공용 래퍼 없는 fetch | `raw_fetch` | 캐시·에러 처리 없는 직접 호출 — **ESLint 위임** |
+| 18 | 프론트 색 리터럴 | `hex_literal` | 색 하드코딩 (rgb·hsl 우회 포함) — **ESLint 위임** |
+| 19 | 고정 폭 | `responsive` | 폰을 깨뜨리는 px 폭과 `100vw` — **ESLint 위임** |
+| 20 | 브라우저 API 직접 호출 | `browser_api` | 앱 이식 때 교체 범위가 퍼지는 것 — **ESLint 위임** |
+| 22 | 행동 테스트 짝 | `test_pairing` | 깨져도 아무도 모르는 수집·계산 모듈 |
+| 23 | DDL 저장 타입 | `ddl_types` | 소스 정밀도를 못 담는 컬럼 |
+| 24 | API 배열 옵셔널 | `api_array` | 배포 시차로 undefined 가 도착하는 것 |
+| 25 | MD 작성 규칙 | `md_style` | 의미가 뭉개진 문서 |
+| 26 | MD 경로 참조 | `md_path_refs` | 삭제·리네임 후 남은 유령 경로 |
+| 27 | 고아 MD | `md_orphans` | 허브에서 도달 못 하는 문서 |
+| 28 | 하네스 지도 | `md_harness_map` | 이 파일과 실물의 어긋남 — 양방향(빠진 실물·지도에만 남은 유령 행) |
+| 29 | 에이전트 모델 정책 | `agent_model` | frontmatter 와 정책표의 드리프트 |
+| 30 | 사고 절 승격 상태 | `lessons_promotion` | 사고를 적고 판단을 미루는 것. `> 강제:` 가 이름으로 인용한 `harness_gates/`·`harness_hooks/` 파일이 프로파일에 안 켜진 것(선언만 하고 연결 안 한 §15 의 구멍) |
+| 31 | 소비 UI 없는 API 라우트 | `orphan_api` | 화면이 없어 사용자에겐 존재하지 않는 기능 — 라우트 인식은 서버 프레임워크팩의 정규식 |
+| 32 | 미정의 모듈 상수 | `undefined_const` | import 는 통과하고 호출 시점에 터지는 이름 |
+| 33 | MD 함수 참조 실존 | `md_fn_refs` | 개명 후 MD 에 남은 유령 함수 |
+| 34 | 선언 본문 중복 | `dup_decl` | 이름만 갈린 정본 재구현 |
+| 35 | 블록 중복 | `dup_block` | 함수로 안 뽑힌 복붙 |
+| 36 | 헤더 경로 주석 | `header_path` | 파일 이사 후 남은 옛 경로 주석 |
+| 37 | 함수 길이 상한 | `func_limit` | 파일 400줄 상한이 못 보는 축 — 한 파일에 400줄 함수 하나 |
+| 38 | TYPE_CHECKING 짝 | `type_checking_future` | future annotations 없는 3.11 NameError — 로컬에서는 통과하고 CI 에서 깨진다 |
+| 42 | 해시 네비 단일 기전 | `hash_nav` | 이벤트를 안 내는 History API 혼용 — 주소만 바뀌고 화면이 안 따라온다 — **ESLint 위임** |
+| 43 | 프론트 로직 테스트 짝 | `ui_logic_tests` | tsc·빌드가 못 잡는 값 오류 — export 함수 .ts |
+| 44 | 프론트 컴포넌트 테스트 짝 | `ui_component_tests` | 〃 — 렌더 테스트 없는 .tsx |
+| 45 | 루트 직속 잡파일 | `root_litter` | 확장자와 상관없이 루트에 쌓인 덤프·메모 — 아직 추적되지 않은 커밋 후보도 포함 |
+| 46 | 프롬프트 버전 범프 | `prompt_version` | 버전은 그대로 두고 본문만 바꾼 LLM 프롬프트 — 산출물을 판정할 근거가 사라진다 |
+| 47 | 프로파일 형식 | `profile_shape` | 설정 이름 오타·튜플 자리의 문자열 — 예외 없이 게이트 대부분이 대상 0건으로 조용히 초록불이 된다 |
+
+문서↔코드 대조(`doc_sync`)는 프로파일의 `DOC_SYNC` 가 정의한 만큼 늘어난다.
+
+언어팩이 선언한 린터는 `정적 분석(<slug>)` 섹션(`lint:<slug>`)으로 찍힌다. 도구가 없으면 `[TOOL]` 이고,
+레포 전체를 보는 도구라 `--file` 모드에선 돌지 않는다. 정본은 `kernel/linters.py` 다.
+
+이 레포 전용 게이트는 `harness_gates/<이름>.py` 에 두고 `LOCAL_GATES` 로 켠다. 번호 표에는
+넣지 않는다 — 그 표의 정본은 `kernel/gates/` 다. 설치는 `edit_surface` 만 새 프로젝트에 남기고 나머지 셋은
+하네스 자체 테스트·참조 예제와 함께 지운다(`kernel/shipped.py` — 첫 커밋 그대로인 파일만).
+
+| 로컬 게이트 | 무엇을 막나 |
+|---|---|
+| `edit_surface` | 면제·제외 목록이 늘어나는 것. 게이트를 느슨하게 만드는 가장 손쉬운 방법이다. 새 프로젝트도 첫날부터 켠다 — 동결본은 설치가 프리셋 선언(면제 0건)으로 뜬다 |
+| `archive_not_shipped` | 배포본(master)에 `docs/tasks/archive/` 산출물이 추적되는 것. 로컬 보관은 허용, git 추적만 막는다 — clone 해 간 프로젝트는 자기 archive 를 커밋하는 게 맞으므로 커널이 아니라 여기 산다 |
+| `stack_words` | 문서·에이전트에 스택 이름이 되돌아오는 것. 원칙은 프로파일 키로, 스택 관례는 `kernel/frameworks/<이름>.md` 조각으로 둔다는 정리를 잠그는 래칫이다. 허용 위치는 `dev/LESSONS.md`(사고 경위)·조각·픽스처·`docs/tasks/`·벤더 사본이고, 조각에서 생성한 `dev/CONVENTIONS.md` 「스택 관례」 절은 대상이 아니다. 제품 프로젝트는 자기 문서에 자기 스택을 쓰는 게 정상이라 커널이 아니라 여기 산다 |
+| `english_output` | 하네스 출력에 한국어가 돌아오는 것. 출력 영어화를 잠그는 래칫이다. 대상은 `kernel/`·`.claude/hooks/`·`harness_gates/`·`profiles/`·설치 스크립트의 문자열 리터럴(docstring 제외)과 훅 설정의 `echo` 문구다. 한국어 문서·데이터 서식을 읽는 리터럴은 그 줄이나 바로 윗줄의 `# ko-ok: <사유>` 로만 남긴다. 문서는 한국어라 대상이 아니다 |
+
+`edit_surface` 의 동결본은 `harness_surface.txt` 이고, 다른 래칫(줄어들 수만 있게 잠근 목록)처럼 **감소만 허용**한다.
+회고의 판정을 사람이 하는 동안 면제를 늘리는 길이 열려 있으면, 개선 루프는 규칙을 고치는 대신 면제를
+늘리는 쪽으로 기운다. 나머지 래칫 파일과 프로파일 제외 목록은 막지 않고 **관찰**한다 — `kernel.task finish` 가 늘어난 행을
+`[RATCHET]` 로 알리고 `ratchet_growth` 로 기록하며, 한 건이라도 있으면 회고가 당겨진다(`kernel/baseline.py`).
+
+프로젝트 전용 **실행 전** 규칙은 게이트가 아니라 훅이다. `harness_hooks/<이름>.py` 에 `check(tool, tool_input, cwd)` 와
+`TOOLS`·`MODE`·`CASES` 를 두고 프로파일 `LOCAL_HOOKS` 로 켜면 ⑧-9 가 핵심 가드 뒤에 부른다(계약 정본은 `kernel/local_hooks.py`
+헤더). 전체 검사는 훅마다 `local_hook:<이름>` 섹션으로 `CASES` 를 실제 판정에 돌린다 — 막는 예와 통과 예가 하나씩 없거나
+하나라도 기대와 다르면 `[FAIL]` 이다. 그래서 오탐을 고친 훅이 예전 판정으로 돌아가면 그 자리에서 잡힌다. `MODE = "warn"` 은
+추론 판정의 시작 단계다. 관찰이 쌓인 뒤 회고가 `block` 으로 올린다.
+
+예외의 종류는 둘이고 넣을 곳이 다르다. **allowlist 는 사유 있는 영구 예외**다 — 래퍼 정본
+자신처럼 규칙의 대상이 아닌 것. **baseline 은 리팩토링으로 없앨 부채**라 줄어들기만 한다.
+이 구분이 없으면 부채가 영구 예외가 된다.
+기존 baseline 단위는 게이트와 파일이므로 같은 파일에 추가된 새 위반도 숨길 수 있다.
+설치는 현재 위반을 자동 동결하지 않는다.
+컴포넌트 그래프 검사는 기존 파일 baseline으로 면제할 수 없다.
+
+프로파일 서식 오류는 실행 전에 보고한다.
+컴포넌트 분류와 공개 계약 검사가 첫 코드의 위치와 허용 의존 관계를 확인한다.
+
+34·35 는 **전량 모드 전용**이다. 파일끼리 교차 비교하는 검사라 파일 하나만 보는 작성 시점 `--file` 에는 비교할 상대가 없다.
+동결본은 `dup_decl_baseline.txt`·`dup_block_baseline.txt` 이고 다른 래칫과 같이 감소만 허용한다.
+키가 내용 해시가 아니라 **정렬된 파일 목록**인 이유는 해시로 얼리면 한 줄만 고쳐도 키가 빗나가
+동결이 조용히 풀리기 때문이다. 현재 키 전체는 `python -X utf8 -m kernel.gates.duplication` 이 출력한다.
+
+34 는 나머지와 성격이 다르다. 다른 게이트는 전부 **사고가 난 뒤에** 생겼다. 누군가 사고를 알아채야 규칙이
+하나 늘었다는 뜻이다. 34·35 는 사고 이전 단계를 본다. 어느 정본을 우회했는지 몰라도 "같은 것이 두 곳에
+있다"는 사실만으로 잡는다. 하네스가 발견을 사람에게 맡기지 않는 첫 게이트다.
+
+**화면 게이트 6종(10·17~20·42)은 판정을 ESLint 에 위임한다.** 정본은 `kernel/eslint.harness.mjs`
+하나이고 러너가 npm 프로젝트(`UI_NPM_DIR`, 기본은 ui 레이어 첫 세그먼트)의 `node_modules/.bin/eslint`
+로 돌린다. 예전에 쓰던 줄 단위 정규식은 문자열과 코드를 구분하지 못해, 주석 속 색이 걸리고 여러 줄에 걸친 표현은 빠졌다.
+실행 파일이 없으면 여섯 게이트 모두 `[TOOL]` 이다. `npx --no-install` 로 설치 여부를 판정하면 npm 오류가 위반 0건으로
+읽혀 조용히 통과하므로, 실행 파일이 실제로 있는지로 판정한다. 면제(`ALLOWLIST`·admin·토큰 정본)와 탈출 주석(`any-ok`·`px-ok`·
+`web-ok`)은 정규식 시절 그대로다. 골든 픽스처 테스트에서 도구가 없으면 `[TOOL]` 상태 자체를 기대값과 비교하고, 성공으로 판정하지 않는다.
+파서와 대상 확장자는 화면 프레임워크팩이 선언하고, 러너가 환경변수(`HARNESS_UI_PARSER`·`HARNESS_UI_PARSER_OPTIONS`·`HARNESS_UI_FILES`)로 설정 파일에 넘긴다. 규칙 본문은 스크립트 AST 기준이라 파서를 바꿔도 그대로 성립한다.
+
+검출이 제대로 되는지는 원류 tests/fixtures/uilint 를 쓰는 자체 테스트가 증명한다.
+
+## 컴포넌트 그래프와 사용자 결정
+
+[컴포넌트 계약](COMPONENTS.md)이 분류와 승인 기록의 정본이다.
+[작동 예시](https://github.com/Gruci/agent-harness/tree/master/examples/harness-reference)는 원류에만 있는 한 스택의 검증 사례이며 기본 제품 스택이 아니다.
+AI는 분류되지 않은 변경을 찾으면 구체적인 분류 제안과 함께 사용자에게 알린다.
+사용자가 대화에서 실제로 한 답변을 변경안에 기록하며, 호스트 전용 알림 API는 필요하지 않다.
+로컬 기록 검사는 일관성을 확인하며 사용자 신원을 인증하지 않는다.
+
+그래프 검사는 위의 번호 붙은 게이트 목록과 별도로, 번호 대신 이름으로 식별한다.
+
+그래프의 `technology`(구문과 소스 패턴)는 프로파일 `LANG` 과 같아야 한다. 어긋나면 `graph_schema` 가 결정 대기(`needs_decision`)이고,
+`python -X utf8 -m kernel.graph_workflow bind --syntax <구문> --sources <패턴>… --response "<스택 답>" --conversation <참조>` 가
+승인된 컴포넌트는 그대로 둔 채 `technology` 만 바꾼 제안을 만들어 이미 받은 스택 답을 결정으로 기록한다 — 다시 묻지 않는다.
+제품 소스와 구현 완료 컴포넌트가 둘 다 없으면 분류·의존·구문 검사는 `[SKIP]`(대상 0건)이다. 대상이 없는데 `[OK]` 로 찍지 않는다.
+
+| 검사 이름 | 책임 | 판정 정본 |
+|---|---|---|
+| graph_schema | 그래프 서식과 참조 유효성, 프로파일 언어와의 바인딩 | `kernel/component_graph.py` · `kernel/graph_checks.py` |
+| component_classification | 제품 코드마다 소유 컴포넌트가 하나뿐인지와 그 역할 | `kernel/gates/components.py` |
+| graph_approval | 제안과 실제 대화 결정 기록의 일치 | `kernel/graph_workflow.py` |
+| component_dependencies | 허용 의존과 공개 계약 | `kernel/gates/context_api.py` |
+| component_syntax | 분석할 수 없는 구문의 미검증 표시. 소유자가 하나가 아닌 파일은 결정 대기라 여기서 세지 않고, 그 파일로 가는 import 는 분류가 정해진 뒤 판정한다 | `kernel/gates/context_api.py` |
+| graph_projection | 정본과 생성 지도의 일치 | `kernel/feature_map.py` |
+| port_contracts | 선언한 포트의 실제 실행 계약 | `kernel/port_contracts.py` |
+| port_tools | 포트 검사를 실행하지 못한 원인 — 포트를 선언했는데 Python 분석기가 아닐 때만 | `kernel/port_contracts.py` |
+
+포트를 선언한 경계에만 테스트 대역과 실행 계약을 요구한다. 포트를 선언하지 않은 그래프는 언어와 무관하게 미검증을 내지 않는다.
+테스트 대역은 이름만 확인하지 않고 실제 계약 테스트를 실행한다.
+검사기는 정본이나 제안 상태를 수정하지 않는다.
+제안과 알림 상태 변경은 워크플로가 담당한다.
+
+## Workflow 툴
+
+여러 에이전트에 작업을 정해진 방식대로 나눠 돌려야 할 때(결정론적 팬아웃) 쓰는 별도 경로다. 기본은 Agent 툴로 에이전트를 띄우는 것이고, Workflow 는 루프·조건·
+단계 통과를 스크립트로 고정해야 할 때만 고른다.
+
+**계약 정본은 `.claude/agents/orchestrator.md` §4-1 이다.** 계약 네 가지 중 model 명시만 워크플로 스크립트 검사 훅(⑧-4)이 기계로
+막고, 나머지 셋(격리 금지·백그라운드 금지·resume 용도 한정)은 문서로만 지킨다.
+
+이 경로가 규약 없이 쓰이면 하네스의 모델 라우팅·격리·복구 규칙이 **하나도 적용되지 않는다.**
+원본 프로젝트에서 규약 없이 한 번 돌렸을 때 그 세션의 워커 51개 중 14개가 결과 없이 죽었다(`dev/LESSONS.md` §20).
+
+## 등급
+
+| 등급 | 뜻 | 사람이 할 일 | exit |
+|------|-----|-------------|------|
+| `[OK]` | 검사했고 위반 0건 | 없음 | 0 |
+| `[SKIP]` | 설정이나 검사 대상이 없어 검사하지 못함 | 프로파일을 채우면 켜진다. 사유가 `conditional —` 로 시작하면 대상이 생겨야 켜지는 게이트라 설치 때 판정하지 않는다(사유 표는 `kernel/sections.py`) | 0 |
+| `[N/A]` | 이 언어에서 규칙이 성립 안 함 | **없음 — 손실이 아니다** | 0 |
+| `[TOOL]` | 외부 도구나 구문 분석기가 검사하지 못함 | 도구와 분석 범위를 확인한다 | --verify에서 2 |
+| `[FAIL]` | 강제 위반 | 고친다 | 1 |
+| `[REPORT]` | 강제력 없는 참고 신호. 오탐 여지가 있어 위반 수에 합산하지 않는다 | 판단 | 0 |
+| `[DECISION]` | 새 분류나 경계에 사용자 결정 필요 | AI의 제안에 답한다 | 3 — 결정만 남았을 때 |
+
+필수 검사를 수행하지 못하면 `--verify`는 완료 성공을 반환하지 않는다.
+결정 대기의 종료 코드 3은 완료 허용이 아니라 사용자 질문 상태다.
+`[DECISION]` 줄은 `[TOOL]` 이나 다른 `[FAIL]` 이 함께 있어도 찍힌다. 종료 코드만 그쪽을 따른다 — 진짜 도구 부재가 있는데 "질문 상태"로 턴을 끝내면 안 되기 때문이다.
+Stop 훅은 제안을 알린 뒤 사용자 응답을 기다리며 턴을 끝내는 것을 허용한다. 그동안 결정과 무관한 작업은 계속할 수 있다.
+
+`[OK]` 와 `[SKIP]` 을 가르는 것이 이 하네스의 핵심이다. 이전 세대 하네스는 레이어 이름이 맞지 않아
+검사 대상이 0개인데도 `[OK]` 로 표시했고, 그래서 아무것도 지키지 않는 게이트를 지키고 있다고 믿게 만들었다.
+같은 이유로 끝줄은 "다 통과"가 아니라 검사한 수와 `[SKIP]` 수를 말한다 — 꺼진 검사가 있으면 그 줄이 사용자가 보는 결론이다.
+
+경로 참조(26)와 함수 참조(33)는 첫 컴포넌트가 승인되기 전(greenfield)에는 리포트와 `[SKIP]` 이다. 승인되는 순간 켜진다 —
+`STAGE` 를 손으로 바꾸는 계기는 어디에도 없었다. 켜진 뒤 처음 잡히는 깨진 참조는 설치 전부터 있던 것이다.
+
+전역 `[REPORT]`(경로 참조·revision 이후 바뀐 원류)는 Stop 전량 모드에서만 찍는다. 작성 시점(`--file`)엔
+편집한 MD 자신의 밀도 신호만 나온다 — 편집과 무관한 신호 수십 줄을 매번 보여주면 모델이 출력 자체를
+안 읽게 되고, 그건 대상 0건 `[OK]` 와 같은 실패다.
+훅이 모델에게 넘기는 출력도 같은 이유로 판정 줄만이다. `[FAIL]`·`[DECISION]` 머리와 그 아래 항목만 가고, 종료와 나올 때 검사는 `[TOOL]` 까지 간다. `[OK]`·`[SKIP]` 줄은 `python -X utf8 -m kernel.runner` 를 직접 돌릴 때만 본다.
+
+## 언어팩
+
+팩 축은 셋이다. 언어팩(`LANG`)은 검사기가 그 언어를 이해하는 방법, 아키텍처팩(`ARCH`)은 어떤 레이어가 있는가, 프레임워크팩(`FRAMEWORK`)은 웹·화면 게이트가 읽을 프레임워크 선언이다.
+
+하네스의 Python 실행 환경은 제품 언어를 결정하지 않는다.
+LANG을 선택하기 전에는 소스 확장자와 구문 분석을 임의로 Python으로 채우지 않는다.
+새 프로젝트는 스택을 정하지 않은 프로파일 서식 하나에서 시작하며 [조립 절차](workflows/harness-assembly.md)를 따른다.
+언어팩은 소스 확장자와 관용구와 위임할 도구를 선언한다.
+구문 사실을 뽑는 tree-sitter 쿼리와 모듈 키·공개 이름 규칙과 적합성 예제도 같은 팩이 선언한다 — 선언 목록의 정본은 `kernel/lang.py` 헤더다.
+알 수 없는 팩 이름이나 깨진 팩은 설정 오류로 보고한다.
+구문 분석기를 지원하지 않는 언어는 미검증으로 남긴다.
+Python 의미론에만 있는 게이트(`kernel/lang.py` `PYTHON_ONLY` — 32·38)는 비 Python 팩이 `NOT_APPLICABLE` 에 그 언어에서 성립하지 않는 사유와 함께 선언한다. 러너가 `SYNTAX` 만 보고 알아서 빼지 않는다 — 사유가 팩마다 다르다. 빠뜨린 팩은 `pack_check` 가 `[UNVERIFIED]`, 러너가 선언하라는 `[TOOL]` 로 알린다.
+외부 도구의 비정상 종료를 빈 진단 목록만으로 성공 처리하지 않는다.
+
+### 구문 사실 — 게이트는 `ast` 를 보지 않는다
+
+중첩 def(2)·함수 길이(37)·타입힌트(8)와 컴포넌트 의존 방향(`component_dependencies`)은 파일마다 한 번 뽑아 둔 구문 사실(함수·import·최상위 이름 같은 구문 정보, 정의는 `kernel/facts.py`)만 읽는다. 구문 사실을 만드는 것은 분석기이고, 언어를 아는 것도 분석기뿐이다.
+
+어느 분석기를 쓸지는 언어팩의 `ANALYZER` 가 정하고, 비어 있으면 `SYNTAX` 로 추정한다(python → `python`, 그 밖에 `QUERIES` 가 있으면 `treesitter`).
+
+| 분석기 | 실물 | 설치 |
+|---|---|---|
+| `python` | `kernel/analyzers/python.py` — 표준 `ast` | 없음 |
+| `treesitter` | `kernel/analyzers/treesitter.py` — 팩의 `QUERIES` 실행 | `tree-sitter` 와 팩 `GRAMMAR` 문법 패키지. 초기 설정의 스택 맞춤에서 설치하고, 없으면 `[TOOL]` |
+| `command` | `kernel/analyzers/command.py` — 팩 `ANALYZER_CMD` 가 낸 구문 사실 JSON 을 계약으로 검증 | 그 언어의 툴체인. 명령이 없으면 `[TOOL]`, 출력이 계약과 다르면 그 파일은 `error`(통과 아님) |
+
+Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain 부수효과)의 재료는 Python 분석기의 `extra` 로만 전달되고, 다른 언어에서는 그 부분을 건너뛴다.
+프레임워크 판정(13·16)과 미정의 상수(32)는 아직 Python `ast` 다. 13·16 은 서버 프레임워크팩이 판정 방식(`ASYNC_HANDLER`·`ERROR_STATUS_KWARG`)을 선언했을 때만 돌고, 다른 언어에서는 설치 사유가 아니라 "분석기 없음"으로 찍힌다. 32 는 `PYTHON_ONLY` 라 팩 선언으로 `[N/A]` 가 된다. 포트 검사는 포트를 선언했을 때만 Python 분석기를 묻는다.
+
+팩이 1급인지는 선언이 아니라 `python -X utf8 -m kernel.pack_check <이름>` 이 판정한다.
+팩의 `FIXTURES` 로 위반 예제가 잡히고 통과 예제가 안 잡혀야 `[VERIFIED]` 이고, `[UNVERIFIED]` 가 하나라도 있으면 exit 1 이다.
+새 언어·프레임워크는 `profiles/lang/_template.py`·`profiles/framework/_template.py` 를 복사해 만들고, 초기 설정의 「스택 맞춤」([조립 절차](workflows/harness-assembly.md))이 이 명령으로 1급을 확인한다.
+
+팩의 `REQUIRES` 는 1급으로 돌기 위한 외부 도구의 확인 명령과 설치 안내다. `harness_install.py --doctor` 가 린터 설치 여부, 고른 분석기의 가용성, 미충족 `REQUIRES` 를 보고하고, 설치는 사용자가 정한다. 하네스 자신의 프로파일은 아무것도 요구하지 않는다.
+
+## 프레임워크팩
+
+언어팩·아키텍처팩 옆의 세 번째 팩 축이다. 웹·화면 게이트의 판정은 `kernel/gates/` 와 `kernel/eslint.harness.mjs` 에 한 벌뿐이고, 프레임워크마다 다른 **선언**만 팩에 둔다. 프로파일의 `FRAMEWORK` 가 역할별로 최대 하나씩 고른다.
+
+| 역할 | 선언 | 읽는 게이트 |
+|---|---|---|
+| `server` | 라우트 정규식, await 없는 async 판정 방식, 스트림 반환 타입, 에러 상태 키워드 | 13 · 16 · 31 |
+| `ui` | 화면 소스 패턴, ESLint 파서와 옵션, 설치 안내 | 10 · 17~20 · 42, 그리고 `UI_EXT` 기본값 |
+
+- 로더는 `kernel/framework.py`. 선언 목록의 정본은 그 헤더다. 같은 이름을 `profiles/framework/<이름>.py` 에 두면 프로젝트 것이 이긴다.
+- 기본 탑재 팩 두 개(`kernel/frameworks/`)는 이 하네스가 처음 쓰인 프로젝트의 동작을 그대로 옮긴 것이라, 그 둘을 고른 프로젝트의 게이트 출력은 도입 전과 같다(골든으로 고정).
+- 팩을 안 고르면 그 역할의 게이트는 `[SKIP] … no server framework pack selected` 류다. 조용히 통과하지 않는다.
+- 팩이 판정 방식을 선언하지 않으면 `[N/A] <팩>: does not apply to this framework` 다. 못 함과 해당 없음을 가르는 것이 언어팩과 같은 경계다.
+- 역할 중복·모르는 이름·틀린 선언은 프로파일 오류(검사 47)다.
+- 1급 여부는 `kernel.pack_check` 가 판정한다. 서버팩은 라우트 예제(route·consumer·stranger)로, 화면팩은 ESLint 실측으로 잰다. ESLint 가 없는 환경의 화면 예제는 `[UNVERIFIED]` 에 eslint 설치 안내가 붙는다.
+- `PROFILE_SCHEMA` 는 올리지 않았다. `FRAMEWORK` 는 선택 항목이라 기존 프로파일은 `[SKIP]` 사유로 새 항목을 알게 된다.
+
+팩은 판정 선언(`<이름>.py`) 옆에 사람용 관례 조각(`<이름>.md`)을 둔다. 초기 설정의 스택 맞춤이 `FRAMEWORK` 가 고른 조각을 `python -X utf8 -m kernel.conventions` 로 `dev/CONVENTIONS.md` 「스택 관례」 절에 넣는다. 절은 표식 주석 사이에 있고 손으로 고치지 않는다 — 고칠 것은 조각이다. 같은 이름의 `profiles/framework/<이름>.md` 가 있으면 프로젝트 것이 이긴다.
+
+## 아키텍처팩
+
+언어팩과 같은 골격을 아키텍처 축에 복제한 것이다. 프로파일의 `ARCH` 한 줄이
+`kernel/archs/<이름>.py` 를 고르고, 거기 선언된 `NOT_APPLICABLE`(성립하지 않는 게이트와
+사유)이 따라온다. 화면 없는 서비스의 UI 게이트가 `[SKIP]`(설정을 안 채움)이 아니라
+`[N/A]`(아키텍처상 채울 것이 없음)로 찍히게 하는 것이 존재 이유다.
+
+| 팩 | 뜻 | `[N/A]` 로 도는 것 |
+|----|----|----|
+| `web_layered` | 화면+서버 풀스택 | 없음 — 전 게이트 성립 |
+| `backend_only` | 서버는 있고 화면이 없다 | 화면 게이트 11종 — 6·10·17~20·24·31·42~44 |
+| `headless` | 웹도 화면도 없다 — 배치·CLI·라이브러리 | 위 11종 + 웹 2종(13·16) |
+
+- 로더는 `kernel/arch.py`. 같은 이름을 `profiles/arch/<이름>.py` 에 두면 프로젝트 것이 이긴다.
+- `ARCH` 미선언이면 아무것도 `[N/A]` 로 돌리지 않는다 — 도입 전 프로파일의 동작 그대로다.
+- N/A 사유 병합은 언어팩 → 아키텍처팩 → 프로파일 순이고 나중이 이긴다. 출처 접두(`go:`·`headless:`)는
+  `kernel/profile.py` 병합 시점에 붙는다 — 러너는 그대로 찍는다.
+- 게이트 판정 코드는 옮기지 않았다. 팩은 선언이고 판정은 `kernel/gates/` — 언어팩과 같은 경계다.
+- DB 계열 게이트는 어느 팩에도 없다 — 배치·라이브러리도 DB 를 가질 수 있어 "정의상 부재"가 아니다.
+  프로젝트별 부재는 프로파일 `NOT_APPLICABLE` 이 담당한다.
+
+설치 상태 점검은 `python -X utf8 harness_install.py --doctor` 다.
+
+## 에이전트
+
+정본은 `.claude/agents/` 각 파일의 frontmatter 다. model·effort 는 프로파일의
+`AGENT_MODEL_POLICY` 와 대조된다(에이전트 모델 정책 검사, 검사 29). 한쪽만 바꾸면 막힌다.
+
+| 이름 | 용도 | 존재 이유 |
+|------|------|-----------|
+| `executor` | 승인된 plan 하나를 통째로 자율 실행 | 완결된 설계서를 옮기는 일은 판단이 아니라 볼륨이다 |
+| `backend` | 서버 코드 편집 | 레이어 규칙을 로드한 별도 컨텍스트 |
+| `frontend` | 화면 코드 편집 | 디자인 시스템을 로드한 별도 컨텍스트 |
+| `qa` | API 응답과 그것을 쓰는 화면 사이의 경계 교차검증 | 양쪽을 동시에 읽는 별도 컨텍스트가 필요하다 |
+| `product-reviewer` | 사용자 관점 검수 | 역할 분리가 본질 — 만든 사람은 자기 결과를 못 본다 |
+| `orchestrator` | 병렬 구현 지휘 — 소유권 배정·워커 스폰·공유 파일 직렬 적용 | 한 worktree 를 여럿이 쓰면 git 이 충돌을 못 잡는다. 소유권 판단이 유일한 방어다 |
+
+메인 루프가 몇 번의 툴 호출로 끝날 일을 위임하지 않는다. 부트스트랩 비용이 더 크다.
+
+## 스킬
+
+Codex의 프로젝트 조립은 [harness-assembly-cdx](../.agents/skills/harness-assembly-cdx/SKILL.md)를 사용한다.
+
+| 이름 | 언제 |
+|------|------|
+| `harness-init` | 새 프로젝트를 하네스에 연결할 때. `harness_profile.py` 가 없으면 이것부터 |
+| `feature-workflow` | 기능 추가·수정·버그 수정 |
+| `full-feature` | 서버와 화면을 같이 만들 때 |
+| `code-audit` | 레포 전체 과설계 감사 |
+| `code-debt` | `debt:` 부채 수확 |
+| `code-trim` | 변경분 과설계 리뷰 |
+| `md-audit` | 문서와 코드의 어긋남 감사 |
+| `review-loop` | 리뷰 반복 |
+| `test` | 테스트 작성 |
+| `harness-retro` | 훅이 막은 기록을 읽고 규칙·게이트를 손볼지 판정 |
+
+인증·토큰·결제처럼 보안이 걸린 변경은 **Claude Code 내장 `security-review`** 로 검수한다. 전용
+에이전트를 만들지 않는 이유는 그 판단이 이 프로젝트 고유가 아니어서다 — 레이어 이름도 어휘도
+안 쓰는 검수를 자체 구현하면 남의 도구를 이름만 바꿔 다시 만드는 것이 된다. 위 표는 이 레포가
+소유한 스킬만 담는다(검사 28 이 실물과 대조하므로 내장 스킬을 행으로 넣으면 유령으로 잡힌다).
+Codex 세션엔 이 내장 스킬이 없다 — 그쪽은 사람이 리뷰를 지정한다.
+
+## 정비 — 사용자가 시켜서 도는 게 아니다
+
+월간 감사류는 "한 달에 한 번 돌리세요"라고 적어두면 아무도 안 돈다. 사용자가 명령어를 외우고
+때를 판단해야 하기 때문이다. 그 판단을 훅 ⑥ 이 대신한다.
+
+| 정비 | 무엇을 보나 | 기본 임계치 |
+|------|-------------|-------------|
+| `md-audit` | 문서와 코드가 어긋난 곳 | 커밋 80개 또는 30일 |
+| `code-audit` | 필요 이상으로 복잡해진 코드 | 커밋 150개 또는 60일 |
+| `code-debt` | 미뤄둔 `debt:` 표시의 재고 | 표시 12개 |
+| `review-loop` | 사용자 관점의 지표·문구 | 화면 파일 12개 변경 |
+| `harness-retro` | 훅이 막은 기록의 패턴 | 관찰 25건 |
+
+판정 정본은 `kernel/maintenance.py`, 임계치 조정은 프로파일의 `MAINTENANCE`, 마지막 실행
+기록은 `harness_maintenance.json` 이다. 기록은 커밋한다 — 세션과 머신이 바뀌어도 공유돼야
+주기가 성립한다. 설치가 그 기록과 관찰 기록을 비우므로 새 프로젝트의 주기는 설치 시점부터 센다(`kernel/shipped.py`).
+화면 레이어가 선언되지 않은 프로젝트에선 `review-loop` 가 아예 안 뜬다.
+
+전부 **보고서만 내고 코드는 고치지 않는다.** 그래서 알림이 뜨면 승인 없이 실행한다.
+고칠지 말지는 보고서를 본 뒤의 문제다.
+
+## CI
+
+`.github/workflows/harness.yml` 하나, job 하나다. 모든 push 와 PR 에서 `python -X utf8 -m kernel.runner --verify` 를 돌린다.
+clone 에도 기본으로 실린다 — 도구가 없을 때 빨간 CI 가 "`[TOOL]` 은 통과가 아니다"의 서버 쪽 신호다.
+스택 도구 설치 줄은 초기 설정의 스택 맞춤이 verify 앞에 더한다.
+
+## 개발 레포와 배포 레포
+
+원류 개발은 비공개 개발 레포(origin)에서 하고, 사용자가 받는 공개 레포(`kernel/__init__.py` UPSTREAM, remote `public`)에는
+하네스 제품만 내보낸다. 자체 테스트·예제·원류 전용 게이트·원류 프로파일·관찰 기록처럼 하네스를 만들며 쌓인 것은 개발 레포에만
+남는다. 내보내기는 원류 tests/publish.py 가 하고, 무엇을 빼는지는 그 파일의 `DEV_ONLY` 가 정본이다. 자체 테스트 CI 도 개발
+레포에만 있다(원류 .github/workflows/harness-dev.yml). `kernel.task finish` 는 개발 레포로 push 하고, 공개 반영은 내보내기를
+따로 실행할 때만 일어난다.
+
+## 하네스가 자라는 법
+
+게이트는 설계된 게 아니라 사고마다 하나씩 늘었다.
+
+사고가 나면 먼저 경위를 `dev/LESSONS.md` 에 남긴다. 무슨 일이 있었고 무엇을 잃었는지.
+규칙만 적으면 다음 세션이 "이번은 예외 아닌가" 하고 넘기지만, 대가가 적혀 있으면 못 넘긴다.
+
+그다음 기계로 검사할 수 있는지 본다. 코드의 상태를 판정하면 게이트다 — `kernel/gates/`(이 레포 전용이면 `harness_gates/`)에
+판정을 더하고 그 절의 `> 강제:` 를 게이트 번호로 갱신한다. 명령이나 편집이 실행되기 전에 막아야 하면 훅이다 —
+`harness_hooks/<이름>.py` 에 `check` 와 `CASES` 를 두고 `LOCAL_HOOKS` 에 올린 뒤 그 파일을 인용한다. 못 올리면
+`산문 전용 — 사유` 로 적는다. 둘 중 아무것도 안 적거나, 인용한 파일을 프로파일에 켜지 않으면 사고 절 승격 상태 검사(검사 30)가
+막는다. 적어놓고 판단을 미루거나 연결을 빠뜨린 상태이기 때문이다.
+
+그래서 산문 전용으로 남은 목록이 곧 다음에 게이트나 훅으로 올릴 후보다.
+
+### 사고를 기다리지 않는 쪽 — 폐쇄 루프
+
+위 경로는 사람이 사고를 알아채야 시작된다. 못 알아챈 마찰은 그대로 사라진다. 그래서 훅이
+막을 때마다 관찰을 남기고, 그게 쌓이면 하네스가 회고할 때를 알린다.
+
+| 단계 | 무엇이 | 어디에 |
+|---|---|---|
+| 관찰 | 차단·알림·경고 훅이 걸릴 때마다 단계(`level`)를 단 한 줄. 과업 끝내기가 본 래칫 파일·제외 목록 증가(`ratchet_growth`) | `kernel/trace.py` → `harness_trace.jsonl` |
+| 채굴 | 게이트별 빈도와 반복 지점과 마찰 종류와 래칫 증가 행 | `kernel/retro.py` |
+| 발동 | 관찰이 임계를 넘거나 래칫 증가가 한 건이라도 있으면 정비 알림 | `kernel/maintenance.py` |
+| 판정 | 규칙 위반인가 게이트 오탐인가 규칙이 틀렸나 — 모델이 **증거**로 판정하고(오탐은 고치기 전에 실패하는 재현 예, 위반은 사고 절, 틀린 규칙은 거절 행), 사용자는 바뀌는 결과와 위험으로 **승인**한다 | `harness-retro` 스킬이 절차를 잡는다 |
+| 검증 | 게이트를 고쳤으면 회귀 확인. 훅은 `CASES` 자가 시험이 전체 검사마다 돈다 | 원류는 골든 대조(원류 tests/run_golden.py), 프로젝트는 `--verify` 와 자기 테스트 |
+| 병합 | 통과한 변경만 반영하고, 면제 표면은 줄어들 수만 있게 잠근다 | `harness_surface.txt` |
+| 환류 | 프로젝트에서 고친 커널·훅은 업그레이드가 멈추며 원류 이슈 초안을 낸다 | `kernel/upgrade.py` |
+| 부정 결과 | 거절·보류된 제안과 사유 | `dev/REJECTED.md` |
+
+**판정만 자동화하지 않는다.** 이 하네스엔 "더 좋아졌다"를 재는 적합도 함수가 없다. 골든
+대조는 회귀만 잡고 개선은 못 잰다. 적합도 없이 제안과 수용을 자동화하면 루프는 가장 손쉽게 통과하는
+방법, 즉 게이트를 느슨하게 만드는 쪽으로 기운다. `edit_surface` 래칫이 같이 들어간 이유가 이것이고,
+판정이 수동인 동안에도 그 문은 닫아둬야 나중에 자동화할 여지가 생긴다.
+
+부정 결과를 남기는 것도 같은 이유다. 거절된 제안이 기록되지 않으면 다음 회고가 같은 제안을
+다시 하고, 그 반복이 결국 하나를 통과시킨다.
+
+> 훅 command 는 `"$(git rev-parse --show-toplevel)/.claude/hooks/…"` 로 등록한다. `%CLAUDE_PROJECT_DIR%` 표기는 이 환경에서 확장되지 않고, 상대경로는 셸 툴에 남아 있는 cwd 때문에 모두 깨진다(`cd frontend` 한 번이면 그 뒤 전부). toplevel 방식은 레포 안 어디서든 맞는다. 레포 밖 cwd 에서는 rev-parse 도 실패하지만, 상대경로도 같은 조건에서 실패하므로 잃는 것 없이 나아진다.

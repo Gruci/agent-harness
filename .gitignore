@@ -1,0 +1,85 @@
+# Local secrets; sanitized templates remain shareable.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.key
+*.p12
+*.pfx
+
+# Python environments, caches, and generated packages.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+build/
+dist/
+
+# JavaScript dependencies and generated caches; keep dependency lockfiles.
+node_modules/
+.npm/
+.pnpm-store/
+*.tsbuildinfo
+
+# Local logs, databases, dumps, and temporary files.
+*.log
+logs/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*_dump.sql
+*.dump
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# SQL source and migrations are intentionally not excluded.
+
+# Editor and operating-system state.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Agent state is local; shared instructions, hooks, and configuration are tracked.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# 과업 보드 — 지금 어느 세션이 어떤 작업을 맡고 있는지 적는 곳이다. 세션이 전부 같은 머신에서
+# 돌기 때문에 파일시스템을 공유 채널로 쓴다. git 으로 추적하면 모든 세션이 같은 파일을 고쳐 충돌하고,
+# 보드를 다른 세션에 보이려고 머지까지 해야 한다(원류 MIS 2026-09 실측: 보드 전용 PR 51건 = 전체의 25%, 충돌 해소 34건).
+# 레포 루트에 두는 이유는 어느 한 에이전트에 속하지 않게 하려는 것이다. `.claude/` 밑에 두면 Codex 가
+# Claude 전용 폴더를 드나들어야 한다. README.md 만 추적한다 — 보드 프로토콜의 정본이라 새 clone 에도 있어야 한다.
+workboard/*
+!workboard/README.md
+
+# 작업별 격리 체크아웃(worktree) 자리 — 위 보드와 같은 이유로 레포 루트에 둔다. 실제 목록은 폴더가 아니라
+# `git worktree list` 로 본다.
+worktrees/
+.codex/auth.json
+.codex/history.jsonl
+.codex/sessions/
+.codex/log/
+.codex/tmp/
+.codex/worktrees/
+
+# 분류 결정 알림 대기열 — 세션마다 한 번만 알리려고 세션 ID 를 적는 로컬 실행 상태다(`kernel/graph_notifications.py`).
+# 보드와 같은 이유로 git 에 두지 않는다.
+docs/architecture/decision-requests.json

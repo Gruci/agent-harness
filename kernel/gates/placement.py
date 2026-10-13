@@ -1,0 +1,29 @@
+"""Technical check scopes and root litter; component placement belongs to the graph."""
+
+from __future__ import annotations
+from kernel import profile
+from kernel.context import ROOT, candidate_files
+
+
+SELF_FILES = ("harness_profile.py", "harness_install.py")
+
+
+ROOT_INFRA = frozenset({
+    ".gitignore", ".gitattributes", "setup_global_permissions.py",
+    "harness_baseline.txt", "harness_surface.txt", "harness_trace.jsonl",
+    "harness_maintenance.json", "test_pairing_baseline.txt",
+    "md_style_baseline.txt", "md_ref_allowlist.txt",
+    "dup_decl_baseline.txt", "dup_block_baseline.txt", "api_array_baseline.txt",
+})
+
+
+def check_root_litter() -> list[str]:
+    """루트 바로 아래에는 프로파일 ROOT_FILES 에 등재한 파일만 둔다. 확장자는 따지지 않는다.
+
+    git 이 추적하지 않는 파일도 검사하므로, 로컬에만 두는 파일은 `.git/info/exclude` 로 제외한다.
+    """
+    allow = set(profile.ROOT_FILES) | set(SELF_FILES) | ROOT_INFRA
+    strays = sorted(path.name for path in candidate_files(root=ROOT)
+                    if path.parent == ROOT and path.name not in allow)
+    return [f"{n}: no files directly under the root — put it in the package of the code that reads it; "
+            f"if the root is right, list it in the profile ROOT_FILES with a reason" for n in strays]

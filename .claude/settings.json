@@ -1,0 +1,207 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Read(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Agent(*)",
+      "Skill(*)",
+      "TaskCreate(*)",
+      "TaskUpdate(*)",
+      "TaskGet(*)",
+      "TaskList(*)",
+      "TaskStop(*)",
+      "TaskOutput(*)",
+      "NotebookEdit(*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"$(git rev-parse --show-toplevel)/.claude/hooks/code-master.md\"",
+            "timeout": 5,
+            "statusMessage": "Loading code master"
+          },
+          {
+            "type": "command",
+            "command": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo '[GIT CHECK] Not a git repository. Gates collect their targets with git ls-files, so outside a repository there are 0 targets, every gate checks nothing, and the task board check does not run. Before coding, run git init and create .gitignore.'; git remote get-url origin >/dev/null 2>&1 || echo '[GITHUB CHECK] No GitHub remote (origin) is set, so the code lives only on this computer. If gh is authenticated, do not ask; create it with `gh repo create <folder-name> --private --source . --push` (keep --private). Ask the user only when gh is not authenticated. Turn ends are not blocked, but finishing a task (`python -X utf8 -m kernel.task finish`) refuses until a remote is set.'",
+            "timeout": 10,
+            "statusMessage": "Checking git repo"
+          },
+          {
+            "type": "command",
+            "command": "test -f \"$(git rev-parse --show-toplevel)/harness_profile.py\" || echo '[HARNESS SETUP] harness_profile.py is missing. The kernel knows nothing about this project, so every gate that needs layer settings is switched off as [SKIP]. Before coding, onboard with the harness-init skill. Its point: do not ask the user to pick a stack; ask what they are building, then recommend a preset with reasons.'; (cd \"$(git rev-parse --show-toplevel)\" && python -X utf8 -m kernel.profile 2>/dev/null)",
+            "timeout": 10,
+            "statusMessage": "Checking harness profile"
+          },
+          {
+            "type": "command",
+            "command": "python --version >/dev/null 2>&1 || echo '[PYTHON CHECK] python cannot run. Hooks block only on exit 2 and silently pass a launch failure, so none of the Stop and PostToolUse gates run. Fix the python PATH before coding.'; python -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1 || echo '[PYTHON CHECK] python is older than 3.10. Hooks and the kernel use `str | None` syntax, so every gate dies silently with a SyntaxError. Upgrade to 3.10 or later.'",
+            "timeout": 10,
+            "statusMessage": "Checking gate interpreters"
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/git_staleness.py\"",
+            "timeout": 25,
+            "statusMessage": "Checking open tasks and backlog freshness"
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_maintenance.py\"",
+            "timeout": 25,
+            "statusMessage": "Checking maintenance backlog"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_context_growth.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_context_diet.py\"",
+            "timeout": 10,
+            "statusMessage": "Context diet gate"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_bash_write.py\"",
+            "timeout": 15,
+            "statusMessage": "Shell contract gate"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_workboard_overlap.py\"",
+            "timeout": 10,
+            "statusMessage": "Workboard overlap check"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|EnterWorktree|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_pretool.py\"",
+            "timeout": 180,
+            "statusMessage": "Isolation gate (edit guard · worktree name · exit verify)"
+          }
+        ]
+      },
+      {
+        "matcher": "Workflow",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_workflow_script.py\"",
+            "timeout": 15,
+            "statusMessage": "Workflow model gate"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_agent_return.py\"",
+            "timeout": 15,
+            "statusMessage": "Agent return size gate"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_file_rules.py\"",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_editing_lock.py\""
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_coding_rules.py\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_git_remote.py\""
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_worktree_residue.py\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_mockup_residue.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_task_residue.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/.claude/hooks/check_ui_copy.py\"",
+            "timeout": 120,
+            "statusMessage": "UI copy gate (Haiku)"
+          }
+        ]
+      }
+    ]
+  }
+}

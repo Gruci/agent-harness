@@ -1,0 +1,87 @@
+{
+  "id": "38757fa5a759f32b6be0b59c21a03da4308c5b2fb54ddceb4711ce273af53492",
+  "base_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
+  "proposed_graph_hash": "589f91111ec2c3c2d61470830a0b5cf47136c878007c4af03658e13902b82fd3",
+  "candidate": {
+    "schema": 1,
+    "revision": 1,
+    "categories": [],
+    "components": [],
+    "edges": [],
+    "role_dependencies": {},
+    "technology": {
+      "sources": [
+        "*.py",
+        "**/*.py"
+      ],
+      "syntax": "python",
+      "exclude": [
+        {
+          "path": "kernel",
+          "reason": "Harness runtime checked by its regression suite"
+        },
+        {
+          "path": "profiles",
+          "reason": "Harness installation templates"
+        },
+        {
+          "path": "harness_gates",
+          "reason": "Harness maintenance gates"
+        },
+        {
+          "path": "harness_hooks",
+          "reason": "Project hook rules checked by their own CASES"
+        },
+        {
+          "path": "tests",
+          "reason": "Regression tests and deliberately invalid fixtures"
+        },
+        {
+          "path": "examples",
+          "reason": "Standalone reference project verified separately"
+        },
+        {
+          "path": ".agents",
+          "reason": "Agent skill adapters"
+        },
+        {
+          "path": ".codex",
+          "reason": "Agent hook configuration"
+        },
+        {
+          "path": ".claude",
+          "reason": "Other agent assets outside product source"
+        },
+        {
+          "path": "worktrees",
+          "reason": "Isolated checkouts have independent validation"
+        },
+        {
+          "path": "harness_install.py",
+          "reason": "Harness installer"
+        },
+        {
+          "path": "harness_profile.py",
+          "reason": "Harness configuration"
+        },
+        {
+          "path": "setup_global_permissions.py",
+          "reason": "Harness setup entry point"
+        }
+      ]
+    }
+  },
+  "rationale": "Exclude project hook rules (harness_hooks/) from product classification, like harness_gates",
+  "task_id": "harness-generality",
+  "state": "applied",
+  "notification": "delivered",
+  "decision": {
+    "base_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
+    "proposed_graph_hash": "589f91111ec2c3c2d61470830a0b5cf47136c878007c4af03658e13902b82fd3",
+    "proposal_id": "38757fa5a759f32b6be0b59c21a03da4308c5b2fb54ddceb4711ce273af53492",
+    "actor": "user",
+    "choice": "approve",
+    "response": "승인 (Recommended) — plan_harness-generality 사람용 요약과 분류 제안(harness_hooks/ 제외)에 대한 답",
+    "conversation_ref": "session 1cc4e2ba plan approval 2026-10-13"
+  }
+}

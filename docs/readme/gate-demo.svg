@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="544" viewBox="0 0 900 544" role="img" aria-label="A recorded Claude Code session: agent-harness blocks a shell write and a 520-line file, and the agent stops instead of working around the gate.">
+<style>
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding","Malgun Gothic",monospace;font-size:14px;white-space:pre}
+.l{opacity:0}
+@keyframes a0{0%,2.00%{opacity:0;transform:translateY(4px)}3.50%,94%{opacity:1;transform:none}100%{opacity:0}}.l0{animation:a0 20.0s linear infinite}@keyframes a1{0%,5.82%{opacity:0;transform:translateY(4px)}7.32%,94%{opacity:1;transform:none}100%{opacity:0}}.l1{animation:a1 20.0s linear infinite}@keyframes a2{0%,9.65%{opacity:0;transform:translateY(4px)}11.15%,94%{opacity:1;transform:none}100%{opacity:0}}.l2{animation:a2 20.0s linear infinite}@keyframes a3{0%,13.47%{opacity:0;transform:translateY(4px)}14.97%,94%{opacity:1;transform:none}100%{opacity:0}}.l3{animation:a3 20.0s linear infinite}@keyframes a4{0%,17.29%{opacity:0;transform:translateY(4px)}18.79%,94%{opacity:1;transform:none}100%{opacity:0}}.l4{animation:a4 20.0s linear infinite}@keyframes a5{0%,21.12%{opacity:0;transform:translateY(4px)}22.62%,94%{opacity:1;transform:none}100%{opacity:0}}.l5{animation:a5 20.0s linear infinite}@keyframes a6{0%,24.94%{opacity:0;transform:translateY(4px)}26.44%,94%{opacity:1;transform:none}100%{opacity:0}}.l6{animation:a6 20.0s linear infinite}@keyframes a7{0%,28.76%{opacity:0;transform:translateY(4px)}30.26%,94%{opacity:1;transform:none}100%{opacity:0}}.l7{animation:a7 20.0s linear infinite}@keyframes a8{0%,32.59%{opacity:0;transform:translateY(4px)}34.09%,94%{opacity:1;transform:none}100%{opacity:0}}.l8{animation:a8 20.0s linear infinite}@keyframes a9{0%,36.41%{opacity:0;transform:translateY(4px)}37.91%,94%{opacity:1;transform:none}100%{opacity:0}}.l9{animation:a9 20.0s linear infinite}@keyframes a10{0%,40.24%{opacity:0;transform:translateY(4px)}41.74%,94%{opacity:1;transform:none}100%{opacity:0}}.l10{animation:a10 20.0s linear infinite}@keyframes a11{0%,44.06%{opacity:0;transform:translateY(4px)}45.56%,94%{opacity:1;transform:none}100%{opacity:0}}.l11{animation:a11 20.0s linear infinite}@keyframes a12{0%,47.88%{opacity:0;transform:translateY(4px)}49.38%,94%{opacity:1;transform:none}100%{opacity:0}}.l12{animation:a12 20.0s linear infinite}@keyframes a13{0%,51.71%{opacity:0;transform:translateY(4px)}53.21%,94%{opacity:1;transform:none}100%{opacity:0}}.l13{animation:a13 20.0s linear infinite}@keyframes a14{0%,55.53%{opacity:0;transform:translateY(4px)}57.03%,94%{opacity:1;transform:none}100%{opacity:0}}.l14{animation:a14 20.0s linear infinite}@keyframes a15{0%,59.35%{opacity:0;transform:translateY(4px)}60.85%,94%{opacity:1;transform:none}100%{opacity:0}}.l15{animation:a15 20.0s linear infinite}@keyframes a16{0%,63.18%{opacity:0;transform:translateY(4px)}64.68%,94%{opacity:1;transform:none}100%{opacity:0}}.l16{animation:a16 20.0s linear infinite}
+@media (prefers-reduced-motion:reduce){.l{animation:none;opacity:1}}
+</style>
+<rect width="900" height="544" rx="10" fill="#0d1117"/>
+<rect width="900" height="34" rx="10" fill="#161b22"/>
+<rect y="24" width="900" height="10" fill="#161b22"/>
+<circle cx="20" cy="17" r="6" fill="#ff5f57"/><circle cx="40" cy="17" r="6" fill="#febc2e"/><circle cx="60" cy="17" r="6" fill="#28c840"/>
+<text x="450" y="22" text-anchor="middle" style="fill:#8b949e;font-size:13px">claude · recorded session with the agent-harness plugin</text>
+<text class="l l0" x="24" y="58" style="fill:#e6edf3;font-weight:600">&gt; Add a module constants.py that defines 520 integer constants named</text>
+<text class="l l1" x="24" y="80" style="fill:#e6edf3;font-weight:600">  C0 through C519, each set to its index. Write it in one go.</text>
+<text class="l l2" x="24" y="124" style="fill:#79c0ff">● Bash(python -c &quot;print(…)&quot; &gt; constants.py &amp;&amp; wc -l constants.py …)</text>
+<text class="l l3" x="24" y="146" style="fill:#ff7b72">  ⎿  PreToolUse hook: [BASH GATE] Writing a source file through the shell — constants.py.</text>
+<text class="l l4" x="24" y="168" style="fill:#ffa198">     Use the Edit/Write tools. A Bash redirect bypasses the write-time gates.</text>
+<text class="l l5" x="24" y="190" style="fill:#8b949e;font-style:italic">     # shell writes would skip the save-time check, so they are refused</text>
+<text class="l l6" x="24" y="234" style="fill:#79c0ff">● Write(constants.py)</text>
+<text class="l l7" x="24" y="256" style="fill:#ff7b72">  ⎿  PostToolUse hook: Gate violation — fix and re-verify.</text>
+<text class="l l8" x="24" y="278" style="fill:#ffa198">     …</text>
+<text class="l l9" x="24" y="300" style="fill:#ffa198">     [FAIL] File length limit (line_limit) — 1 found</text>
+<text class="l l10" x="24" y="322" style="fill:#ffa198">        - constants.py: 520 lines (&gt;400)</text>
+<text class="l l11" x="24" y="344" style="fill:#8b949e;font-style:italic">     # file length limit: 520 lines, the cap is 400</text>
+<text class="l l12" x="24" y="388" style="fill:#e6edf3">● constants.py is written with C0 through C519, but the harness gate blocked</text>
+<text class="l l13" x="24" y="410" style="fill:#e6edf3">  it with two violations. I stopped rather than work around either one.</text>
+<text class="l l14" x="24" y="454" style="fill:#ff7b72">  ⎿  Stop hook: Gate violation — fix and re-verify.</text>
+<text class="l l15" x="24" y="476" style="fill:#ffa198">     [FAIL] File length limit (line_limit) — 1 found</text>
+<text class="l l16" x="24" y="498" style="fill:#8b949e;font-style:italic">     # the turn cannot end while a gate still fails</text>
+</svg>

@@ -1,0 +1,84 @@
+{
+  "id": "6b7de76edace1901b4833ccbc9c336eeee5f942f2d45c0f735134957e89d2897",
+  "base_graph_hash": "absent",
+  "proposed_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
+  "candidate": {
+    "schema": 1,
+    "revision": 1,
+    "categories": [],
+    "components": [],
+    "edges": [],
+    "role_dependencies": {},
+    "technology": {
+      "sources": [
+        "*.py",
+        "**/*.py"
+      ],
+      "syntax": "python",
+      "exclude": [
+        {
+          "path": "kernel",
+          "reason": "Harness runtime checked by its regression suite"
+        },
+        {
+          "path": "profiles",
+          "reason": "Harness installation templates"
+        },
+        {
+          "path": "harness_gates",
+          "reason": "Harness maintenance gates"
+        },
+        {
+          "path": "tests",
+          "reason": "Regression tests and deliberately invalid fixtures"
+        },
+        {
+          "path": "examples",
+          "reason": "Standalone reference project verified separately"
+        },
+        {
+          "path": ".agents",
+          "reason": "Agent skill adapters"
+        },
+        {
+          "path": ".codex",
+          "reason": "Agent hook configuration"
+        },
+        {
+          "path": ".claude",
+          "reason": "Other agent assets outside product source"
+        },
+        {
+          "path": "worktrees",
+          "reason": "Isolated checkouts have independent validation"
+        },
+        {
+          "path": "harness_install.py",
+          "reason": "Harness installer"
+        },
+        {
+          "path": "harness_profile.py",
+          "reason": "Harness configuration"
+        },
+        {
+          "path": "setup_global_permissions.py",
+          "reason": "Harness setup entry point"
+        }
+      ]
+    }
+  },
+  "rationale": "Preserve the harness repository infrastructure scope; future product sources require classification.",
+  "task_id": "hooks-component-graph",
+  "state": "applied",
+  "notification": "delivered",
+  "decision": {
+    "base_graph_hash": "absent",
+    "proposed_graph_hash": "b4b574e3cf316a62c0f332bbb8270cedfe64a22898bae43523a603cb5058f867",
+    "proposal_id": "6b7de76edace1901b4833ccbc9c336eeee5f942f2d45c0f735134957e89d2897",
+    "actor": "user",
+    "choice": "approve",
+    "response": "?? ???",
+    "conversation_ref": "conversation: approved integrated plan implementation; existing infrastructure scope retained"
+  },
+  "migrated_from": "144a5ab4ef593c72fc02495c49ec40b202bed9399361f61a4d8ac16c44e09150"
+}

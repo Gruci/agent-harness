@@ -1,0 +1,14 @@
+# Runs every gate on each push and pull request.
+name: harness
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # Stack setup adds the tools the user agreed to install here (for example: pip install ruff).
+      - name: Gates
+        run: python -X utf8 -m kernel.runner --verify

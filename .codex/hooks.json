@@ -1,0 +1,46 @@
+{
+  "description": "Shared harness gates. Review and trust these hooks in the Codex runtime before use.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
+            "timeout": 180,
+            "statusMessage": "Isolation gate (edit guard, worktree naming, exit verify)"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PostToolUse",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PostToolUse; exit $LASTEXITCODE",
+            "timeout": 180,
+            "statusMessage": "Checking edited files"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event Stop",
+            "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event Stop; exit $LASTEXITCODE",
+            "timeout": 600,
+            "statusMessage": "Checking the full checkout"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+# AGENTS.md — Codex project harness
+
+> 담는 것: Codex 세션의 행동 규칙과 라우팅. 담지 않는 것: Claude 전용 행동 규칙(→ `CLAUDE.md`)·상세 규칙(→ 각 정본 MD). 읽는 시점: Codex 세션 진입 시.
+
+This is the Codex-only entry point for this project. Claude Code uses `CLAUDE.md` and `.claude/`; Codex uses this file, `.agents/`, and `.codex/`.
+
+## Dual-agent boundary
+
+- Ordinary Codex work must not load `CLAUDE.md` or scan `.claude/`.
+- Shared skill procedures live in [dev/workflows/README.md](dev/workflows/README.md); each Codex skill reads the relevant procedure directly.
+- Worktree operations may use the shared location specified in `workboard/README.md`; that is not permission to load Claude instructions.
+- Shared project truth lives in `README.md`, `dev/DEVGUIDE.md`, `design/DESIGN_GUIDE.md`, `dev/`, `design/`, and `kernel/runner.py`.
+- Codex-only behavior belongs in `AGENTS.md`, `.agents/`, or `.codex/`. Edit Claude-only harness files only for explicitly requested interoperability.
+- Codex skill names end in `-cdx`.
+
+## Initial Codex setup
+
+This harness uses autonomous execution after scope and plan approval.
+At initial setup, run `python -X utf8 setup_global_permissions.py --agent codex --check`.
+If the global setup is missing, install it with `python -X utf8 setup_global_permissions.py --agent codex`.
+The installer preserves unrelated user settings and globally installs the rule that, in feature work, the user is asked only to clarify an ambiguous scope or to approve a plan. A skill's own question step (the assembly workflow's classification proposal) and facts only the user knows (the repository URL) are the other questions.
+If the runtime enforces its own restrictions, installation may need one approval, and those restrictions stay in effect for the current session.
+Do not repeat setup when the check passes.
+Connect git and the GitHub remote before any code; the shared assembly workflow's 「git 과 원격」 step lists what to do in each state. Without a remote the turn is not blocked, but `python -X utf8 -m kernel.task finish` refuses to finish a task.
+
+## Editing prerequisites
+
+Before starting implementation, list `workboard/` for open tasks (one untracked file per task; protocol in that directory's README), then load only the documentation relevant to the target.
+
+| Target | Required shared documentation |
+|---|---|
+| Any Markdown you write or edit | `dev/MD_STANDARD.md` — three rules and the content test (what belongs in Markdown) |
+| Any new file or function | `dev/CONVENTIONS.md` — decided conventions and helper registry |
+| Product code in any language | `dev/DEVGUIDE.md`, `dev/ARCHITECTURE.md`, and `dev/COMPONENTS.md` |
+| Screen code under the profile's `CHECK_PATHS["ui"]` | `design/DESIGN_GUIDE.md`, then the relevant `design/` sub-document; stack-specific conventions are the "스택 관례" section of `dev/CONVENTIONS.md` |
+| Database schema, tables, columns | `dev/DATA_MODEL.md` and `dev/NAMING.md` |
+| Screen work of any kind | `design/RESPONSIVE.md` — desktop and mobile are defined together at plan time |
+| Tests | use `$test-cdx`, which routes to `dev/TESTING.md` |
+| Harness, hooks, gates | `dev/HARNESS.md` |
+| Disputing a rule | `dev/LESSONS.md` — the incident behind it |
+
+Search first and read targeted ranges. Do not preload unrelated Markdown.
+
+## Change workflow
+
+- Use `$feature-workflow-cdx` for code changes except an obvious typo or one configuration value.
+- The shared [change procedure](dev/workflows/feature-workflow.md) owns research, scope approval, implementation, verification, and archive requirements.
+- Existing approval of a concrete proposal remains valid; record it and continue without repeating the same approval request.
+- Runtime filesystem or sandbox approvals are separate from task approval. Request only access actually required by a failed operation; never weaken global permissions as an implementation shortcut.
+- At implementation start, check `workboard/` and start the task with `python -X utf8 -m kernel.task start <scope> --sid <sid8> --branch <type>/<name> --touch <glob> [--plan docs/tasks/plan_<task>.md]`. It writes the task file tagged `#sid:<session id first 8>` and creates `worktrees/<scope>--<sid8>` without an upstream. If the scope already has a file, it stops and tells you to join it (add your items) or stack on its branch.
+- Work inside that worktree directory. The shared PreToolUse hook blocks edits in the main checkout, edits in a worktree owned by another session's task, and any edit before your `#sid` task file exists. The exemptions are `workboard/**`, `docs/tasks/**`, and at most one uncommitted changed line in the whole main checkout.
+- A later session takes over an open task with `python -X utf8 -m kernel.task resume <scope> --sid <sid8>`, and only when the previous session has ended. The guard's block message prints the command with your session id filled in.
+- Inside a worktree the save and stop gates only notify through `systemMessage`. Before `git push`, `gh pr create`, `gh pr merge`, or a `git merge` of a task branch in the main checkout, the hook runs `python -X utf8 -m kernel.runner --verify` in the checkout whose work leaves and blocks unless it exits 0. Every such command in one command line is checked, and `cd` or `git -C` decide the checkout.
+- Finish with `python -X utf8 -m kernel.task finish --sid <sid8>`. It archives the task documents into the branch, verifies that worktree, fast-forwards the default branch, pushes, and cleans up in order: originals, worktree, branch, and the task file last. It refuses without a remote. When it says the cleanup must run outside the worktree, run it again from the main checkout.
+- Preserve unrelated edits. Never commit, revert, clean, reset, or delete them. The shared guard blocks force-pushing or deleting the default branch, `git reset --hard` and `git clean -f` in the main checkout, force-deleting a branch or worktree another session's task holds, and recursive deletes outside the repository or of shared folders. When it blocks, report what you meant to do and why; never run the same thing another way (`python -c`, a script file).
+- Use task-suffixed document names when another session may be active: `docs/tasks/research_<task>.md` and `docs/tasks/plan_<task>.md`.
+
+## Repository invariants
+
+- Preserve component responsibilities and allowed dependencies in the approved graph; see [dev/COMPONENTS.md](dev/COMPONENTS.md).
+- Before the first product code, select the stack with the user and run [the assembly workflow](dev/workflows/harness-assembly.md).
+- New classifications or boundaries require a concrete proposal to the user and a record of the user's actual response. Routine edits within approved boundaries do not repeat approval.
+- UI uses the selected project stack and approved delivery component. Verify the consuming screen when a feature includes one.
+- Before changing a signature or response shape, trace callers and consumers across DB, API, and screen code.
+- Prefer existing helpers, the standard library, native platform features, and installed dependencies. Make surgical changes. Report unrelated dead code without removing it.
+- Architecture and database conventions live in `dev/ARCHITECTURE.md`, `dev/NAMING.md`, `dev/DATA_MODEL.md`, and `dev/CONVENTIONS.md`. `kernel/runner.py` enforces the machine-checkable subset.
+
+## Evidence and debugging
+
+- Verify paths with search, database state with queries, and behavior by reading or running code. Never state an assumption as fact.
+- Reproduce and trace the root cause, compare against a working pattern, test one hypothesis with the smallest change, then add a regression test and fix it.
+- After three failed fix attempts, stop editing and report the evidence and the likely architectural issue.
+- Re-read targets that may be stale after compaction or concurrent edits.
+
+## Verification and completion
+
+- Run `python -X utf8 -m kernel.runner --verify` and the checks proportionate to the change before claiming completion. `[TOOL]` (exit 2) and a pending user decision (exit 3) are not done.
+- A bug fix must show its reproduction test passing. UI work also requires a rendered inspection.
+- Do not claim a test or build passed unless that command exited 0 in this checkout.
+- Update the relevant shared Markdown in the same turn as durable contracts, routes, components, schemas, or user rules. Write it to `dev/MD_STANDARD.md`: one meaning per line, one fact in one place, and nothing that Glob, Grep, or git log already answers.
+- Enforce checkable rules in `kernel/runner.py` or another deterministic gate. Markdown explains the rule but is not its enforcement. The Markdown style gate validates structure at write time and `md_style_baseline.txt` may only shrink.
+
+## Codex harness
+
+Use the smallest applicable skill from `.agents/skills/`.
+Read [dev/HARNESS.md](dev/HARNESS.md) for shared hook installation, runtime trust, and verification boundaries.
+The shared simplicity ladder is [dev/workflows/simplicity.md](dev/workflows/simplicity.md).
+Delegated results must be concise and include file:line evidence.
