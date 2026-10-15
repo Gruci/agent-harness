@@ -11,7 +11,7 @@ AI 개발 하네스 v1.1.0 · Claude Code · Codex
 
 [English](README.md) · [한국어](README.ko.md)
 
-<img src="docs/readme/handoff.ko.svg" width="900" alt="모든 에이전트와 세션 아래 하네스 하나: 오늘은 Claude Code 와 Codex 세 세션이 각자 과업을 동시에 하고, 내일은 새 세션이 과업을 이어받습니다. 모두 같은 작업 보드, 설계서와 결정, 관례와 교훈, 같은 검사를 씁니다.">
+<img src="docs/readme/handoff.ko.svg" width="900" alt="오늘은 에이전트 세션 셋이 각자 과업을 동시에 하며 하네스 하나에 남기고, 내일은 다음 에이전트가 그것을 읽고 설계서 다음 단계부터 이어받습니다.">
 
 </div>
 

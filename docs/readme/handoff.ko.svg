@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="424" viewBox="0 0 900 424" role="img" aria-label="모든 에이전트와 세션 아래 하네스 하나: 오늘은 Claude Code, Codex, Claude Code 세 세션이 각자 과업을 동시에 하고, 내일은 새 세션이 설계서의 다음 단계부터 과업을 이어받습니다. 모두 같은 작업 보드, 설계서와 결정, 관례와 교훈을 읽고 쓰며 같은 검사를 훅으로 돌립니다.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="388" viewBox="0 0 900 388" role="img" aria-label="오늘은 에이전트 세션 셋이 각자 과업을 동시에 하며 하네스 하나에 남기고, 내일은 다음 에이전트가 그것을 읽고 설계서 다음 단계부터 과업을 이어받습니다. 하네스에는 작업 보드, 설계서와 결정, 관례와 교훈, 훅으로 도는 검사가 있습니다.">
 <style>
 .label{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;letter-spacing:.02em;fill:#8b949e}
-.title{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;fill:#e6edf3}
 .name{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;fill:#e6edf3}
 .sub{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:13px;fill:#8b949e}
 .row{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;fill:#e6edf3}
@@ -10,27 +9,30 @@
 .tag{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Malgun Gothic",Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;fill:#e6edf3}
 @media (prefers-reduced-motion:reduce){.dot{display:none}}
 </style>
-<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3d444d"/></marker></defs>
-<rect width="900" height="424" rx="12" fill="#0d1117"/>
-<text x="24" y="36" class="label">오늘 · 세 세션이 동시에</text>
-<text x="684" y="36" class="label">내일 · 새 세션</text>
-<path d="M660,28 L660,160" stroke="#30363d" stroke-width="1.5" stroke-dasharray="4 5"/>
-<rect x="24" y="50" width="196" height="104" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="73" r="5" fill="#d97757"/><text x="56" y="78" class="name">Claude Code</text><text x="38" y="104" class="sub">과업: 로그인</text><text x="38" y="126" class="sub">자기 작업 사본에서</text>
-<rect x="232" y="50" width="196" height="104" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="252" cy="73" r="5" fill="#10a37f"/><text x="264" y="78" class="name">Codex</text><text x="246" y="104" class="sub">과업: 결제</text><text x="246" y="126" class="sub">자기 작업 사본에서</text>
-<rect x="440" y="50" width="196" height="104" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="460" cy="73" r="5" fill="#d97757"/><text x="472" y="78" class="name">Claude Code</text><text x="454" y="104" class="sub">과업: 알림</text><text x="454" y="126" class="sub">자기 작업 사본에서</text>
-<rect x="684" y="50" width="192" height="104" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="700" cy="73" r="5" fill="#d97757"/><circle cx="712" cy="73" r="5" fill="#10a37f"/><text x="724" y="78" class="name">어느 에이전트든</text><text x="698" y="104" class="sub">어제의 「로그인」을</text><text x="698" y="126" class="sub">설계서 다음 단계부터</text>
-<path d="M122,158 L122,202" stroke="#3d444d" stroke-width="2" fill="none" marker-start="url(#head)" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="0s" repeatCount="indefinite" path="M122,158 L122,202"/></circle>
-<path d="M330,158 L330,202" stroke="#3d444d" stroke-width="2" fill="none" marker-start="url(#head)" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="-0.6s" repeatCount="indefinite" path="M330,202 L330,158"/></circle>
-<path d="M538,158 L538,202" stroke="#3d444d" stroke-width="2" fill="none" marker-start="url(#head)" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="-1.2s" repeatCount="indefinite" path="M538,158 L538,202"/></circle>
-<path d="M780,158 L780,202" stroke="#3d444d" stroke-width="2" fill="none" marker-start="url(#head)" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2.4s" begin="-1.8s" repeatCount="indefinite" path="M780,202 L780,158"/></circle>
-<text x="434" y="185" text-anchor="middle" class="edge">같은 규칙 · 같은 검사</text>
-<text x="770" y="185" text-anchor="end" class="edge">오늘 남긴 것을 이어받음</text>
-<rect x="24" y="206" width="852" height="150" rx="12" fill="#161b22" stroke="#2f81f7" stroke-width="1.5"/>
-<text x="44" y="236" class="name">agent-harness</text><text x="162" y="236" class="how">모든 에이전트와 세션 아래 하네스 하나</text>
-<path d="M245,254 L245,326 M456,254 L456,326 M667,254 L667,326" stroke="#30363d" stroke-width="1"/>
-<text x="44" y="272" class="row">작업 보드</text><text x="44" y="294" class="how">누가 무엇을 하는지</text><text x="44" y="314" class="how">세션끼리 겹치지 않게</text>
-<text x="266" y="272" class="row">설계서와 결정</text><text x="266" y="294" class="how">코드보다 먼저 파일로</text><text x="266" y="314" class="how">다음 세션이 읽고 이어감</text>
-<text x="477" y="272" class="row">관례와 교훈</text><text x="477" y="294" class="how">한 곳에 등재</text><text x="477" y="314" class="how">실수는 검사가 된다</text>
-<text x="688" y="272" class="row">훅으로 도는 검사</text><text x="688" y="294" class="how">저장할 때·끝낼 때·합치기 전</text><text x="688" y="314" class="how">두 에이전트에 똑같이</text>
-<text x="450" y="398" text-anchor="middle" class="tag">세션은 바뀌어도, 일하는 사람은 한 명.</text>
+<defs>
+<marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3d444d"/></marker>
+<marker id="time" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#30363d"/></marker>
+</defs>
+<rect width="900" height="388" rx="12" fill="#0d1117"/>
+<text x="24" y="36" class="label">오늘 · 동시에</text>
+<path d="M130,32 L662,32" stroke="#30363d" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#time)"/>
+<text x="676" y="36" class="label">내일</text>
+<rect x="24" y="56" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="80" r="5" fill="#2f81f7"/><text x="56" y="85" class="name">에이전트 1</text><text x="38" y="110" class="sub">과업: 로그인</text>
+<rect x="24" y="140" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="164" r="5" fill="#2f81f7"/><text x="56" y="169" class="name">에이전트 2</text><text x="38" y="194" class="sub">과업: 결제</text>
+<rect x="24" y="224" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="248" r="5" fill="#2f81f7"/><text x="56" y="253" class="name">에이전트 3</text><text x="38" y="278" class="sub">과업: 알림</text>
+<rect x="278" y="52" width="344" height="248" rx="12" fill="#161b22" stroke="#2f81f7" stroke-width="1.5"/>
+<text x="298" y="84" class="name">agent-harness</text><text x="298" y="104" class="how">모든 세션 아래 하네스 하나</text>
+<path d="M298,122 L602,122 M450,134 L450,286 M298,210 L602,210" stroke="#30363d" stroke-width="1"/>
+<text x="298" y="156" class="row">작업 보드</text><text x="298" y="176" class="how">누가 무엇을 하는지</text>
+<text x="466" y="156" class="row">설계서와 결정</text><text x="466" y="176" class="how">코드보다 먼저 파일로</text>
+<text x="298" y="244" class="row">관례와 교훈</text><text x="298" y="264" class="how">실수는 검사가 된다</text>
+<text x="466" y="244" class="row">훅으로 도는 검사</text><text x="466" y="264" class="how">모든 에이전트에 똑같이</text>
+<rect x="676" y="128" width="200" height="96" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="696" cy="152" r="5" fill="#2f81f7"/><text x="708" y="157" class="name">다음 에이전트</text><text x="690" y="182" class="sub">「로그인」을 이어서</text><text x="690" y="204" class="sub">설계서 다음 단계부터</text>
+<path d="M228,92 L272,92" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2s" begin="0s" repeatCount="indefinite" path="M228,92 L272,92"/></circle>
+<path d="M228,176 L272,176" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2s" begin="-0.7s" repeatCount="indefinite" path="M228,176 L272,176"/></circle>
+<path d="M228,260 L272,260" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2s" begin="-1.4s" repeatCount="indefinite" path="M228,260 L272,260"/></circle>
+<path d="M626,176 L670,176" stroke="#3d444d" stroke-width="2" fill="none" marker-end="url(#head)"/><circle r="4" fill="#2f81f7" class="dot"><animateMotion dur="2s" begin="-1s" repeatCount="indefinite" path="M626,176 L670,176"/></circle>
+<text x="250" y="80" text-anchor="middle" class="edge">남긴다</text>
+<text x="648" y="164" text-anchor="middle" class="edge">읽는다</text>
+<text x="450" y="352" text-anchor="middle" class="tag">세션은 바뀌어도, 일하는 사람은 한 명.</text>
 </svg>

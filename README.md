@@ -11,7 +11,7 @@ agent-harness v1.1.0 · Claude Code · Codex
 
 [English](README.md) · [한국어](README.ko.md)
 
-<img src="docs/readme/handoff.en.svg" width="900" alt="One harness under every agent and session: three sessions — Claude Code and Codex — work on separate tasks at the same time today, and a new session picks up a task tomorrow. All share the task board, plans and decisions, conventions and lessons, and the same checks.">
+<img src="docs/readme/handoff.en.svg" width="900" alt="Today three agent sessions work on separate tasks at the same time and write into one harness; tomorrow the next agent reads it and picks up where the plan left off.">
 
 </div>
 
