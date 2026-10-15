@@ -20,6 +20,9 @@ from kernel.context import ROOT, read_pairs
 SURFACE_FILE = ROOT / "harness_surface.txt"
 TITLE = "Edit surface ratchet (exemption and exclusion lists)"
 SCOPE_KEY = 'SCOPE["exclude_all"]'
+# 정본 래퍼 하나를 지정하는 키 — 관례(`dev/CONVENTIONS.md` F1·F9)가 등록하라고 요구한다. 하나뿐이면 면제가 아니라 지정이고
+# 검사를 켜거나 좁힌다. 둘째부터는 우회로가 될 수 있어 다른 면제와 같이 센다.
+DESIGNATIONS = ("ui_fetch_wrappers", "ui_platform")
 # ko-ok: header of the Korean-language baseline file harness_surface.txt
 HEADER = """# harness_surface.txt — 편집 표면 동결 목록. 게이트가 봐주기로 한 것의 전량이다.
 #
@@ -38,7 +41,16 @@ def declared(source: object) -> set[tuple[str, str]]:
     """프로파일 모양 객체(`ALLOWLIST`·`SCOPE` 를 가진 모듈)가 선언한 면제·제외 항목 전체."""
     allow = getattr(source, "ALLOWLIST", None) or {}
     scope = getattr(source, "SCOPE", None) or {}
-    found = {(f"ALLOWLIST[{key}]", value) for key, values in allow.items() for value in (values or ())}
+    found = {(f"ALLOWLIST[{key}]", value) for key, values in allow.items() for value in (values or ())
+             if not (key in DESIGNATIONS and len(values or ()) == 1)}
+    # 병합 전 값을 본다 — 병합된 `profile.NAMING`·`profile.OWNED` 는 `None` 을 이미 지웠다. 프로파일 모듈에는 그 이름 그대로다
+    naming = getattr(source, "NAMING_OVERRIDE", getattr(source, "NAMING", None)) or {}
+    owned = getattr(source, "OWNED_OVERRIDE", getattr(source, "OWNED", None)) or {}
+    families = getattr(source, "OWNED_FAMILIES", frozenset())
+    # 끄기(None)·표기 넓히기(`snake|camel`)·기본 가족의 정규식 바꿔치기는 면제다. 표기를 바꾸는 것(snake → camel)과
+    # 새 가족을 더하는 것은 검사를 느슨하게 하지 않아 세지 않는다
+    found |= {(f"NAMING[{key}]", value or "off") for key, value in naming.items() if value is None or "|" in value}
+    found |= {(f"OWNED[{key}]", value or "off") for key, value in owned.items() if value is None or key in families}
     return found | {(SCOPE_KEY, value) for value in (scope.get("exclude_all") or ())}
 
 

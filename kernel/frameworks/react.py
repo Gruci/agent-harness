@@ -17,6 +17,14 @@ ESLINT_PARSER = "@typescript-eslint/parser"
 PARSER_OPTIONS = {"ecmaFeatures": {"jsx": True}, "sourceType": "module"}
 ESLINT_INSTALL = "npm i -D eslint @typescript-eslint/parser typescript"
 
+# 테스트 짝(kernel/gates/tests_pairing.py) — `.ts` 는 행동 테스트, `.tsx` 는 렌더 테스트. 진입 파일은 렌더 테스트 대상이 아니다.
+LOGIC_EXT = (".ts",)
+COMPONENT_EXT = (".tsx",)
+ENTRY_MARKERS = ("createRoot(", "hydrateRoot(", "ReactDOM.render(")
+
+# 한 모듈만 맡을 화면 기능(kernel/gates/owners.py) — 로캘 서식은 공용 포맷터 한 곳에서.
+OWNED = {"locale_format": r"\bIntl\.(?:DateTimeFormat|NumberFormat)\b|\.toLocale(?:Date|Time)?String\("}
+
 # 적합성 검사 예제 — 화면 게이트 slug 마다 위반 하나와 통과 하나. ESLint 가 있는 환경에서만 실측한다.
 FIXTURES = {
     "ts_any": {

@@ -4,10 +4,10 @@
 
 **어느 세션이 이어받아도, 한 사람이 일한 것처럼.**
 
-설계서·결정·관례·교훈이 레포에 남고 훅이 모든 세션을 그 위에서 일하게 합니다.
+설계서(plan)·결정·관례·교훈이 레포에 남고 훅이 모든 세션을 그 위에서 일하게 합니다.
 Claude Code든 Codex든, 오늘 세션이든 다음 달 세션이든.
 
-AI 개발 하네스 v1.0.0 · Claude Code · Codex
+AI 개발 하네스 v1.1.0 · Claude Code · Codex
 
 [English](README.md) · [한국어](README.ko.md)
 
@@ -27,7 +27,8 @@ AI 개발 하네스 v1.0.0 · Claude Code · Codex
 | Claude Code 와 Codex | 다른 규칙을 따릅니다 | 같은 규칙을 읽고 같은 검사를 돌립니다 |
 | "다 됐어요" | 말뿐입니다 | 전체 검사를 통과해야 합쳐집니다 |
 
-## 두 가지 설치 방식
+<details>
+<summary><b>두 가지 설치 방식 — 하네스 전체(템플릿)와 검사만(플러그인)</b></summary>
 
 | | 템플릿 — 하네스 전체 | 플러그인 — 검사만 |
 |:--|:--|:--|
@@ -37,18 +38,26 @@ AI 개발 하네스 v1.0.0 · Claude Code · Codex
 | 셸로 소스 파일 쓰기 차단 | ✓ | ✓ |
 | 코드 전에 설계: 범위 → 조사 → 설계서 → 승인 | ✓ | — |
 | 과업마다 작업 사본과 공유 작업 보드 | ✓ | — |
-| GitHub 원격 저장소 필요 | ✓ | — |
+| GitHub 원격 저장소 | 선택 — 없으면 끝낸 작업을 내 컴퓨터에만 합침 | — |
 | Codex 지원 | ✓ | — |
 | 교훈의 검사 승격, 하네스 지도 대조, 정비 알림 | ✓ | — |
 | 업데이트 | `python -X utf8 harness_install.py --upgrade` | `/plugin update agent-harness@agent-harness` |
+
+</details>
 
 ## 빠른 시작 — 템플릿
 
 ```bash
 git clone https://github.com/Gruci/agent-harness.git my-project
 cd my-project
-rm -rf .git && git init && git add -A && git commit -m "init"
+python -X utf8 harness_install.py --new
 ```
+
+세 줄은 PowerShell·cmd·bash 어디서나 같습니다. `python` 이 없는 환경(macOS·Linux)에서는 `python3` 로 칩니다. `--new` 는 폴더에 새 git 이력과 첫 커밋을 만들고, git 에 이름·이메일이 아직 없으면 아무것도 바꾸지 않고 설정할 두 줄을 보여 줍니다.
+
+필요한 것은 Python 3.10 이상과 git 뿐입니다. GitHub 은 선택입니다 — 설정 때 한 번 묻고, 내 컴퓨터에만 두어도 됩니다.
+
+> **권한.** 이 폴더 안에서 Claude Code 는 승인 프롬프트 없이 돕니다(`.claude/settings.json` 의 `bypassPermissions`). 본체 폴더 비우기나 기본 브랜치 강제 덮어쓰기처럼 되돌릴 수 없는 명령은 훅이 막습니다. `setup_global_permissions.py` 는 **이 컴퓨터의 모든 프로젝트**에서 프롬프트를 끕니다 — 그걸 원할 때만 실행하세요.
 
 그 폴더에서 Claude Code 를 켜고 이렇게 말합니다.
 
@@ -69,7 +78,7 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 /plugin install agent-harness@agent-harness
 ```
 
-검사할 레포에서 `하네스 깔아줘` 라고 말합니다. 프로젝트 폴더에는 아무것도 복사되지 않고 연결하지 않은 레포는 건드리지 않습니다.
+검사할 레포에서 `하네스 깔아줘` 라고 말합니다. 프로젝트 폴더에는 설정 파일(`harness_profile.py`)과 검사 기록 몇 개만 생기고, 연결하지 않은 레포는 건드리지 않습니다.
 
 ## 개발 흐름 (템플릿)
 
@@ -79,7 +88,8 @@ rm -rf .git && git init && git add -A && git commit -m "init"
                         직접 답하는 곳
 ```
 
-- 처음에 범위를 묻고, 설계서가 나오면 승인을 기다립니다. 기능 작업에서 직접 답하는 곳은 이 두 곳뿐입니다. 초기 설정 때는 무엇을 만드는지도 묻습니다.
+- 처음에 범위를 묻고, 설계서가 나오면 승인을 기다립니다. 화면 작업은 시안 승인이 하나 더 있습니다. 초기 설정 때는 무엇을 만드는지 묻고, 코드는 처음엔 한 덩어리로 두었다가 영역이 둘 이상 생기면 나누자고 제안합니다.
+- 기존 파일을 고치는 작은 수정은 설계서 단계를 건너뜁니다. 크기는 합칠 때 실제로 잽니다(파일 3개·바뀐 줄 40줄 이하, 새 파일 없음). 커졌으면 설계서로 돌아갑니다.
 - 설계서에는 바꿀 파일 경로와 실제 코드 조각이 들어갑니다. "나중에 구현" 같은 빈칸이 있으면 설계서로 인정하지 않습니다.
 - 구현은 작업마다 따로 만든 작업 사본(worktree)에서 합니다. 본체 폴더에서는 설계서와 작업 보드만 씁니다.
 - 파일을 저장할 때마다 검사가 돌아 위반을 알려 주고 AI가 바로 고칩니다. 작업 사본 안에서는 알리기만 하고 막지 않습니다.
@@ -93,7 +103,7 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 <p align="center"><img src="docs/readme/gate-demo.svg" width="900" alt="플러그인을 쓴 Claude Code 세션 기록: 셸로 파일을 쓰려다 거절당하고, 520줄 파일이 400줄 상한에 걸리고, 에이전트는 검사를 우회하지 않고 멈춥니다."></p>
 <p align="center"><sub>플러그인을 쓴 세션 기록입니다. 에이전트가 셸로 파일을 쓰려다 거절당하고, 520줄 파일을 써서 400줄 상한에 걸린 뒤, 검사를 우회하지 않고 멈춥니다. 회색 줄은 이 README를 위해 단 설명입니다.</sub></p>
 
-대표적인 것만 적었습니다. 전체 목록은 [하네스 지도](dev/HARNESS.md)에 있습니다.
+대표적인 것만 적었습니다. 부품이 어떻게 맞물리는지와 용어의 뜻은 [하네스 한눈에](dev/OVERVIEW.md)에, 검사 전체 목록은 [하네스 지도](dev/HARNESS.md)에 있습니다.
 
 | 잡히는 것 | 이유 |
 |:--|:--|
@@ -103,11 +113,15 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 | 400줄 넘는 파일, 80줄 넘는 함수 | 한 파일·한 함수는 한 가지 일만 합니다 |
 | 소스에 박힌 API 키 | 설정으로 빼고 이미 올라갔다면 키를 바꿉니다 |
 | 문서에 적힌 파일이 실제로 없음 | 이름을 바꾸고 남은 흔적입니다 |
-| 이미 있는 함수를 이름만 바꿔 다시 만듦 | 같은 일은 한 곳에서 합니다 |
+| 이미 있는 함수를 이름만 바꾸거나 변수 이름까지 바꿔 다시 만듦 | 같은 일은 한 곳에서 합니다 |
+| 두 번째 HTTP 클라이언트·DB 연결·날짜 포맷터 | 공용 기능은 한 모듈이 맡습니다 |
+| 섞인 이름 — snake_case 프로젝트의 camelCase 함수·응답 키, 같은 데이터에 `get_`·`fetch_` | 이름은 한 가지 표기를 따릅니다 |
+| 라우트마다 제각각인 에러·응답 모양 | 응답은 한 래퍼를 거칩니다 |
 | API만 있고 그걸 쓰는 화면이 없음 | 사용자에겐 없는 기능입니다 |
 | 기본 브랜치 강제 덮어쓰기, 본체 폴더 비우기, 프로젝트 밖 삭제 | 되돌릴 수 없어 AI가 멈추고 사람에게 맡깁니다 |
 
-## 검사 결과 읽는 법
+<details>
+<summary><b>검사 결과 읽는 법 — [OK]·[FAIL]·[SKIP] 같은 표시의 뜻</b></summary>
 
 | 표시 | 뜻 | 할 일 |
 |:--|:--|:--|
@@ -122,19 +136,24 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 
 틀릴 수 있는 추측으로는 막지 않습니다. 예를 들어 "이 작업 사본은 끝났을 것 같다"는 경고만 하고 세션은 끝낼 수 있습니다.
 
+</details>
+
 ## 자주 묻는 질문
 
 **기술 스택을 못 정했는데 설치해도 되나요?**
 네. 언어를 미리 정하지 않습니다. 첫 코드를 쓰기 전에 함께 정합니다.
 
-**파이썬이 아니어도 되나요?**
-됩니다. Python·Go 언어팩과 서버·화면 프레임워크팩이 하나씩 들어 있습니다(`kernel/langs/`·`kernel/frameworks/`). TypeScript 서버팩은 실험적이라 초기 설정이 분석기 명령을 만들어야 합니다. 다른 언어나 프레임워크는 초기 설정 때 템플릿으로 팩을 만들고 `python -X utf8 -m kernel.pack_check`로 검사가 실제로 켜지는지 확인합니다. Python 에서만 뜻이 있는 검사는 팩이 `[N/A]`로 선언하고, 파서가 필요한 검사는 tree-sitter 나 팩의 분석기 명령을 깔기 전까지 `[TOOL]`로 표시되며 통과로 치지 않습니다. 초기 설정이 컴포넌트 그래프도 고른 언어에 묶어 주므로(`python -X utf8 -m kernel.graph_workflow bind`) 그 언어의 파일이 분류 대상이 됩니다.
+**어떤 언어를 검사하나요?**
+하네스 자체는 Python 으로 돌고, 만드는 제품은 어느 언어든 됩니다. Python·Go·TypeScript·Java 검사가 들어 있고(`kernel/langs/`) 서버·화면 프레임워크팩도 하나씩 들어 있습니다(`kernel/frameworks/`). 코드를 읽는 데는 설치할 것이 없고, 언어마다의 린터(ruff, go vet·staticcheck, tsc)는 설정 때 권하고 동의한 것만 설치합니다 — 빠진 것은 `--doctor`가 알려 줍니다. 설치하지 않겠다고 하면 설정에서 그 린터를 빼서 작업을 끝낼 수 있게 하고, 그 때문에 무엇이 검사되지 않는지 AI 가 알려 줍니다. 그 밖의 언어는 초기 설정이 짧은 언어 파일 하나로 하네스를 옮겨 붙입니다 — 함수·import·최상위 이름을 찾는 정규식 몇 줄과 import 규칙·표준 라이브러리를 적고, `python -X utf8 -m kernel.pack_check <이름>`이 검사가 실제로 켜지는지 증명합니다. 한 언어에서만 뜻이 있는 검사는 `[N/A]`이고, 돌지 못한 검사는 `[TOOL]`로 표시되며 통과로 치지 않습니다. 초기 설정이 컴포넌트 그래프도 고른 언어에 묶어 주므로(`python -X utf8 -m kernel.graph_workflow bind`) 그 언어의 파일이 분류 대상이 됩니다.
 
 **화면이 없는 서비스인데 화면 검사가 계속 `[SKIP]`으로 떠요.**
 `harness_profile.py`에 `ARCH = "backend_only"`(서버만) 또는 `ARCH = "headless"`(웹도 화면도 없음)를 적으세요. `[N/A]`로 바뀝니다. 화면이 있는데 화면 검사가 `[SKIP]`이면 `FRAMEWORK`에 쓰는 프레임워크팩 이름(`kernel/frameworks/`의 파일 이름)을 적습니다.
 
-**GitHub 저장소를 미리 만들어야 하나요?**
-`gh` 로그인이 돼 있으면 비공개 저장소를 자동으로 만듭니다. 로그인이 안 돼 있을 때만 주소를 묻습니다. 원격이 없어도 대화는 막히지 않지만, 과업을 끝내고 합칠 수는 없습니다.
+**GitHub 이 꼭 있어야 하나요?**
+아닙니다. 원격이 없으면 끝낸 작업을 내 컴퓨터에만 합치고, 백업이 없다고 알려 줍니다. 원격을 만들 때는 로그인된 `gh` 계정을 보여 주고 비공개 저장소를 만들지 먼저 묻습니다. 가진 주소를 알려 줘도 됩니다.
+
+**하던 작업을 그만두고 싶어요.**
+AI 에게 그만두자고 말하면 됩니다. `python -X utf8 -m kernel.task abandon` 이 그 작업 사본과 브랜치를 지웁니다. 저장 안 한 변경이 있으면 거절하고, 아직 합치지 않은 커밋이 있으면 버리기로 동의했을 때(`--discard-commits`)만 지웁니다. 리서치·계획 메모는 `docs/tasks/` 에 남으니 다시 쓰지 않을 거면 지웁니다.
 
 **하네스를 새 버전으로 올리려면요?**
 플러그인은 `/plugin update agent-harness@agent-harness`입니다. 템플릿은 `python -X utf8 harness_install.py --check-update`로 새 버전이 있는지 보고, 변경 사항을 커밋한 뒤 `--upgrade`를 실행합니다. 하네스가 소유한 파일마다 원류 이력으로 판정합니다. 원류가 고치거나 지운 것은 따라가고, 직접 추가한 파일은 건드리지 않으며, 직접 고친 파일이 있으면 멈추고 원류에 보낼 이슈 초안을 냅니다(`--keep-local`이면 내 것을 두고 나머지만 올립니다). 설정·훅 배선·문서는 그대로이고, 원류와 다른 배선은 고치지 않고 알려만 줍니다.
@@ -142,7 +161,12 @@ rm -rf .git && git init && git add -A && git commit -m "init"
 **구조 그림 도구는 없나요?**
 싣지 않습니다. 필요하면 따로 설치합니다.
 
-## Codex와 함께 쓰기 (템플릿)
+## 자세히
+
+시작할 때는 몰라도 됩니다 — AI 가 알아서 합니다.
+
+<details>
+<summary><b>Codex와 함께 쓰기</b></summary>
 
 규칙과 작업 절차, 검사 엔진을 Claude Code와 Codex가 같이 씁니다. 공통 절차는 [작업 절차 모음](dev/workflows/README.md)에 있습니다.
 
@@ -153,7 +177,10 @@ python -X utf8 harness_install.py --check-agents          # 연결 상태 확인
 
 Codex 쪽 설정은 Python 3.11 이상을 권장합니다(3.10이면 `toml` 패키지 필요). 새 세션부터 적용되며 회사 정책 같은 호스트 설정이 있으면 그쪽이 우선합니다.
 
-## 작업은 작업 사본에서 합니다 (템플릿)
+</details>
+
+<details>
+<summary><b>작업은 작업 사본에서 합니다</b></summary>
 
 - 세션이 하나든 여럿이든 작업마다 작업 사본을 따로 만듭니다. 자리는 `worktrees/<작업 범위>--<세션 표식>`이라 목록만 봐도 누가 무엇을 하는지 보입니다.
 - 작업을 시작할 때 작업 보드(`workboard/`)에 등록합니다. 등록하지 않고 코드를 고치면 막힙니다.
@@ -161,22 +188,28 @@ Codex 쪽 설정은 Python 3.11 이상을 권장합니다(3.10이면 `toml` 패�
 - 작업 사본이 있는 동안 본체 폴더에서의 커밋과 브랜치 전환은 막힙니다. 끝난 브랜치는 `git merge --ff-only <브랜치>`로 합칩니다.
 - push·PR·merge 직전에 그 폴더에서 전체 검사를 돌립니다. 통과해야 나갑니다.
 
-## 직접 설치하기 (템플릿)
+</details>
+
+<details>
+<summary><b>직접 설치하기</b></summary>
 
 ```bash
-python -X utf8 harness_install.py --doctor            # 필요한 외부 도구 확인
+python -X utf8 harness_install.py --doctor            # 환경 점검 — 막히는 것이 있으면 exit 1
 python -X utf8 harness_install.py                     # 설정 파일 생성과 검증
-python -X utf8 setup_global_permissions.py            # Claude Code 전역 권한 설정
+python -X utf8 setup_global_permissions.py            # 선택: 이 컴퓨터의 모든 프로젝트에서 승인 프롬프트를 끔
 ```
 
-필요한 것은 Git 저장소, GitHub 원격 저장소, Python 3.10 이상입니다. 화면 검사에는 Node.js가, Go·TypeScript 분석에는 tree-sitter가 필요합니다. 빠진 도구는 `--doctor`가 알려 줍니다.
+필요한 것은 Git 저장소와 Python 3.10 이상(`python` 또는 `python3`)입니다. 화면 검사에는 Node.js 와 화면 폴더의 ESLint 가 필요하고, Go 는 tree-sitter 가 깔려 있으면 그것을 씁니다. 빠진 것과 그중 막히는 것은 `--doctor`가 알려 줍니다.
 
 이미 코드가 있는 프로젝트라면 `--dry-run`으로 현재 위반을 먼저 봅니다.
+
+</details>
 
 ## 변경 이력
 
 | 버전 | 변경 내용 |
 |:--|:--|
+| **v1.1.0** | Go·TypeScript·Java 검사를 설치 없이 기본 탑재하고, 그 밖의 언어는 짧은 언어 파일로 옮겨 붙입니다. 변수 이름만 바꾼 복사, 두 번째 HTTP 클라이언트·날짜 포맷터, 섞인 이름 표기, 라우트별 응답 모양을 잡습니다. 어느 셸에서든 한 줄 설치, GitHub 없이 끝내기, 설계서 없는 작은 수정, `abandon`, 막히는 것을 알려 주는 `--doctor`. 템플릿 설치는 `--upgrade` 뒤 원류 `.claude/settings.json` 의 훅 명령을 옮겨 적습니다(이제 `python3` 도 찾습니다) — 배선은 알려만 주고 바꾸지 않습니다. 새 검사가 기존 코드에서 위반을 찾으면 고치거나 `harness_baseline.txt` 에 올립니다. |
 | **v1.0.0** | 첫 공개 버전. |
 
 ## 라이선스

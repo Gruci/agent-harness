@@ -36,7 +36,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from kernel import facts
-from kernel.context import READ_ENC
+from kernel.context import READ_ENC, ROOT
 
 TIMEOUT_SECONDS = 60
 KINDS = frozenset({"functions", "nesting", "types", "imports", "top_symbols"})
@@ -48,12 +48,20 @@ def _missing(command: str) -> str:
     return f"analyzer command {command} cannot run — create it in the initial stack setup"
 
 
+def _absolute(part: str, root: Path) -> str:
+    """루트 기준 상대경로로 적은 명령 부분(`tools/facts.py`)은 절대경로로 — 디스크에 없는 예제는 임시 폴더를 cwd 로 돈다."""
+    for base in (root, ROOT):
+        if not Path(part).is_absolute() and (base / part).is_file():
+            return str(base / part)
+    return part
+
+
 def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]:
     """팩의 엔진을 돌려주고, 명령을 실행할 수 없으면 그 사유를 돌려준다. 사유는 러너가 [TOOL] 로 찍는다."""
-    command = tuple(str(part) for part in (pack.get("ANALYZER_CMD") or ()))   # type: ignore[call-overload]  # lang.load 가 목록임을 검증했다
+    command = tuple(_absolute(str(part), root) for part in (pack.get("ANALYZER_CMD") or ()))   # type: ignore[call-overload]  # lang.load 가 목록임을 검증했다
     if not command:
         return None, "language pack declares no ANALYZER_CMD"
-    if shutil.which(command[0]) is None and not (root / command[0]).is_file():
+    if shutil.which(command[0]) is None and not (Path(command[0]).is_absolute() and Path(command[0]).is_file()):
         return None, _missing(command[0])
     return Engine(command, pack, root), ""
 

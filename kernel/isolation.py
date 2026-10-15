@@ -21,6 +21,9 @@ PreToolUse` 로 이 판정을 부른다. 페이로드 해석과 exit 코드와 �
 | 메인 체크아웃 | 공유 체크아웃 | 구현 파일을 메인에서 고친다 |
 
 예외는 `workboard/**`·`docs/tasks/**`·`docs/mockup/**`(등록·research·plan·시안은 메인에서 쓴다)와 **바뀐 줄 1줄 이하**다.
+설정 단계 — 그래프에 컴포넌트가 하나도 없는 동안 — 에는 설정 파일(`SETUP_PREFIXES`)도 예외다. 온보딩이 프로파일과
+`PROJECT.md` 를 고쳐야 하는데, 그것까지 과업과 worktree 를 요구하면 원격이 없는 첫날에 설정이 worktree 에 갇혔다.
+첫 컴포넌트가 승인되면 저절로 끝난다.
 1줄 예외는 `CLAUDE.md` 4단계 워크플로우의 예외("오탈자·설정값 1줄")를 기계로 판정한 것이라 두 판정을 모두 면제한다.
 그런 편집에는 plan 이 없고, plan 이 없으면 보드 행도 없는 것이 정상이다. 줄 수만 보고 파일 종류는
 보지 않는다(사용자 지정 기준). **본체에서는 그 1줄이 본체 전체에 한 번이다** — 이번 편집의 줄 수에 본체에
@@ -40,6 +43,7 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
+from kernel import component_graph
 from kernel.context import git_dirs
 from kernel.workboard import board_dir, board_text, sid_of
 from kernel.workspace import Finding
@@ -47,6 +51,8 @@ from kernel.worktree import my_scope
 
 HOOK_NAME = "check_pretool"
 EXEMPT_PREFIXES = ("workboard/", "docs/tasks/", "docs/mockup/")
+# 설정 단계(컴포넌트 0개) 동안만 예외 — 온보딩이 고치는 파일들
+SETUP_PREFIXES = ("harness_profile.py", "PROJECT.md", "profiles/", "docs/architecture/", ".github/workflows/")
 MAX_FREE_LINES = 1                         # 오탈자·설정값 1줄 — 4단계 예외의 기계 판정. 본체 전체에 한 번이다
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch")
 SHELL_TOOLS = ("Bash", "PowerShell")
@@ -145,6 +151,11 @@ def changed_lines(tool: str, tool_input: object) -> int:
     return _diff_lines(old, str(tool_input.get("new_string", ""))) * _occurrences(tool_input, old)
 
 
+def exempt_prefixes(shared: Path) -> tuple[str, ...]:
+    """편집 가드 예외 경로. 설정 단계(그래프에 컴포넌트 0개)에는 설정 파일이 더해진다."""
+    return EXEMPT_PREFIXES + (() if component_graph.has_components(shared) else SETUP_PREFIXES)
+
+
 def main_pending_lines(shared: Path) -> int:
     """본체에 이미 쌓인, 커밋 안 된 구현 변경 줄 수. 1줄 예외는 본체 전체에 한 번이다."""
     try:
@@ -152,29 +163,31 @@ def main_pending_lines(shared: Path) -> int:
                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
     except (OSError, subprocess.TimeoutExpired):
         return 0
+    exempt = exempt_prefixes(shared)
     total = 0
     for record in diff.stdout.split("\0"):
         added, _tab, rest = record.partition("\t")
         deleted, _tab, rel = rest.partition("\t")
-        if added.isdigit() and deleted.isdigit() and not rel.startswith(EXEMPT_PREFIXES) and rel not in GENERATED:
+        if added.isdigit() and deleted.isdigit() and not rel.startswith(exempt) and rel not in GENERATED:
             total += max(int(added), int(deleted))
     return total
 
 
-def _exempt(path: Path, top: Path) -> bool:
+def _exempt(path: Path, top: Path, prefixes: tuple[str, ...]) -> bool:
     try:
         rel = path.resolve().relative_to(top).as_posix()
     except ValueError:
         return False
-    return rel.startswith(EXEMPT_PREFIXES)
+    return rel.startswith(prefixes)
 
 
 def _guarded(paths: list[Path], shared: Path) -> list[tuple[Path, str]]:
     """가드 대상 (경로, 자리). 레포 밖·다른 레포·예외 경로는 뺀다."""
+    prefixes = exempt_prefixes(shared)
     found: list[tuple[Path, str]] = []
     for path in paths:
         kind, top = _place(path, shared)
-        if kind == "outside" or (top is not None and _exempt(path, top)):
+        if kind == "outside" or (top is not None and _exempt(path, top, prefixes)):
             continue
         found.append((path, kind))
     return found
@@ -218,7 +231,8 @@ def _worktree_message(paths: list[Path], lines: int, pending: int, scope: str, s
     counted = f"{lines} lines" if not pending else f"{lines} lines, {pending} uncommitted lines already in the main checkout"
     return "\n".join([
         f"[ISOLATION] Editing in the main checkout — {names} ({counted}).",
-        "Implement only inside a worktree. Exceptions: workboard/, docs/tasks/, docs/mockup/, and one changed line in the whole main checkout.",
+        "Implement only inside a worktree. Exceptions: workboard/, docs/tasks/, docs/mockup/, one changed line in the whole "
+        "main checkout, and setup files (profile, PROJECT.md) until the first component is approved.",
         f"  python -X utf8 -m kernel.task start {scope} --sid {sid8} --branch <branch> --touch <glob>   (if worktrees/{name} is missing)",
         f"  Claude: EnterWorktree(path=\"worktrees/{name}\") · Codex: work in that directory",
         "(Source of truth: workboard/README.md work isolation)"])

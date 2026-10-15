@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path
 
-from kernel import profile
+from kernel import facts, profile
 from kernel.context import READ_ENC, ROOT, _ls_files, _rel, read_list
 
 MD_REF_ALLOWLIST_FILE = "md_ref_allowlist.txt"
@@ -377,15 +377,19 @@ def _fn_ref_sites() -> list[tuple[str, str]]:
 
 
 def _defined_names(candidates: list[str]) -> set[str]:
-    """후보 이름만 한 번에 훑는다 — 비용이 레포 크기가 아니라 후보 수에 비례한다."""
+    """후보 이름만 한 번에 훑는다 — 비용이 레포 크기가 아니라 후보 수에 비례한다.
+    정의 키워드가 없는 함수(Java 메서드·Go 리시버 메서드)는 못 찾은 이름만 구문 사실로 한 번 더 찾는다.
+    Python 은 정규식(`def`)이 메서드까지 이미 잡으므로 그 파싱을 하지 않는다."""
     if not candidates:
         return set()
     wanted = set(candidates)
     found: set[str] = set()
     pattern = re.compile(
         r"\b(?:" + "|".join(_DEF_KEYWORDS) + r")\s+([A-Za-z_][A-Za-z0-9_]*)")
+    suffixes = (".py", ".ts", ".tsx", ".go", ".mjs", ".js") + tuple(
+        ext.lstrip("*") for ext in profile.SOURCE_EXT + profile.UI_EXT)
     for rel in _tracked_set():
-        if not rel.endswith((".py", ".ts", ".tsx", ".go", ".mjs", ".js")):
+        if not rel.endswith(suffixes):
             continue
         path = ROOT / rel
         if not path.exists():
@@ -394,8 +398,8 @@ def _defined_names(candidates: list[str]) -> set[str]:
             if name in wanted:
                 found.add(name)
         if found >= wanted:
-            break
-    return found
+            return found
+    return found if profile.SYNTAX == "python" else found | facts.function_names(sorted(_tracked_set()), wanted - found)
 
 
 def check_md_fn_refs() -> list[str]:

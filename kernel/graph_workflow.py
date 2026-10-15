@@ -155,6 +155,35 @@ def bind(root: Path, syntax: str, patterns: list[str], response: str, conversati
     return read(root, proposal["id"])
 
 
+def starter_candidate(graph: dict, source: str, responsibility: str) -> dict:
+    """첫 분류 — 코드 전체를 컴포넌트 하나(`app`, 역할 `core`)로. 영역이 둘 이상 생기면 plan 의 「분류 제안」이 나눈다.
+    planned 라 코드가 없어도 있어도 오류가 아니고, 외부 의존은 `*` 로 열어 둔다 — 첫날 묻는 질문을 줄이는 것이 목적이다."""
+    if graph["components"]:
+        raise ValueError("starter is only for the first classification — the graph already has components")
+    folder = source.strip().strip("/")
+    if not folder or not component_graph.safe_relative(folder) or folder.startswith("."):
+        raise ValueError("--source must be a folder inside the repo, e.g. src or app")
+    candidate = json.loads(json.dumps(graph))
+    candidate["categories"] = [{"id": "app", "name": "App", "roles": ["core"],
+                                "description": "All product code until it is split into areas"}]
+    candidate["components"] = [{"id": "app", "name": "App", "category": "app", "responsibility": responsibility,
+                                "excludes": [], "root": folder, "roles": {"core": ["**"]}, "public": [],
+                                "state": "planned", "external": ["*"]}]
+    candidate["edges"] = []
+    candidate["role_dependencies"] = {"core": ["core"]}
+    return candidate
+
+
+def starter(root: Path, source: str, responsibility: str, response: str, conversation_ref: str) -> dict:
+    """사용자가 설정 때 한 답("무엇을 만드나"·스택 확인)을 첫 분류 결정으로 기록한다 — `bind` 와 같은 방식이다."""
+    proposal = propose(root, starter_candidate(component_graph.load(root), source, responsibility),
+                       f"First classification: all product code under {source} as one component until it is split",
+                       "")
+    decide(root, proposal["id"], "approve", response, conversation_ref)
+    apply(root, proposal["id"])
+    return read(root, proposal["id"])
+
+
 def check_approval(root: Path, graph: dict) -> list[str]:
     """Read-only consistency check, independent of proposal status flags."""
     try:
@@ -192,9 +221,21 @@ def main(argv: list[str] | None = None) -> int:
     bound.add_argument("--response", required=True, help="the user's stack answer, quoted")
     bound.add_argument("--conversation", required=True)
     bound.add_argument("--task", default="")
+    first = sub.add_parser("starter", help="first classification: one planned component for all product code")
+    first.add_argument("--source", required=True, help="product code folder, e.g. src")
+    first.add_argument("--responsibility", default="Everything the product does until it is split")
+    first.add_argument("--response", required=True, help="the user's setup answer, quoted")
+    first.add_argument("--conversation", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.action == "propose":
+        if args.action == "starter":
+            from kernel.hook import refresh_projection   # 순환 import 회피 — hook 이 이 모듈을 부른다
+
+            proposal = starter(args.root, args.source, args.responsibility, args.response, args.conversation)
+            refresh_projection(args.root)               # 기능 지도를 바로 맞춘다 — 안 하면 설정 직후 --verify 가 지도 불일치로 실패했다
+            print(f"[STARTER] all product code under {args.source} is component `app` — decision recorded in "
+                  f"{DIRECTORY}/{proposal['id']}.json. Split it in a plan's classification row once a second area appears.")
+        elif args.action == "propose":
             proposal = propose(args.root, json.loads(args.candidate.read_text(encoding="utf-8")), args.reason, args.task)
             print(json.dumps(notify(args.root, proposal["id"]), ensure_ascii=False))
         elif args.action == "bind":

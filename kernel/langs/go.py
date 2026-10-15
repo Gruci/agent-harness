@@ -2,8 +2,8 @@
 
 관용구 린트는 `go vet` 과 `staticcheck` 에 맡긴다. Go 의미론을 다시 구현할 이유가
 없다. 그 도구들이 정확하고 이미 Go 생태계의 표준이다. 구문 사실(함수 범위·import·최상위 이름)만
-`QUERIES` 로 뽑아 언어 무관 게이트와 컴포넌트 의존 검사를 켠다. tree-sitter 는 선택 의존성이며
-초기 설정에서 스택을 맞출 때 설치한다.
+`QUERIES` 로 뽑아 언어 무관 게이트와 컴포넌트 의존 검사를 켠다. tree-sitter 는 선택 의존성이고, 없으면 같은 사실을
+`REGEX` 로 읽는다(설치 0개). gofmt 가 최상위 선언을 줄머리에 두므로 정규식으로 충분하다.
 
 `NOT_APPLICABLE` 선언이 이 팩의 요점이다. Go 에서 타입힌트 게이트가 돌지 않는
 것은 검사를 잃은 게 아니라 **언어가 이미 보장**하기 때문이다. 잃은 검사와 필요 없는 검사를
@@ -27,11 +27,24 @@ QUERIES = {
     "imports": "(import_spec path: (interpreted_string_literal) @path)",
     "top_symbols": (
         "(source_file (function_declaration name: (identifier) @name))\n"
-        "(source_file (type_declaration (type_spec name: (type_identifier) @name)))"
+        "(source_file (type_declaration (type_spec name: (type_identifier) @name)))\n"
+        "(source_file (var_declaration (var_spec name: (identifier) @name)))\n"
+        "(source_file (const_declaration (const_spec name: (identifier) @name)))"
     ),
 }
-MODULE_RULE = "go_package"      # 디렉토리 하나가 패키지 하나다. go.mod 의 module 경로로 시작하는 import 만 레포 내부로 본다
+# tree-sitter 가 없을 때의 같은 사실. 메서드는 리시버 괄호를 건너뛰고, 묶은 import 는 block 안의 따옴표 전부가 경로다.
+REGEX = {
+    "functions": r"^func[ \t]+(?:\([^)\n]*\)[ \t]*)?(?P<name>[A-Za-z_]\w*)",
+    "imports": r'^import[ \t]+(?:[\w.]+[ \t]+)?"(?P<path>[^"\n]+)"|^import[ \t]*\((?P<block>[^)]*)\)',
+    "top_symbols": r"^(?:func[ \t]+(?P<func>[A-Za-z_]\w*)|type[ \t]+(?P<type>[A-Za-z_]\w*)|(?:var|const)[ \t]+(?P<var>[A-Za-z_]\w*))",
+}
+MODULE_RULE = "go_package"      # 디렉토리 하나가 패키지 하나다. 가장 가까운 go.mod 의 module 경로로 시작하는 import 만 레포 내부로 본다
 PUBLIC_RULE = "capitalized"     # 대문자로 시작하는 이름이 공개다. Go 언어 규칙 그대로다
+NAMING = {"function": "camel|pascal"}     # 대소문자가 곧 공개 여부라 둘 다 정상이다. 밑줄 이름만 어긋난다
+OWNED = {
+    "http_client": r"\bhttp\.(?:Get|Post|NewRequest)\(|&http\.Client\{",
+    "db_connect": r"\bsql\.Open\(",
+}
 
 # 적합성 검사 예제 — closures·type_hints 는 NOT_APPLICABLE 이라 예제가 없다.
 FIXTURES = {

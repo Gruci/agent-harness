@@ -23,7 +23,8 @@
 | dict 반환 키 | 한국어 비즈니스 용어 또는 명확한 영어 |
 | **DB 컬럼명** | dict 키·API 필드와 **동일 규칙** — 의미 기반 풀네임, 축약어·내부코드 금지. 새 컬럼 추가 전 `dev/DATA_MODEL.md` 설계 절차 준수 |
 | 사용자 노출 텍스트 | 공식 한국어 명칭. 툴팁·레이블·footnote에 내부 코드 절대 금지. 조어 금지 (정본: `design/UX.md`) |
-| 함수명 | 의미 있는 동사구. 역할별 고정 접두어는 강제하지 않는다 (`dev/ARCHITECTURE.md`) |
+| 함수명 | 의미 있는 동사구. 역할별 고정 접두어는 강제하지 않는다 (`dev/ARCHITECTURE.md`). 표기는 언어팩 `NAMING["function"]` 을 따르고, 같은 폴더에서 같은 대상을 읽는 함수는 같은 동사(`get`·`fetch`·`load`·`retrieve`·`read`·`obtain` 중 하나)를 쓴다 — 이름 일관성 검사(`naming`)가 잡는다. `find`·`query`·`search` 는 뜻이 달라 묶지 않는다 |
+| 응답 키·API 타입 필드 | 한 가지 표기(`NAMING["keys"]`, 화면 API 타입은 `NAMING["ui_keys"]`). 외부 API 가 다른 표기를 요구하면 그 줄에 `key-ok: 사유` |
 | DB 쓰기 함수 | `save_*`·`upsert_*`·`delete_*` 같은 변경 동사. 순수 SELECT는 `get_*` — 조회 함수를 쓰기 동사로 위장하지 않는다 |
 
 ## Python 일반 규칙

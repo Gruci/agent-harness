@@ -5,9 +5,10 @@
 | 명령 | 하는 일 | 닫는 결함 |
 |---|---|---|
 | `plan <범위> --sid <sid8> --branch <접두>/<이름>` | 리서치를 시작할 때 보드에 `상태: 계획` 으로 올린다. worktree 는 만들지 않는다 | 계획 중인 범위가 다른 세션에 안 보이던 것, 승인 대기 중 보드가 비어 남은 산출물 검사(⑰)가 막던 것 |
-| `start <범위> --sid <sid8> --branch <접두>/<이름> --touch <글로브>… [--plan <plan>] [--on <브랜치>]` | 보드 파일을 쓰고 `--no-track` worktree 를 만든다. 내 `상태: 계획` 파일은 구현 단계 본문으로 올린다. 실패하면 보드 파일을 되돌린다. `--plan` 에 `## 사람용 요약` 이 없으면 거절한다 | 손으로 만든 이름을 훅이 사후에 막던 것, upstream 자동 등록으로 합친 뒤 `branch -d` 가 거부되던 것, 14칸 plan 을 사람에게 그대로 들이밀던 것 |
+| `start <범위> --sid <sid8> --branch <접두>/<이름> --touch <글로브>… [--plan <plan> 또는 --small] [--on <브랜치>]` | 보드 파일을 쓰고 `--no-track` worktree 를 만든다. 내 `상태: 계획` 파일은 구현 단계 본문으로 올린다. 실패하면 보드 파일을 되돌린다. `--plan` 에 `## 사람용 요약`(또는 `## Human summary`)이 없으면 거절한다. `--small` 은 plan 없는 소규모 과업이고 finish 가 실제 diff 를 잰다 | 손으로 만든 이름을 훅이 사후에 막던 것, upstream 자동 등록으로 합친 뒤 `branch -d` 가 거부되던 것, 14칸 plan 을 사람에게 그대로 들이밀던 것, 작은 수정에도 research·plan 을 쓰던 것 |
 | `finish --sid <sid8> [--scope <범위>]` | 보관 → 따라잡기 → 그 worktree 검사 → ff 합치기 → push → 정리. 몇 번을 다시 실행해도 된다 | 결함 E·F·G (`kernel/task_finish.py`) |
 | `resume <범위> --sid <sid8>` | 보드의 `#sid` 를 새 값으로 바꾸고 `인계` 를 남긴다. worktree 가 없으면 브랜치에서 다시 만든다 | 결함 H — 새 session_id 로는 자기 과업도 못 고치던 것 |
+| `abandon --sid <sid8> [--scope <범위>]` | 커밋 안 한 변경이 없을 때만 worktree·브랜치·보드 파일을 지운다(`kernel/task_abandon.py`) | 버린 과업을 손으로 치우다 남의 것까지 지우던 위험 |
 
 세션 식별자는 `--sid` 로 받는다. session_id 는 훅 페이로드에만 오므로, 세션 시작 알림과 편집 가드 안내문이
 그 값을 채운 명령을 그대로 보여 준다. 템플릿 체크아웃에서는 `python -X utf8 -m kernel.task <명령>` 으로 부른다 —
@@ -27,6 +28,7 @@ from datetime import date
 from pathlib import Path
 
 from kernel.context import default_branch
+from kernel.isolation import SETUP_PREFIXES
 from kernel.workboard import (BRANCH_PATTERN, add_list_item, board_dir, board_text, branch_of, field, list_field,
                               sid_of, task_files)
 from kernel.worktree import worktree_of
@@ -35,7 +37,9 @@ GIT_TIMEOUT_SEC = 60                       # fetch·push 가 느린 망에서도
 SCOPE_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)+")
 TASK_DOCS = "docs/tasks/"
 PLANNING = "계획"                          # ko-ok: task-board state value
-SUMMARY_HEADING = "## 사람용 요약"          # ko-ok: plan heading the approval shows the user (dev/workflows/feature-workflow.md)
+# ko-ok: plan headings the approval shows the user (dev/workflows/feature-workflow.md) — English plans use the second
+SUMMARY_HEADINGS = ("## 사람용 요약", "## Human summary")
+SIZE_KEY, SMALL = "크기", "소규모"           # ko-ok: task-board key and value — finish measures a small task's real diff
 
 
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
@@ -69,7 +73,8 @@ def plan(scope: str, sid8: str, branch: str) -> int:
     return 0
 
 
-def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None, on: str | None) -> int:
+def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None, on: str | None,
+          small: bool = False) -> int:
     board = board_dir()
     shared = board.parent
     if not SCOPE_NAME.fullmatch(scope) or not BRANCH_PATTERN.fullmatch(branch) or not touch:
@@ -78,17 +83,26 @@ def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None
     previous = task_file.read_text(encoding="utf-8") if task_file.exists() else None
     if previous is not None and not (sid_of(previous) == sid8 and field(previous, "상태") == PLANNING):  # ko-ok: task-board key
         return _already_open(task_file, sid8)
+    setup = _uncommitted_setup(shared)
+    if setup:
+        return fail("setup changes are not committed, so the new work copy would miss them — commit them first:\n"
+                    f"  git add {' '.join(setup)} && git commit -m \"chore: harness setup\"", 2)
     artifacts = _artifacts(shared, plan)
     base = on or _start_point(shared)
     if base is None or artifacts is None:
         return fail("no start point (connect origin or check out the default branch) or the plan file is missing", 2)
-    if plan is not None and SUMMARY_HEADING not in (shared / plan).read_text(encoding="utf-8"):
-        return fail(f"{plan} has no `{SUMMARY_HEADING}` heading — add four plain-language lines before starting: "  # ko-ok: cites the Korean plan heading
+    if small and plan is not None:
+        return fail("--small is for a task without a plan — pass --plan or --small, not both", 2)
+    text = (shared / plan).read_text(encoding="utf-8") if plan is not None else ""
+    if plan is not None and not any(heading in text for heading in SUMMARY_HEADINGS):
+        return fail(f"{plan} has no `{SUMMARY_HEADINGS[0]}` or `{SUMMARY_HEADINGS[1]}` heading — add four plain-language lines before starting: "
                     "what the user gets, what changes, the risk and how to undo it, what is deferred on purpose "
                     "(dev/workflows/feature-workflow.md). The approval request shows that summary, not the whole plan.", 2)
     board.mkdir(exist_ok=True)
-    task_file.write_text(board_text(scope, branch, sid8, tuple(touch), artifacts, date.today().isoformat()),
-                         encoding="utf-8")
+    body = board_text(scope, branch, sid8, tuple(touch), artifacts, date.today().isoformat())
+    if small:
+        body = body.replace("- 시작:", f"- {SIZE_KEY}: {SMALL}\n- 시작:", 1)  # ko-ok: task-board key
+    task_file.write_text(body, encoding="utf-8")
     name = f"worktrees/{scope}--{sid8}"
     added = git(shared, "worktree", "add", "--no-track", "-b", branch, name, base)
     if added.returncode:
@@ -109,13 +123,24 @@ def _restore(task_file: Path, previous: str | None) -> None:
 
 
 def _start_point(shared: Path) -> str | None:
-    """새 브랜치를 딸 곳. origin 이 있으면 받아 온 `origin/<기본>`, 없으면 본체의 현재 브랜치다."""
+    """새 브랜치를 딸 곳. origin 이 있으면 받아 온 `origin/<기본>`, 없으면 본체의 현재 브랜치다.
+    본체가 origin 을 품고 앞서 있으면(설정 커밋처럼 아직 push 안 한 것) 본체에서 딴다 — origin 에서 따면 그 커밋이 빠진다."""
+    current = git(shared, "rev-parse", "--abbrev-ref", "HEAD")
+    local = (current.stdout.strip() or None) if current.returncode == 0 else None
     base = default_branch()
     if base:
         git(shared, "fetch", "--quiet", "origin", base)   # 오프라인이면 마지막으로 받은 ref 에서 딴다
-        return f"origin/{base}"
-    current = git(shared, "rev-parse", "--abbrev-ref", "HEAD")
-    return (current.stdout.strip() or None) if current.returncode == 0 else None
+        remote = f"origin/{base}"
+        if local and git(shared, "merge-base", "--is-ancestor", remote, "HEAD").returncode == 0:
+            return local
+        return remote
+    return local
+
+
+def _uncommitted_setup(shared: Path) -> list[str]:
+    """본체에서 고치고 커밋하지 않은 설정 파일. 그대로 worktree 를 따면 새 작업 사본에 설정이 빠진다."""
+    status = git(shared, "status", "--porcelain", "--", *SETUP_PREFIXES).stdout
+    return [line[3:].strip() for line in status.splitlines() if line.strip()]
 
 
 def _artifacts(shared: Path, plan: str | None) -> tuple[str, ...] | None:
@@ -188,7 +213,7 @@ def _recreate(shared: Path, scope: str, sid8: str, branch: str) -> Path | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -X utf8 -m kernel.task", description="Task lifecycle: plan, start, finish, resume.")
+    parser = argparse.ArgumentParser(prog="python -X utf8 -m kernel.task", description="Task lifecycle: plan, start, finish, resume, abandon.")
     commands = parser.add_subparsers(dest="command", required=True)
     planner = commands.add_parser("plan", help="put a planning-stage task on the board (no worktree) when research starts")
     planner.add_argument("scope")
@@ -201,20 +226,29 @@ def main(argv: list[str] | None = None) -> int:
     starter.add_argument("--touch", nargs="+", required=True, metavar="GLOB")
     starter.add_argument("--plan", help="docs/tasks/plan_<task>.md — archived by finish with its research")
     starter.add_argument("--on", help="branch to stack on instead of the default branch")
+    starter.add_argument("--small", action="store_true",
+                         help="no plan: existing files only, small diff — finish measures it and refuses if it grew")
     finisher = commands.add_parser("finish", help="archive, verify the worktree, merge, push, clean up")
     finisher.add_argument("--sid", required=True)
     finisher.add_argument("--scope")
     resumer = commands.add_parser("resume", help="take over an open task whose session has ended")
     resumer.add_argument("scope")
     resumer.add_argument("--sid", required=True)
+    dropper = commands.add_parser("abandon", help="drop your task: worktree, branch and board file (refuses unsaved work)")
+    dropper.add_argument("--sid", required=True)
+    dropper.add_argument("--scope")
+    dropper.add_argument("--discard-commits", action="store_true", help="also drop commits that were never merged")
     args = parser.parse_args(argv)
     sid8 = args.sid[:8]
     if args.command == "plan":
         return plan(args.scope, sid8, args.branch)
     if args.command == "start":
-        return start(args.scope, sid8, args.branch, args.touch, args.plan, args.on)
+        return start(args.scope, sid8, args.branch, args.touch, args.plan, args.on, args.small)
     if args.command == "resume":
         return resume(args.scope, sid8)
+    if args.command == "abandon":
+        from kernel.task_abandon import abandon
+        return abandon(sid8, args.scope, args.discard_commits)
     from kernel.task_finish import finish
     return finish(sid8, args.scope)
 

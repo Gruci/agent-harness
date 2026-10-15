@@ -5,12 +5,12 @@
   QUERIES["functions"]     @def 와 그 안의 @name — 함수 범위·중첩(감싸는 @def)·공개 여부
   QUERIES["imports"]       @path — import 대상. MODULE_RULE 이 레포 안 모듈 키로 바꾼다
   QUERIES["top_symbols"]   @name — 모듈 최상위 이름
-  MODULE_RULE go_package   디렉토리가 패키지, go.mod 의 module 접두가 붙은 import 가 레포 내부
-  PUBLIC_RULE capitalized  대문자 시작이 공개 · underscore  `_` 접두가 비공개
+  MODULE_RULE·PUBLIC_RULE  kernel/analyzers/modules.py — 정규식 엔진과 같은 규칙을 쓴다
 
 `tree_sitter` 와 문법 패키지(`tree_sitter_<SYNTAX>`)는 선택 의존이다. import 는 이 모듈에서만, 그것도
 필요한 시점에만 한다. 그래서 커널이 설치를 요구하는 의존성은 여전히 0개다. 없으면 `build` 가 사유를 돌려주고 러너는
-그 게이트를 [TOOL] 로 찍는다. py-tree-sitter 0.23 이상을 기준으로 하고, 0.25 의 QueryCursor 도 받는다.
+그 게이트를 [TOOL] 로 찍는다 — 팩이 REGEX 도 선언했으면 정규식 엔진으로 내려간다(kernel/facts.py).
+py-tree-sitter 0.23 이상을 기준으로 하고, 0.25 의 QueryCursor 도 받는다.
 
 타입 누락(`missing_types`)은 여기서 내지 않는다 — tree-sitter 를 쓰는 언어는 대개 타입을 강제하고,
 그렇지 않은 언어는 팩이 NOT_APPLICABLE 로 선언한다.
@@ -19,14 +19,19 @@
 from __future__ import annotations
 
 import importlib
-import re
 from collections.abc import Mapping
 from pathlib import Path
 
 from kernel import facts, lang
+from kernel.analyzers.modules import ModuleRules, is_public
 
 MISSING = "tree-sitter not installed — install it in the initial stack setup"
-_GO_MODULE = re.compile(r"^\s*module\s+(\S+)", re.M)
+_GRAMMAR_MISSING = "grammar not installed — install it in the initial stack setup"
+
+
+def install_missing(reason: str) -> bool:
+    """사유가 설치 누락인가. 쿼리 컴파일 실패는 팩 결함이라 다른 엔진으로 덮으면 안 된다."""
+    return reason == MISSING or reason.endswith(_GRAMMAR_MISSING)
 
 
 def _grammar(package: str, syntax: str) -> object | None:
@@ -68,15 +73,6 @@ def _text(node, source: bytes) -> str:
     return source[node.start_byte:node.end_byte].decode("utf-8", "replace")
 
 
-def _go_module_path(root: Path) -> str | None:
-    """go.mod 의 module 선언. 없으면 레포 내부 import 를 가를 수 없어 전부 외부로 본다."""
-    path = root / "go.mod"
-    if not path.is_file():
-        return None
-    match = _GO_MODULE.search(path.read_text(encoding="utf-8-sig"))
-    return match.group(1).strip('"') if match else None
-
-
 def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]:
     """팩의 엔진을 돌려주고, 못 만들면 그 사유를 돌려준다. 설치 문제인지 팩 결함(쿼리 오류)인지를 사유 문구로 구분한다."""
     try:
@@ -87,7 +83,7 @@ def build(pack: Mapping[str, object], root: Path) -> tuple["Engine | None", str]
     package = lang.grammar_module(dict(pack)) or f"tree_sitter_{syntax}"   # 팩의 GRAMMAR 가 정본이고, 비우면 구문 이름에서 만든다
     grammar = _grammar(package, syntax)
     if grammar is None:
-        return None, f"tree-sitter-{syntax} grammar not installed — install it in the initial stack setup"
+        return None, f"tree-sitter-{syntax} {_GRAMMAR_MISSING}"
     queries = dict(pack.get("QUERIES") or {})   # type: ignore[call-overload]  # lang.load 가 매핑임을 검증했다
     try:
         language = ts.Language(grammar)
@@ -111,34 +107,11 @@ class Engine:
         self.syntax = str(pack["SYNTAX"])
         self.suffixes = tuple(str(pattern).lstrip("*") for pattern in pack["EXT"])   # type: ignore[union-attr]
         self.kinds = facts.query_kinds(queries)
-        self._module_rule = pack.get("MODULE_RULE")
+        self._rules = ModuleRules(pack.get("MODULE_RULE"), root, self.suffixes)
         self._public_rule = pack.get("PUBLIC_RULE")
-        self._go_module = _go_module_path(root) if self._module_rule == "go_package" else None
-
-    def _root_key(self) -> str:
-        return self._go_module.rsplit("/", 1)[-1] if self._go_module else "main"
 
     def module_key(self, rel: str) -> str:
-        if self._module_rule == "go_package":
-            directory = rel.rsplit("/", 1)[0] if "/" in rel else ""
-            return directory.replace("/", ".") if directory else self._root_key()
-        return rel.rsplit(".", 1)[0].replace("/", ".")      # 규칙을 선언하지 않았으면 경로가 곧 키다
-
-    def _resolve_import(self, raw: str) -> tuple[str | None, str | None]:
-        """(레포 안 모듈 키, 외부 이름). go.mod 접두가 붙은 것만 내부다."""
-        if self._module_rule == "go_package" and self._go_module:
-            if raw == self._go_module:
-                return self._root_key(), None
-            if raw.startswith(self._go_module + "/"):
-                return raw[len(self._go_module) + 1:].replace("/", "."), None
-        return None, raw
-
-    def _public(self, name: str) -> bool:
-        if self._public_rule == "capitalized":
-            return name[:1].isupper()
-        if self._public_rule == "underscore":
-            return not name.startswith("_")
-        return True
+        return self._rules.module_key(rel)
 
     def _functions(self, root_node, source: bytes) -> tuple[facts.Function, ...]:
         defs: list[tuple[object, str]] = []
@@ -156,15 +129,16 @@ class Engine:
                 if other is not node and other.start_byte <= node.start_byte and node.end_byte <= other.end_byte:   # type: ignore[attr-defined]
                     parent = other_name
             found.append(facts.Function(name, node.start_point[0] + 1, node.end_point[0] + 1, parent,   # type: ignore[attr-defined]
-                                        self._public(name), None))
+                                        is_public(self._public_rule, name), None))
         return tuple(found)
 
-    def _imports(self, root_node, source: bytes) -> tuple[facts.Import, ...]:
+    def _imports(self, root_node, source: bytes, rel: str) -> tuple[facts.Import, ...]:
         found: list[facts.Import] = []
         for match in _matches(self._ts, self._queries["imports"], root_node):
             for node in match.get("path", []):
-                module, external = self._resolve_import(_text(node, source).strip('"`'))
-                found.append(facts.Import(module, external, None, node.start_point[0] + 1))
+                resolved = self._rules.resolve(_text(node, source).strip('"`\''), rel)
+                if resolved is not None:
+                    found.append(facts.Import(resolved[0], resolved[1], None, node.start_point[0] + 1))
         return tuple(found)
 
     def _top_symbols(self, root_node, source: bytes) -> frozenset[str]:
@@ -182,6 +156,6 @@ class Engine:
         return facts.FileFacts(
             rel=rel, module=module,
             functions=self._functions(root_node, source) if "functions" in self._queries else (),
-            imports=self._imports(root_node, source) if "imports" in self._queries else (),
+            imports=self._imports(root_node, source, rel) if "imports" in self._queries else (),
             top_symbols=self._top_symbols(root_node, source) if "top_symbols" in self._queries else frozenset(),
         )

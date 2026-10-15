@@ -258,11 +258,17 @@ def parse_worktrees(porcelain: str) -> list[dict]:
 
 
 def worktree_of(branch: str) -> Path | None:
-    """그 브랜치를 체크아웃한 worktree 의 경로. 없거나 git 이 실패하면 None. 나올 때 검사와 finish·resume 이 같이 쓴다."""
+    """그 브랜치를 체크아웃한 worktree 의 경로. 없거나 git 이 실패하면 None. 나올 때 검사와 finish·resume·abandon 이 같이 쓴다.
+    사람이 폴더를 지운 worktree 는 git 에 기록만 남는다 — 그 기록을 정리(`prune`)하고 없는 것으로 본다. 지운 폴더를 그대로
+    돌려주면 finish·abandon 이 그 경로에서 git 을 돌리다 트레이스백으로 죽었다."""
     porcelain = _git("worktree", "list", "--porcelain")
     if porcelain is None:
         return None
-    return next((Path(tree["path"]) for tree in parse_worktrees(porcelain) if tree["branch"] == branch), None)
+    found = next((Path(tree["path"]) for tree in parse_worktrees(porcelain) if tree["branch"] == branch), None)
+    if found is not None and not found.is_dir():
+        _git("worktree", "prune")
+        return None
+    return found
 
 
 def stray_folders() -> list[Path]:

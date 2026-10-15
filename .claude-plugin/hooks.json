@@ -3,17 +3,17 @@
   "hooks": {
     "SessionStart": [{"matcher": "startup|resume|clear|compact", "hooks": [
       {"type": "command", "timeout": 15,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/kernel\" session || echo '[HARNESS] Could not run python — without python 3.10 or later no gate runs.'"}]}],
+       "command": "\"$(command -v python || command -v python3)\" -X utf8 \"${CLAUDE_PLUGIN_ROOT}/kernel\" session || echo '[HARNESS] Could not run python — without python 3.10 or later no gate runs.'"}]}],
     "PreToolUse": [{"matcher": "Bash|PowerShell", "hooks": [
       {"type": "command", "timeout": 15,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_bash_write.py\" --plugin"},
+       "command": "\"$(command -v python || command -v python3)\" -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_bash_write.py\" --plugin"},
       {"type": "command", "timeout": 180,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_pretool.py\" --plugin"}]}],
+       "command": "\"$(command -v python || command -v python3)\" -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_pretool.py\" --plugin"}]}],
     "PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [
       {"type": "command", "timeout": 180,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_file_rules.py\" --plugin"}]}],
+       "command": "\"$(command -v python || command -v python3)\" -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_file_rules.py\" --plugin"}]}],
     "Stop": [{"hooks": [
       {"type": "command", "timeout": 600,
-       "command": "python -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_coding_rules.py\" --plugin"}]}]
+       "command": "\"$(command -v python || command -v python3)\" -X utf8 \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/check_coding_rules.py\" --plugin"}]}]
   }
 }

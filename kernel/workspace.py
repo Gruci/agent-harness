@@ -97,6 +97,7 @@ plan 은 목업과 달리 **과업이 끝날 때까지 루트에 있는 게 정�
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -256,23 +257,26 @@ def gh_account() -> str:
 def git_remote() -> Finding | None:
     """Stop 판정 ⑭ — origin 이 없으면 경고 finding. 만들 명령까지 완성해서 준다.
 
-    턴 종료는 막지 않는다. 같은 finding 을 과업 끝내기(`kernel.task finish`)가 보고 거절한다.
+    턴 종료는 막지 않는다. 과업 끝내기(`kernel.task finish`)는 원격이 없으면 로컬에만 합치고 백업이 없다고 알린다.
+    gh 계정이 있어도 묻지 않고 만들지 않는다 — 공용 PC 의 활성 계정이 사용자의 것이라는 보장이 없다.
     """
     code, _out = _run("git", "remote", "get-url", "origin")
     if code == 0:
         return None
     lines = ["[GIT REMOTE] No remote (origin) — the code exists only on this machine. "
-             "Turn ends are not blocked; finishing a task refuses until a remote is set."]
+             "Turn ends are not blocked; finishing a task merges locally only until a remote is set."]
     account = gh_account()
     if account:
-        lines += [f"gh is authenticated as {account}. Create it now; **do not ask the user**:",
+        lines += [f"gh is signed in as {account}. Ask the user once which they want — a private repo under "
+                  f"{account}, a different repo URL, or stay local for now — then for the first:",
                   f"    gh repo create {suggested_name()} --private --source . --push",
                   "You may change the name, but keep --private — publishing is hard to undo, so a human decides. "
                   "Use --public only when the user explicitly asks for a public repo.",
                   "Afterwards confirm the push (exit 0 and the remote URL) and report only the result."]
     else:
-        lines += ["gh is not authenticated, so the account is unknown — only the user knows it. "
-                  "Point them to `gh auth login` or ask for the repo URL (a question only the user can answer).",
+        setup = "`gh auth login`" if shutil.which("gh") else "installing the GitHub CLI (https://cli.github.com) and `gh auth login`"
+        lines += [f"gh is not signed in, so the account is unknown — only the user knows it. Point them to {setup} "
+                  "or ask for the repo URL (a question only the user can answer), or stay local for now.",
                   "Once you have the URL, run `git remote add origin <url>` and `git push -u origin HEAD`."]
     return Finding("check_git_remote", "git_remote", False, "\n".join(lines), ("no origin",))
 
@@ -280,7 +284,7 @@ def git_remote() -> Finding | None:
 # git 조회가 예외로 실패해도 턴을 막지 않는다. Codex Stop 묶음(`stop_findings`)이 이 경고를 대신 낸다.
 _REMOTE_UNKNOWN = Finding("check_git_remote", "git_remote", False,
                           "[GIT REMOTE] Could not confirm origin — check that git runs. "
-                          "Finishing a task still needs a remote.", ("origin check could not run",))
+                          "Without a remote, finishing a task merges locally only.", ("origin check could not run",))
 
 
 # ── ⑯ 남은 목업 ──────────────────────────────────────────────────────────────

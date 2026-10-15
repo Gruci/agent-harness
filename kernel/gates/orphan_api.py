@@ -14,11 +14,13 @@
 그 문자열이 한 번도 안 나오면 위반이다. 라우트 선언의 생김새는 프레임워크마다 다르므로(FastAPI 는
 데코레이터, Express 는 `app.get(...)`) 정규식은 커널이 아니라 팩이 준다.
 
-경로 파라미터 앞까지만 비교한다 — 화면은 `/api/etf/${code}` 처럼 조립하므로 전체 문자열로
-비교하면 전부 오탐이 된다. 접두가 너무 짧으면 비교를 건너뛴다(`/` 하나짜리는 어디에나 있다).
+경로 파라미터 앞까지는 그대로 비교한다 — 화면은 `/api/etf/${code}` 처럼 조립하므로 전체 문자열로
+비교하면 전부 오탐이 된다. 첫 파라미터 뒤의 고정 마디(`/{id}/export` 의 `/export`)도 화면에 있어야 소비다 —
+없으면 이미 쓰는 `/api/orders/{id}` 옆에 아무도 안 부르는 하위 라우트가 숨는다. 접두가 너무 짧으면 비교를 건너뛴다.
 
-소비자가 애초에 화면이 아닌 라우트(헬스체크·웹훅·머신 API)는 이 게이트가 다루지 않는다.
-그런 라우트는 동결본(baseline)에 올려 둔다. 커널은 어느 라우트가 그런지 알 수 없기 때문이다.
+라우터 접두(`APIRouter(prefix=…)`)는 서버팩의 `PREFIX_PATTERN` 이 라우트 파일에서 찾아 경로 앞에 붙인다.
+기반 라우트(헬스체크·지표·문서)는 서버팩의 `INFRA_ROUTES` 로 뺀다. 그 밖에 소비자가 화면이 아닌 라우트(웹훅·머신 API)는
+동결본(baseline)에 올려 둔다. 커널은 어느 라우트가 그런지 알 수 없기 때문이다.
 """
 
 from __future__ import annotations
@@ -49,23 +51,43 @@ def routes_in(text: str, pattern: str) -> list[tuple[int, str]]:
 
 
 def consumed(route: str, ui_source: str) -> bool:
-    """화면 소스가 이 라우트를 쓰는가. 접두가 너무 짧으면 비교 불가라 소비로 본다."""
+    """접두가 화면에 있고, 첫 파라미터 뒤의 고정 마디도 화면에 있어야 소비다. 접두가 너무 짧으면 비교 불가라 소비로 본다."""
     prefix = literal_prefix(route)
-    return len(prefix) < MIN_PREFIX_LEN or prefix in ui_source
+    if len(prefix) < MIN_PREFIX_LEN:
+        return True
+    tail = [seg for seg in route[len(prefix):].split("/") if seg and not seg.startswith(("{", ":"))]
+    return prefix in ui_source and all(f"/{seg}" in ui_source for seg in tail)
+
+
+def _joined(prefix: str, route: str) -> str:
+    """라우터 접두 + 라우트. `@get("/")` 은 접두 자체다."""
+    full = prefix.rstrip("/") + "/" + route.lstrip("/")
+    return full.rstrip("/") or "/"
+
+
+def _infra(route: str, infra_routes: tuple[str, ...]) -> bool:
+    """기반 라우트인가 — 끝 마디까지 같으면 앞 접두(`/api/v1`)는 상관없다."""
+    return any(route.endswith("/" + item.lstrip("/")) for item in infra_routes)
 
 
 def _declared_routes(py_files: list[Path], pattern: str) -> list[tuple[str, int, str]]:
-    """(경로, 줄번호, 라우트) — 라우트 레이어 아래 선언만."""
+    """(경로, 줄번호, 라우트) — 라우트 레이어 아래 선언만. 라우터 접두가 있으면 붙이고, 기반 라우트는 뺀다."""
     prefix = profile.layer("routes") or profile.layer("web")
-    if not prefix:
+    if not prefix or profile.SERVER is None:
         return []
+    prefix_re = re.compile(profile.SERVER["PREFIX_PATTERN"]) if profile.SERVER["PREFIX_PATTERN"] else None
+    infra_routes = tuple(profile.SERVER["INFRA_ROUTES"])
     declared: list[tuple[str, int, str]] = []
     for path in py_files:
         rel = _rel(path)
         if not rel.startswith(prefix):
             continue
-        for number, route in routes_in(path.read_text(encoding=READ_ENC, errors="replace"), pattern):
-            declared.append((rel, number, route))
+        text = path.read_text(encoding=READ_ENC, errors="replace")
+        router = prefix_re.search(text) if prefix_re else None
+        for number, route in routes_in(text, pattern):
+            full = _joined(router.group(1), route) if router else route
+            if not _infra(full, infra_routes):
+                declared.append((rel, number, full))
     return declared
 
 

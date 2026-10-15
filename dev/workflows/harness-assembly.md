@@ -5,16 +5,17 @@
 ## git 과 원격
 
 게이트는 `git ls-files` 로 대상을 모은다. git 저장소가 아니면 모든 게이트의 대상이 0개라 아무것도 검사하지 않는다.
-원격이 없으면 커밋이 이 컴퓨터에만 남고, 과업을 끝낼 수 없다(`python -X utf8 -m kernel.task finish` 가 거절한다).
+원격이 없으면 커밋이 이 컴퓨터에만 남는다. 과업은 끝낼 수 있지만(`python -X utf8 -m kernel.task finish` 가 로컬에만 합친다) 백업이 없다.
 
 | 상태 | 할 일 |
 |:--|:--|
+| 원류에서 막 clone 했다 | `python -X utf8 harness_install.py --new` — 어느 셸에서든 원류 이력을 지우고 새 이력과 첫 커밋을 만든다. git 사용자 정보가 없으면 아무것도 바꾸지 않고 설정 명령을 보인다 |
 | git 저장소가 아니다 | `git init` 하고 첫 커밋을 만든다 |
 | origin 이 있다 | 다음 절로 간다 |
-| origin 이 없고 `gh auth status` 가 통과한다 | 묻지 않고 `gh repo create <폴더 이름> --private --source . --push` 로 만든다. push 결과(exit 0, 원격 URL)만 알린다 |
-| origin 이 없고 gh 가 인증되지 않았다 | 사용자에게 고르게 한다 — 지금 `gh auth login` 하기, 이미 있는 레포 주소 알려 주기, 나중에 |
+| origin 이 없고 `gh auth status` 가 통과한다 | 현재 계정을 보여 주고 한 번 묻는다 — 그 계정에 비공개로 만들기(`gh repo create <폴더 이름> --private --source . --push`), 다른 레포 주소, 나중에. 만들었으면 push 결과(exit 0, 원격 URL)만 알린다 |
+| origin 이 없고 gh 가 인증되지 않았다 | 사용자에게 고르게 한다 — 지금 `gh auth login` 하기(gh 가 없으면 설치부터), 이미 있는 레포 주소 알려 주기, 나중에 |
 
-나중에를 고르면 다음 절로 간다. 턴 종료는 막히지 않고, 과업을 끝낼 때 다시 묻게 된다.
+나중에를 고르면 다음 절로 간다. 턴 종료는 막히지 않고, 과업은 로컬에만 합쳐진다.
 공개 여부만은 사람이 정한다. `--public` 은 명시 요청이 있을 때만 쓴다.
 
 ## 스택과 업무
@@ -28,8 +29,13 @@
 ## 스택 맞춤
 
 선택한 언어와 프레임워크의 팩이 게이트를 실제로 켜는지 확인한다.
-커널에 팩이 있으면 그대로 쓰고, 없으면 `profiles/lang/_template.py` 와 `profiles/framework/_template.py` 를 복사해 채운다.
-tree-sitter 를 설치할 수 없으면 언어팩에 `ANALYZER = "command"` 를 두고 외부 분석기 스크립트를 만든다.
+커널에 팩이 있으면(Python·Go·TypeScript·Java) 그대로 쓰고, 없으면 그 언어로 하네스를 옮기는 일은 팩 파일 하나를 쓰는 것이다.
+`profiles/lang/_template.py` 와 `profiles/framework/_template.py` 를 복사해 채운다.
+새 언어팩은 `profiles/lang/<이름>.py` 에 두고 프로파일에 `LANG = "<이름>"` 을 적는다.
+중괄호 언어(Kotlin·C#·Rust·Swift·PHP·Dart 등)는 `ANALYZER = "regex"` 에 함수 머리·import·최상위 이름 정규식 셋(`REGEX`)과 모듈 규칙(`MODULE_RULE`)·표준 라이브러리(`STDLIB`)를 적으면 설치 없이 구문 사실이 나온다.
+팩에는 `FIXTURES`(위반·통과 예제)와, Python 에만 있는 검사 둘(`undefined_const`·`type_checking_future`)을 `NOT_APPLICABLE` 로 둔 사유도 적는다 — 빠지면 `pack_check` 가 미검증으로 남긴다.
+이름 표기(`NAMING`)와 한 모듈만 맡을 기능(`OWNED`)도 같은 팩에 적는다. 실물 본보기는 `kernel/langs/java.py` 다.
+정규식으로 안 되는 언어만 tree-sitter(`QUERIES`)나 외부 분석기 스크립트(`ANALYZER = "command"`)를 쓴다.
 그 스크립트의 출력 계약은 `kernel/analyzers/command.py` 헤더를 따른다.
 필요한 도구는 `python -X utf8 harness_install.py --doctor` 가 팩의 `REQUIRES` 로 보고한다.
 설치는 사용자가 동의한 것만 하고, 하네스 본체 개발에는 아무것도 설치하지 않는다.
@@ -41,6 +47,13 @@ tree-sitter 를 설치할 수 없으면 언어팩에 `ANALYZER = "command"` 를 
 
 ## 첫 분류와 승인
 
+빈 프로젝트는 한 덩어리로 시작한다. 스택을 확인하는 질문에 "처음엔 코드를 한 덩어리로 두고 영역이 둘 이상 생기면 나누자고 제안합니다"를 함께 보이고, 그 답을 결정으로 기록한다.
+
+```text
+python -X utf8 -m kernel.graph_workflow starter --source src --response "실제 사용자 답변" --conversation "대화 참조"
+```
+
+코드가 이미 있거나 영역이 둘 이상이면 아래처럼 나눈다.
 AI가 컴포넌트의 이름과 책임 및 제외 범위를 제안한다.
 위치와 공개 계약 및 허용 의존 관계를 같은 제안에 포함한다.
 사용자가 빈 양식을 채우도록 넘기지 않는다.

@@ -62,7 +62,7 @@ def main() -> None:
         f"[CONTEXT GUARD] {path.name} is about {estimated:,} tokens — whole-file read blocked (limit {LIMIT_TOKENS:,}).\n"
         f"  · Read only the parts you need with offset/limit ({CHUNK_LIMIT_LINES} lines or fewer).\n"
         f"  · If you must scan dozens of files, split them across several Sonnet agents.\n"
-        f"  (source of truth: CLAUDE.md model routing — a large file read once is resent every turn for the rest of the session)",
+        f"  (source of truth: dev/ROUTING.md — a large file read once is resent every turn for the rest of the session)",
         file=sys.stderr,
     )
     sys.exit(2)

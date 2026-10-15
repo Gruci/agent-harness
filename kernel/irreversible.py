@@ -6,7 +6,7 @@ Claude PreToolUse(`check_pretool.py`)와 Codex 진입점이 `kernel/pretool.py` 
 
 ## 왜 — 승인 프롬프트가 꺼진 세션
 
-이 하네스는 비코더가 승인 프롬프트 없이 쓰도록 `bypassPermissions` 로 깔린다(`setup_global_permissions.py`).
+이 하네스는 비코더가 승인 프롬프트 없이 쓰도록 프로젝트 설정(`.claude/settings.json`)이 `bypassPermissions` 다.
 그 모드에서도 Claude Code 는 파일시스템 루트·홈·작업 폴더와 그 부모를 지우는 `rm` 은 사람에게 묻는다(critical path).
 그 밖은 묻지 않는다. 남은 것 가운데 git 으로도 되돌릴 수 없는 것만 막는다.
 
@@ -74,7 +74,7 @@ def _git_reason(parsed: tuple[str | None, tuple[str, ...]], place: Path, sid8: s
     if sub == "push":
         target = _overwritten_default(args, where)
         return ("push", f"rewrites or deletes the default branch `{target}` on the remote") if target else None
-    if (sub == "reset" and "--hard" in args) or (sub == "clean" and _forced_clean(args)):
+    if _discards(sub, args):
         on_main = isolation.locate(where, _board(board).parent) == "main"
         return ("reset", "discards uncommitted work in the shared main checkout") if on_main else None
     if sub == "branch" and _force_delete_branch(args):
@@ -87,6 +87,19 @@ def _git_reason(parsed: tuple[str | None, tuple[str, ...]], place: Path, sid8: s
         owner = _owner(branch, sid8, _board(board)) if branch else None
         return ("claim", f"force-removes a worktree claimed by workboard/{owner}.md") if owner else None
     return None
+
+
+def _discards(sub: str, args: tuple[str, ...]) -> bool:
+    """커밋 안 한 작업을 버리는 git 명령인가 — `reset --hard`·강제 `clean`·경로를 덮는 `checkout`·작업 트리 `restore`."""
+    if sub == "reset":
+        return "--hard" in args
+    if sub == "clean":
+        return _forced_clean(args)
+    if sub == "checkout":
+        return "--" in args or "." in args
+    if sub == "restore":
+        return not ({"--staged", "-S"} & set(args)) or bool({"--worktree", "-W"} & set(args))
+    return False
 
 
 def _flag(args: tuple[str, ...], long: str, short: str) -> bool:

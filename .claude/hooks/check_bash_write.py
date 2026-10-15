@@ -227,13 +227,23 @@ def _is_main_checkout(path: Path | None = None) -> bool:
     """
     if path is None:
         return (ROOT / ".git").is_dir()
+    target, own = _git_dirs(path), _git_dirs(ROOT)
+    # 다른 레포의 메인 체크아웃은 이 레포의 공유 트리가 아니다 — 같은 저장소(공유 git 디렉터리)일 때만 참이다
+    return target is not None and own is not None and target[0] == target[1] and target[1] == own[1]
+
+
+def _git_dirs(path: Path) -> tuple[str, str] | None:
+    """(git 디렉터리, 공유 git 디렉터리)의 절대경로. git 밖이거나 실패하면 None."""
     try:
-        done = subprocess.run(["git", "-C", str(path), "rev-parse", "--git-dir", "--git-common-dir"],
-                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        done = subprocess.run(["git", "-C", str(path), "rev-parse", "--path-format=absolute", "--git-dir",
+                               "--git-common-dir"], capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=10)
     except Exception:
-        return False
-    lines = done.stdout.splitlines()
-    return done.returncode == 0 and len(lines) >= 2 and lines[0].strip() == lines[1].strip()
+        return None
+    lines = [line.strip() for line in done.stdout.splitlines()]
+    if done.returncode != 0 or len(lines) < 2:
+        return None
+    return str(Path(lines[0]).resolve()), str(Path(lines[1]).resolve())
 
 
 def _parallel_mode() -> bool:

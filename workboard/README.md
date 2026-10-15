@@ -2,7 +2,7 @@
 
 > 담는 것: 지금 누가 어떤 과업을 맡고 있는지(이 디렉토리의 파일들)와 과업 시작부터 완료와 인계까지의 절차. 담지 않는 것: 남은 일(→ `docs/BACKLOG.md`)·세션 행동 규칙(→ `CLAUDE.md`)·훅의 차단·경고 구분(→ `dev/HARNESS.md`). 읽는 시점: 과업을 시작하기 전.
 
-과업의 기계 단계는 명령 넷이 한다. `python -X utf8 -m kernel.task plan` 이 리서치를 시작할 때 보드에 `상태: 계획` 으로 올리고, `start` 가 그 파일을 구현 단계로 올리며 worktree 를 만들고, `finish` 가 보관·검사·합치기·push·정리를 하고, `resume` 이 다른 세션의 과업을 이어받는다. 판단 단계(인터뷰·research·plan·승인)는 명령 밖이다. 세션 sid 는 세션 시작 알림 `[SESSION]` 과 편집 가드 안내문이 채워서 보여 준다.
+과업의 기계 단계는 명령 다섯이 한다. `python -X utf8 -m kernel.task plan` 이 리서치를 시작할 때 보드에 `상태: 계획` 으로 올리고, `start` 가 그 파일을 구현 단계로 올리며 worktree 를 만들고(소규모 수정은 `--small` 로 plan 없이), `finish` 가 보관·검사·합치기·push·정리를 하고, `resume` 이 다른 세션의 과업을 이어받고, `abandon` 이 버린 과업을 치운다. 판단 단계(인터뷰·research·plan·승인)는 명령 밖이다. 세션 sid 는 세션 시작 알림 `[SESSION]` 과 편집 가드 안내문이 채워서 보여 준다.
 
 ## 자리가 레포 루트인 이유 — 에이전트 중립
 
@@ -74,6 +74,7 @@ Claude 훅과 Codex 진입점(`kernel/hook.py`)이 같이 쓴다.
 - `산출물` 은 finish 가 archive 로 보관할 파일이다. plan 이 research·plan 경로를 미리 적고, start 가 `--plan` 과 그 짝 research 로 다시 적는다.
   트랙별 상세 plan 은 사람이 더한다. 시안은 `docs/mockup/<범위>/` 폴더째 보관되므로 적지 않는다. 없는 과업은 보관할 것이 없는 과업이다.
 - `인계` 는 resume 이 남긴다. 한 줄이 인계 한 번이다.
+- `크기: 소규모` 는 `start --small` 이 쓴다. 이 줄이 있으면 finish 가 실제 diff 크기를 재고, 줄을 지우면 보통 과업처럼 plan 이 `산출물` 에 있어야 한다.
 - `상태` 는 plan 이 `계획` 으로 쓰고 start 가 `진행` 으로 올린다. PR 이 나가면 `PR#n` 으로 바꾼다(`MERGE_FLOW = "pr"` 이면 finish 가 바꾼다). 과업이 겹치면 이 값으로 순서를 정한다.
   `계획` 인 과업은 finish 할 수 없다 — 계획을 버렸으면 파일을 손으로 지운다.
 - 자기 과업 파일만 고치고, 다른 세션의 파일과 커밋하지 않은 변경은 건드리지 않는다. 위임받은 워커는 부모 세션의 과업
@@ -87,7 +88,7 @@ Claude 훅과 Codex 진입점(`kernel/hook.py`)이 같이 쓴다.
 
 | workboard 에 그 범위가 | 하는 일 |
 |---|---|
-| 없고 리서치를 시작한다 | `python -X utf8 -m kernel.task plan <범위> --sid <sid8> --branch <접두>/<이름>` — 보드만 쓴다. 승인 대기 동안 다른 세션이 같은 범위를 잡지 않고 ⑰ 이 막지 않는다 |
+| 없고 리서치를 시작한다 | `python -X utf8 -m kernel.task plan <범위> --sid <sid8> --branch <접두>/<이름>` — 보드만 쓴다. 승인 대기 동안 다른 세션이 같은 범위를 잡지 않고 남은 산출물 검사(⑰)가 막지 않는다 |
 | 없거나 내 `상태: 계획` 이고 plan 이 승인됐다 | `python -X utf8 -m kernel.task start <범위> --sid <sid8> --branch <접두>/<이름> --touch <글로브>… --plan docs/tasks/plan_<과업>.md` — 계획 파일은 구현 단계 본문으로 올라간다. plan 에 `## 사람용 요약` 이 없으면 거절한다 |
 | 있고 내 `#sid`, `상태: 진행` | 그 worktree 에서 이어서 한다 |
 | 있고 `상태: 계획`, 남의 `#sid` | 그 세션의 계획을 기다린다. 그 세션이 끝났으면 「이어받기」 |
@@ -152,18 +153,31 @@ finish 는 지금 상태를 보고 남은 단계만 하므로 몇 번을 다시 
 | 과업 상태 | finish 가 하는 일 |
 |---|---|
 | `상태: 계획` | 거절 — start 로 구현 단계에 올린 뒤에만 끝낼 수 있다 |
-| 합치기 전 | 원격 확인(없으면 아무것도 바꾸지 않고 거절) → worktree 가 깨끗한지 확인 → `산출물` 과 `docs/mockup/<범위>/` 를 `docs/tasks/archive/YYYY-MM-DD-<범위>/` 로 복사하고, 관찰 기록과 finish 가 직접 다시 만든 지도를 그 브랜치에 커밋 → 기본 브랜치가 앞서 있으면 worktree 에서 따라잡기 merge → 래칫 파일이나 제외 목록이 늘었으면 `[RATCHET]` 로 알리고 관찰로 남긴다(막지 않는다) → 그 worktree 에서 `--verify` → 본체 `merge --ff-only` → push |
+| 어느 상태든 | worktree 에 커밋 안 한 변경이 있으면 아무것도 바꾸지 않고 멈춘다 |
+| `크기: 소규모` | `start --small` 로 연 과업. 실제 diff 가 기존 파일 3개·40줄을 넘거나 새 파일·그래프·프로파일 변경이 있으면 거절한다 — research·plan 을 쓰고 승인받은 뒤 이 줄을 지우고 `산출물` 에 plan 을 올려 다시 실행한다 |
+| 합치기 전 | 원격 확인(없으면 로컬에만 합치고 백업이 없다고 알린다. PR 흐름은 거절) → `산출물` 과 `docs/mockup/<범위>/` 를 `docs/tasks/archive/YYYY-MM-DD-<범위>/` 로 복사하고, 관찰 기록과 finish 가 직접 다시 만든 지도를 그 브랜치에 커밋 → 기본 브랜치가 앞서 있으면 worktree 에서 따라잡기 merge → 래칫 파일이나 제외 목록이 늘었으면 `[RATCHET]` 로 알리고 관찰로 남긴다(막지 않는다) → 그 worktree 에서 `--verify` → 본체 `merge --ff-only` → push |
 | `MERGE_FLOW = "pr"` | 합치기 대신 `push -u` 와 `gh pr create --fill`, 보드 상태를 `PR#n` 으로. CI 는 `gh pr checks <n>` 을 단독으로 확인한다 — 파이프나 체인을 붙이면 exit code 가 가려져 훅이 막는다 |
 | `PR#n` | 머지됐으면 본체를 `origin/<기본>` 으로 ff 한 뒤 정리, 아니면 안내만 |
 | 합침 | 원본 산출물과 보관된 시안 폴더 삭제 → `git worktree remove` → `git branch -d` → **과업 파일 삭제는 맨 끝** |
 | 합침, 실행 위치가 그 worktree 안 | 정리 전에 멈춘다. Claude 는 `ExitWorktree(action="keep")`, Codex 는 본체로 cd 한 뒤 다시 실행한다 |
+| 커밋이 하나도 없던 브랜치 | 합칠 것이 없다고 말하고 정리한다 |
 
 | exit | 뜻 |
 |---|---|
 | 0 | 끝남. 또는 PR 머지 대기나 worktree 밖 재실행 안내 |
-| 1 | 사람이 할 일 — 커밋 안 한 변경, 충돌, `[FAIL]` |
-| 2 | 지금 끝낼 수 없음 — 원격 없음, `[TOOL]`, 러너 실행 실패 |
+| 1 | 사람이 할 일 — 커밋 안 한 변경, 충돌, `[FAIL]`, 소규모 상한 초과 |
+| 2 | 지금 끝낼 수 없음 — PR 흐름인데 원격 없음, `[TOOL]`, 러너 실행 실패 |
 | 3 | `--verify` 결정 대기 — 사용자에게 분류 제안을 알린다 |
+
+과업을 버리기로 사용자가 정했으면 `python -X utf8 -m kernel.task abandon --sid <sid8>` 다. 거절하는 경우는 둘이다.
+
+| 남은 것 | 동작 |
+|---|---|
+| 커밋 안 한 변경 | 거절한다. 커밋하거나 버린 뒤 다시 실행한다 |
+| 합치지 않은 커밋 | 거절한다. 사용자가 그 커밋도 버리기로 했을 때만 `--discard-commits` 를 붙인다 |
+
+둘 다 없으면 그 worktree·브랜치·보드 파일을 지운다.
+research·plan 은 `docs/tasks/` 에 남는다. 다시 쓸 게 아니면 지운다 — 보드가 빈 채로 남으면 남은 산출물 검사(⑰)가 턴 종료를 막는다.
 
 손으로 합치는 길도 남아 있다. 그때도 합치기 전 검사 훅(⑧-7)이 본체의 `git merge <브랜치>` 에서 그 브랜치의 worktree 를 검사한다.
 과업 파일이 있다는 이유만으로 진행 중인 세션이 끝나지 못하게 막지 않는다.

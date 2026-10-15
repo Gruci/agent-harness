@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel import shell
-from kernel.context import runner_command
+from kernel.context import runner_command, shown_command
 from kernel.isolation import HOOK_NAME, checkout_of, shared_root
 from kernel.workboard import board_dir, branch_of, field, task_files
 from kernel.workspace import Finding
@@ -109,7 +109,7 @@ def outgoing_checkout(name: str, rest: tuple[str, ...], here: Path) -> tuple[Pat
     tree = worktree_of(ref.removeprefix("refs/heads/"))
     if tree is None:
         return None, (f"no worktree has {ref} checked out, so the tree being merged cannot be verified — "
-                      f"finish the task with `python -X utf8 -m kernel.task finish`.")
+                      f"finish the task with `{shown_command('task')} finish`.")
     return tree, ""
 
 
@@ -146,7 +146,7 @@ def verdict_lines(stdout: str, heads: tuple[str, ...] = VERDICT_HEADS) -> list[s
             kept.append(line)
     if len(kept) > MAX_VERDICT_LINES:
         kept = kept[:MAX_VERDICT_LINES] + [f"   … and {len(kept) - MAX_VERDICT_LINES} more lines — "
-                                           "`python -X utf8 -m kernel.runner` prints them all"]
+                                           f"`{shown_command('runner')}` prints them all"]
     return kept
 
 
@@ -171,6 +171,6 @@ def exit_gate(command: str, cwd: Path) -> Finding | None:
         checked.add(root)
         result = verify_checkout(root)
         if result is not None and result[0] != 0:
-            reason = f"`python -X utf8 -m kernel.runner --verify` exited {result[0]} in {root}."
+            reason = f"`{shown_command('runner')} --verify` exited {result[0]} in {root}."
             return _blocked(found.name, reason, result[1])
     return None

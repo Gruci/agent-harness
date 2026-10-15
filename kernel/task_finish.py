@@ -4,7 +4,9 @@
 
 | 과업 상태 | 하는 일 |
 |---|---|
-| 합치기 전 | 원격 확인(없으면 아무것도 바꾸지 않고 거절) → worktree 깨끗한지 확인 → 산출물·시안 폴더 복사·관찰 기록 이동·여기서 다시 만든 지도를 그 브랜치에 커밋 → 따라잡기 merge → 래칫 증가가 있으면 `[RATCHET]` 알림과 관찰(막지 않는다) → 그 worktree 에서 `--verify` → 본체 `merge --ff-only` → push |
+| 어느 상태든 | worktree 에 커밋 안 한 변경이 있으면 아무것도 바꾸지 않고 멈춘다 — 정리 단계의 날것 git 오류 대신 할 일을 말한다 |
+| 합치기 전 | 원격 확인(없으면 로컬에만 합치고 백업 없음을 알린다. `MERGE_FLOW = "pr"` 은 거절) → 소규모 과업이면 실제 diff 상한 확인 → 산출물·시안 폴더 복사·관찰 기록 이동·여기서 다시 만든 지도를 그 브랜치에 커밋 → 따라잡기 merge → 래칫 증가가 있으면 `[RATCHET]` 알림과 관찰(막지 않는다) → 그 worktree 에서 `--verify` → 본체 `merge --ff-only` → push |
+| 커밋이 하나도 없던 브랜치 | 합칠 것이 없다고 말하고 정리한다 — HEAD 의 조상이라 "합침"과 그래프로는 구분되지 않아 reflog 로 가른다 |
 | `상태: 계획` | 거절 — start 로 구현 단계에 올린 뒤에만 끝낼 수 있다 |
 | `MERGE_FLOW = "pr"` | 합치기 대신 `push -u` 와 `gh pr create --fill`, 보드 상태 `PR#n` |
 | `PR#n` | 머지됐으면 본체를 `origin/<기본>` 으로 ff 한 뒤 정리, 아니면 CI 확인 명령 안내 |
@@ -14,8 +16,8 @@
 | exit | 뜻 |
 |---|---|
 | 0 | 끝남. 또는 PR 머지 대기나 worktree 밖 재실행 안내를 출력함 |
-| 1 | 사람이 할 일 — 커밋 안 한 변경, 충돌, `[FAIL]`, 실행 중 origin 이 두 번 움직임 |
-| 2 | 지금 끝낼 수 없음 — 원격 없음, `[TOOL]`, 러너 실행 실패, git 실패 |
+| 1 | 사람이 할 일 — 커밋 안 한 변경, 충돌, `[FAIL]`, 소규모 상한 초과, 실행 중 origin 이 두 번 움직임 |
+| 2 | 지금 끝낼 수 없음 — PR 흐름인데 원격 없음, `[TOOL]`, 러너 실행 실패, git 실패 |
 | 3 | `--verify` 결정 대기 — 사용자에게 분류 제안을 알린다 |
 
 결함 E·F·G 는 "검사할 트리, 커밋할 파일, 정리 순서"를 모델이 매번 손으로 고르게 둔 데서 나왔다. 셋 다 기계적으로
@@ -37,13 +39,19 @@ from kernel.context import default_branch
 from kernel.exit_gate import verify_checkout
 from kernel.hook import refresh_projection
 from kernel.isolation import GENERATED, GENERATED_MAPS
-from kernel.task import PLANNING, fail, git
+from kernel.task import PLANNING, SIZE_KEY, SMALL, TASK_DOCS, fail, git
 from kernel.workboard import board_dir, branch_of, field, list_field, sid_of, task_files
 from kernel.worktree import worktree_of
 
 ARCHIVE = "docs/tasks/archive"
 MOCKUPS = "docs/mockup"
 _PR_NUMBER = re.compile(r"/pull/(\d+)")
+# 소규모 과업의 사후 실측 상한 — 기존 파일만, 바뀐 줄 합계. 사전 추정이 아니라 실제 diff 라서 낙관 추정이 끼지 않는다.
+SMALL_FILES, SMALL_LINES = 3, 40
+SMALL_GUARDED = ("harness_profile.py", "profiles/", "docs/architecture/")   # 그래프·프로파일 변경은 소규모가 아니다
+NO_REMOTE = ("[TASK] No remote — merged locally only. Nothing is backed up until a remote is connected: "
+             "`gh repo create <name> --private --source . --push`, or `git remote add origin <url>` and "
+             "`git push -u origin HEAD`.")
 
 
 def finish(sid8: str, scope: str | None) -> int:
@@ -62,10 +70,15 @@ def finish(sid8: str, scope: str | None) -> int:
                     f"If the plan was abandoned, delete workboard/{task_file.stem}.md by hand.", 1)
     if state.startswith("PR#"):
         return _after_pr(shared, task_file, text, branch, tree, state.removeprefix("PR#"))
+    dirty = uncommitted(tree) if tree is not None else []
+    if dirty:
+        return fail("commit or revert these in the worktree first:\n" + "\n".join(f"  {line}" for line in dirty), 1)
     if not _merged(shared, branch):
         code = _land(shared, task_file, text, branch, tree)
         if code or profile.MERGE_FLOW == "pr":
             return code
+    elif not _had_commits(shared, branch):
+        return _cleanup(shared, task_file, text, branch, tree, outcome="had no commits — nothing to merge")
     return _cleanup(shared, task_file, text, branch, tree)
 
 
@@ -90,16 +103,23 @@ def _merged(shared: Path, branch: str) -> bool:
     return bool(branch) and git(shared, "merge-base", "--is-ancestor", branch, "HEAD").returncode == 0
 
 
+def _had_commits(shared: Path, branch: str) -> bool:
+    """브랜치에 자기 커밋이 있었는가. 커밋 없이 끝난 브랜치도 HEAD 의 조상이라 reflog 항목 수로 가른다. 못 읽으면 있었다고 본다."""
+    log = git(shared, "reflog", "show", "--format=%H", f"refs/heads/{branch}")
+    return log.returncode != 0 or len(log.stdout.split()) > 1
+
+
 def _land(shared: Path, task_file: Path, text: str, branch: str, tree: Path | None) -> int:
     """보관 커밋 → 따라잡기 → 그 worktree 검사 → 합치기·push. 어느 단계에서 멈춰도 다시 실행하면 이어서 한다."""
-    missing = workspace.git_remote()          # 원격 없이는 끝내지 않는다 — 턴 종료 대신 여기서 막는다(S1)
-    if missing is not None:
+    missing = workspace.git_remote()          # 원격이 없으면 로컬에만 합친다 — PR 흐름은 원격이 있어야 성립한다
+    if missing is not None and profile.MERGE_FLOW == "pr":
         return fail(missing.message, 2)
     if tree is None:
         return fail(f"no worktree has {branch} checked out — nothing to verify. Resume it first.", 2)
-    dirty = _dirty(tree)
-    if dirty:
-        return fail("commit or revert these in the worktree first:\n" + "\n".join(f"  {line}" for line in dirty), 1)
+    # 작업 사본이 갈라진 본체 브랜치 기준으로 잰다 — origin 기준이면 아직 push 안 한 본체 커밋(설정 커밋)까지 크기에 섞였다
+    overrun = _small_overrun(tree, text, _local_base(shared), task_file.stem)
+    if overrun:
+        return fail(overrun, 1)
     _archive(shared, tree, task_file.stem, list_field(text, "산출물"))  # ko-ok: task-board key
     for attempt in range(2):                  # push 사이에 origin 이 움직이면 한 번 더 따라잡는다
         target = _sync_target(shared)
@@ -112,12 +132,35 @@ def _land(shared: Path, task_file: Path, text: str, branch: str, tree: Path | No
             return fail(f"--verify exited {code} in {tree.name} — fix there, commit, run again.\n" + "\n".join(lines), code)
         if profile.MERGE_FLOW == "pr":
             return _open_pr(task_file, branch, tree, target)
-        if _fast_forward(shared, branch) and _push(shared):
+        if _fast_forward(shared, branch) and (missing is not None or _push(shared)):
+            if missing is not None:
+                print(NO_REMOTE)
             return 0
     return fail("origin moved twice during finish — run it again.", 1)
 
 
-def _dirty(tree: Path) -> list[str]:
+def _small_overrun(tree: Path, text: str, base: str, scope: str) -> str:
+    """소규모 과업(`--small`)의 실제 diff 가 상한을 넘었으면 할 일 한 문단, 아니면 빈 문자열.
+    작업 문서·생성 지도·관찰 기록은 세지 않는다 — 과업 결과물이 아니다."""
+    if field(text, SIZE_KEY) != SMALL:
+        return ""
+    stat = git(tree, "diff", "--numstat", f"{base}...HEAD").stdout.splitlines()
+    rows = [line.split("\t", 2) for line in stat if line.count("\t") >= 2]
+    counted = [(rel, max(int(a) if a.isdigit() else 1, int(d) if d.isdigit() else 1)) for a, d, rel in rows
+               if rel not in GENERATED and not rel.startswith(TASK_DOCS)]
+    added = git(tree, "diff", "--name-only", "--diff-filter=A", f"{base}...HEAD").stdout.split()
+    guarded = [rel for rel, _n in counted if rel.startswith(SMALL_GUARDED)]
+    lines = sum(n for _rel, n in counted)
+    if len(counted) <= SMALL_FILES and lines <= SMALL_LINES and not added and not guarded:
+        return ""
+    extra = "".join(f"; {label}: {', '.join(items)}" for label, items in (("new files", added), ("graph or profile", guarded))
+                    if items)
+    return (f"{scope} grew past a small change ({len(counted)} files, {lines} lines{extra}; limit {SMALL_FILES} existing "
+            f"files and {SMALL_LINES} lines). Write the research and plan in {TASK_DOCS}, get the plan approved, then in "
+            f"workboard/{scope}.md delete the `- {SIZE_KEY}: {SMALL}` line, list the plan under its artifacts, and run finish again.")
+
+
+def uncommitted(tree: Path) -> list[str]:
     """worktree 의 `status --porcelain` 줄. 생성 파일(`GENERATED`)은 빼고 본다 — `_archive` 가 커밋에 싣는다."""
     status = git(tree, "status", "--porcelain")
     return [line for line in status.stdout.splitlines()
@@ -260,12 +303,13 @@ def _after_pr(shared: Path, task_file: Path, text: str, branch: str, tree: Path 
     return _cleanup(shared, task_file, text, branch, tree, force=not _merged(shared, branch))
 
 
-def _cleanup(shared: Path, task_file: Path, text: str, branch: str, tree: Path | None, force: bool = False) -> int:
+def _cleanup(shared: Path, task_file: Path, text: str, branch: str, tree: Path | None, force: bool = False,
+             outcome: str = "merged") -> int:
     """§24 순서다. 원본 → worktree → 브랜치 → 보드 파일(맨 끝). 중간에 죽어도 보드가 남아 다음 실행이 이어 간다."""
     _drop_originals(shared, task_file.stem, list_field(text, "산출물"))  # ko-ok: task-board key
     if tree is not None:
         if Path.cwd().resolve().is_relative_to(tree.resolve()):
-            print('[TASK] Merged. Leave the worktree first — Claude: ExitWorktree(action="keep") · '
+            print(f'[TASK] {outcome.capitalize()}. Leave the worktree first — Claude: ExitWorktree(action="keep") · '
                   "Codex: cd to the main checkout — then run task finish again to clean up.")
             return 0
         removed = git(shared, "worktree", "remove", str(tree))
@@ -274,7 +318,7 @@ def _cleanup(shared: Path, task_file: Path, text: str, branch: str, tree: Path |
     if branch:
         git(shared, "branch", "-D" if force else "-d", branch)
     task_file.unlink()
-    print(f"[TASK] Finished {task_file.stem}: merged, worktree and branch removed, board file deleted last.")
+    print(f"[TASK] Finished {task_file.stem}: {outcome}, worktree and branch removed, board file deleted last.")
     return 0
 
 

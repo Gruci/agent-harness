@@ -36,7 +36,7 @@ CONDITIONAL: dict[str, str] = {
         ("abbrev_prefixes", "banned abbreviation prefixes", "VOCAB['abbrev_prefixes']"),
         ("ui_jargon", "banned UI words", "VOCAB['ui_denylist']"),
         ("ssl_bypass", "a global SSL verification patch", "SYMBOLS['ssl_bypass'] and FILES['ssl_util']"),
-        ("routes_error", "a shared error-response helper", "SYMBOLS['error_response']"),
+        ("routes_error", "a shared response wrapper every route returns", "SYMBOLS['error_response']"),
         ("browser_api", "a browser API wrapper", "ALLOWLIST['ui_platform']"),
         ("prompt_version", "versioned LLM prompt files", "VERSIONED_PROMPTS"),
         ("test_pairing", "collect or compute modules", "BEHAVIOR_TESTED_ROOTS"),
@@ -92,8 +92,27 @@ def framework_section(slug: str, title: str, check: object, args: tuple,
     return syntax_section(slug, title, check, args, ok, need, "python")
 
 
-def ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str) -> Section:
-    """ESLint 에 맡긴 화면 린터 결과에서 slug 하나의 섹션을 만든다. 확인 순서는 N/A, SKIP(대상·설정 없음), TOOL(eslint 없음), 판정이다."""
+def pack_section(slug: str, title: str, check: object, args: tuple, ok: object, need: str,
+                 declared: object, kind: str | None = None) -> Section:
+    """팩 선언(NAMING·OWNED 등)에 기대는 검사. 확인 순서는 N/A, SKIP(볼 소스 없음), N/A(팩이 선언하지 않음),
+    TOOL(구문 사실이 필요한데 분석기 없음), 판정이다. 선언이 없는 언어에서 대상 0건 [OK] 를 내지 않는 것이 요점이다."""
+    unneeded = profile.not_applicable(slug)
+    if unneeded:
+        return (slug, title, [], ("N/A", unneeded))
+    if not ok:
+        return (slug, title, [], ("SKIP", need))
+    if not declared:
+        return (slug, title, [], ("N/A", "the selected language and framework packs declare nothing for this check"))
+    reason = facts.unavailable(kind) if kind else ""
+    if reason:
+        return (slug, title, [], ("TOOL", reason))
+    return (slug, title, check(*args), None)   # type: ignore[operator]
+
+
+def ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str,
+             extra: list[str] | None = None) -> Section:
+    """ESLint 에 맡긴 화면 린터 결과에서 slug 하나의 섹션을 만든다. 확인 순서는 N/A, SKIP(대상·설정 없음), TOOL(eslint 없음), 판정이다.
+    `extra` 는 같은 규칙을 스크립트 밖(스타일시트·템플릿)에서 찾은 결과다(kernel/gates/ui_styles.py)."""
     unneeded = profile.not_applicable(slug)
     if unneeded:
         return (slug, title, [], ("N/A", unneeded))
@@ -101,7 +120,7 @@ def ui_entry(slug: str, title: str, lint: linters.UiLint, ok: object, need: str)
         return (slug, title, [], ("SKIP", need))
     if lint.missing:
         return (slug, title, [], ("TOOL", lint.missing))
-    return (slug, title, lint.found.get(slug, []), None)
+    return (slug, title, lint.found.get(slug, []) + list(extra or ()), None)
 
 
 def linter_sections() -> list[Section]:

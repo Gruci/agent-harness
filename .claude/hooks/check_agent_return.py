@@ -56,7 +56,7 @@ def main() -> None:
         f"  · summary: key conclusions, 1,500 tokens or less\n"
         f"  · evidence pointers: file:line\n"
         f"  · detail_path: path of the detail file you just saved\n"
-        f"  (source of truth: agent return rule in the CLAUDE.md model routing section)",
+        f"  (source of truth: agent return rule in dev/ROUTING.md)",
         file=sys.stderr,
     )
     sys.exit(2)

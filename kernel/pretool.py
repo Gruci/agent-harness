@@ -95,6 +95,7 @@ def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> tuple[int
     cannot identify the session, it must not block worktree creation.
     """
     from kernel import trace, workboard, worktree
+    from kernel.context import git_common_dir
 
     tool_input = payload.get("tool_input")
     command = tool_input.get("command") if isinstance(tool_input, dict) else None
@@ -109,6 +110,8 @@ def worktree_gate(root: Path, payload: dict[str, object], sid: str) -> tuple[int
     location = Path(cwd) if isinstance(cwd, str) and cwd else None
     if where is not None:                     # 명령 안의 `cd`·`git -C` 가 가리키는 곳에서 만든다
         location = (location / where) if location is not None else Path(where)
+    if location is not None and git_common_dir(location) != git_common_dir(root):
+        return 0, ""                          # 다른 저장소의 worktree 는 이 레포의 이름 규약 밖이다
     found = worktree.name_violation(token, sid8, workboard.board_dir(), location)
     if found is None:
         return 0, ""

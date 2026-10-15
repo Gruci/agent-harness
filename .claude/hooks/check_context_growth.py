@@ -36,7 +36,7 @@ def main() -> None:
     size_mb = size_bytes / 1_000_000
     warning = (
         f"Session history has reached {size_mb:.0f}MB — all of it is resent every turn. "
-        f"If the current task is done, split the session with /clear (CLAUDE.md model routing)."
+        f"If the current task is done, split the session with /clear (dev/ROUTING.md)."
     )
     print(
         json.dumps(

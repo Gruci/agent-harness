@@ -1,12 +1,12 @@
 """Checks component boundaries from syntax facts. Python-only details arrive in `extra`; dynamic access is always reported as unverified.
 
 The graph names its syntax. The analyzer for that syntax comes from `kernel/facts.py` — Python is always
-there (stdlib `ast`), any other language needs the profile's language pack plus tree-sitter. Without an
-analyzer the whole check is unverified, never a pass.
+there (stdlib `ast`), any other language needs the profile's language pack and the analyzer it names
+(regex, tree-sitter or an external command). Without an analyzer the whole check is unverified, never a pass.
 """
 import sys
 from pathlib import Path
-from kernel import component_graph, facts, port_contracts
+from kernel import component_graph, facts, port_contracts, profile
 
 DYNAMIC_ACCESS = {"__import__", "importlib.import_module", "exec", "eval", "getattr"}
 DOMAIN_SIDE_EFFECTS = {"open", "input", "print", "datetime.datetime.now", "datetime.datetime.utcnow",
@@ -95,7 +95,9 @@ def _stdlib(syntax: str, name: str) -> bool:
         return name.split(".")[0] in sys.stdlib_module_names      # __future__ 포함
     if syntax == "go":
         return "." not in name.split("/")[0]                      # fmt · net/http — 첫 요소에 점이 없다
-    return False
+    # 그 밖은 팩 선언 — `.`·`:`·`/` 로 끝나면 접두(Java `java.` · Node `node:`), 아니면 이름 하나와 그 아래(`fs` · `fs/promises`)
+    prefixes = tuple(profile.PACK.get("STDLIB") or ())
+    return any(name == item or name.startswith(item if item[-1] in ".:/" else item + "/") for item in prefixes)
 
 
 def _boundary(graph, components, modules, contracts, owner, role, target, symbol, external, location,
@@ -106,7 +108,8 @@ def _boundary(graph, components, modules, contracts, owner, role, target, symbol
         if target is not None and target.split(".")[0] in local_roots:
             unverified.append(f"{location}: unresolved local import {target}")
         elif not _stdlib(graph["technology"]["syntax"], external or target) \
-                and (external or target.split(".")[0]) not in components[owner]["external"]:
+                and "*" not in components[owner]["external"] \
+                and (external or target.split(".")[0]) not in components[owner]["external"]:   # "*" — 첫 분류의 한 덩어리는 외부를 묻지 않는다
             violations.append(f"{location}: external dependency {external or target} is not allowed for {owner}")
         return
     (target_owner, target_role), _ = match

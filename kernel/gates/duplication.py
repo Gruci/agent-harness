@@ -4,11 +4,16 @@
 그래서 하네스는 강제는 해도 문제 발견은 사람에게 맡겨 왔다. 이 게이트는 그보다 앞 단계를 맡는다.
 어느 정본을 우회했는지는 모르는 채로 **"같은 것이 두 곳에 있다"만** 본다.
 
-  선언 중복   함수·컴포넌트 선언의 **본문 전체**가 같다. 이름은 보지 않는다
+  선언 중복   함수·컴포넌트 선언의 **본문 지문**이 같다. 함수 이름은 보지 않는다
   블록 중복   선언 안쪽 덩어리가 연속 여러 줄 같다. 함수로 안 뽑힌 복붙이 대상이다
 
-이름을 안 보는 것이 핵심이다. `signedWon` 과 `wonSigned` 처럼 이름만 갈린 재구현은 이름으로는
-영영 안 잡히고, 본문이 통째로 같은 것은 우연이 아니다.
+## 지문 — 지역 이름을 지운 토큰열
+
+이름만 갈린 재구현(`signedWon`·`wonSigned`)을 잡으려고 본문 토큰에서 **그 함수 안에서 생긴 이름**(인자·지역 변수)만
+등장 순서 번호로 바꾼다. 호출 대상·멤버(`.x`)·전역·리터럴은 그대로다 — 모양이 같아도 다른 API 를 부르면 다른 구현이다.
+Python 은 독스트링을 뺀 본문의 `ast.unparse`, 다른 서버 언어는 구문 사실(`kernel/facts.py`)의 함수 범위, 화면은 선언
+정규식의 본문이다. 크기 하한은 문장 수가 아니라 토큰 수다(`with` 한 블록짜리 함수도 비교한다). 같은 파일 안의 두 선언도
+묶고, 블록은 같은 파일이면 `BLOCK_WINDOW` 이상 떨어져야 센다. 테스트는 같은 준비 코드를 되풀이하는 게 관례라 뺀다.
 
 ## baseline 키가 내용 해시가 아니라 파일 목록인 이유
 
@@ -30,19 +35,21 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from kernel import profile
+from kernel import facts, profile
 from kernel.context import READ_ENC, ROOT, _rel, read_list
+from kernel.gates.tests_pairing import is_test_path
 
 DECL_BASELINE_FILE = "dup_decl_baseline.txt"
 BLOCK_BASELINE_FILE = "dup_block_baseline.txt"
 
-MIN_DECL_STATEMENTS = 3   # 본문이 3문장 미만이면 다른 함수로 넘기기만 하는 짧은 함수라 같아도 중복으로 보지 않는다
-MIN_DECL_UI_LINES = 3     # 화면 소스는 빈 줄·주석을 뺀 본문 3줄. 이유는 위와 같다
+# 정규화 토큰 수 하한. 위임만 하는 짧은 함수(`return self.repo.get(x)` 9토큰)는 같아도 중복이 아니다. 이 레포 kernel/·tests/
+# 약 1,000 선언에서 보정했다 — 10~20 사이 묶음은 전부 실제 복사본(`_is_str_seq` 27토큰, 테스트 도우미 셋)이고 8 이하에서
+# 한 줄 위임이 묶이기 시작한다. 15 는 그 위임과 거리를 두면서 세 문장짜리 합계 루프(20토큰)를 잡는 값이다.
+MIN_DECL_TOKENS = 15
 BLOCK_WINDOW = 8          # 블록 중복의 연속 일치 줄 수
 MIN_BLOCK_DISTINCT = 4    # 창(비교 구간) 안의 서로 다른 줄 수 하한. 같은 줄 반복(닫는 태그 나열)은 정보가 없다
 MIN_BLOCK_CHARS = 96      # 토큰 몇 개짜리 짧은 줄만 모인 창 제외
 
-_PY_COMMENT = ("#",)
 _UI_COMMENT = ("//", "*", "/*", "{/*")
 _WS = re.compile(r"\s+")
 # `function X(...)` 와 `const X = (...) =>` 두 형태. 화살표는 인자 괄호가 있는 것만 본다 —
@@ -53,6 +60,23 @@ _UI_DECL = re.compile(
     r"|const\s+(\w+)\s*(?::[^=]+)?=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=]*)?=>)")
 # 문자열·템플릿 리터럴 안의 중괄호 때문에 짝이 어긋나도 끝없이 훑지 않도록 거는 상한.
 _UI_SCAN_LIMIT = 400
+
+_TOKEN = re.compile(r"[A-Za-z_$][\w$]*|\d[\w.]*|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`|\S")
+_IDENT = re.compile(r"[A-Za-z_$][\w$]*")
+_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+# 중괄호 언어의 지역 이름 선언 — const/let/var·구조분해·Go `:=`·화살표 인자·catch·`Type name =`(Java·C#)
+_DECLARED = re.compile(
+    r"\b(?:const|let|var|val)\s+(?:mut\s+)?([A-Za-z_$][\w$]*)"
+    r"|\b(?:const|let|var)\s*[{\[]([^=;]*?)[}\]]\s*(?::[^=;]*)?="
+    r"|\b([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*:="
+    r"|\(([^()]*)\)\s*(?::[^=;{]*)?=>"
+    r"|\b([A-Za-z_$][\w$]*)\s*=>"
+    r"|\bcatch\s*\(\s*([A-Za-z_$][\w$]*)"
+    r"|\b[A-Z]\w*(?:<[^<>;()]*>)?(?:\[\])*\s+([a-z]\w*)\s*[=;:]")
+# 인자 목록에 섞여 나오는 키워드 — 지역 이름으로 바꾸지 않는다
+_NOT_LOCAL = frozenset(("async await const let var val mut function func fn new return this self super "
+                        "public private protected static final readonly override in of as is "
+                        "true false null nil undefined void").split())
 
 
 @dataclass(frozen=True)
@@ -66,6 +90,18 @@ class _Decl:
     digest: str
 
 
+def fingerprint(code: str, local: set[str] | frozenset[str]) -> tuple[str, int]:
+    """지역 이름(`local`)을 등장 순서 번호로 바꾼 토큰열과 토큰 수. 앞에 `.` 이 붙은 멤버는 같은 글자여도 그대로 둔다."""
+    tokens = _TOKEN.findall(code)
+    names: dict[str, str] = {}
+    out: list[str] = []
+    for index, token in enumerate(tokens):
+        if token in local and not (index and tokens[index - 1] == "."):
+            token = names.setdefault(token, f"v{len(names)}")
+        out.append(token)
+    return " ".join(out), len(out)
+
+
 def _norm(line: str, marks: tuple[str, ...]) -> str | None:
     """공백을 한 칸으로 줄인 코드 줄. 빈 줄과 주석 줄은 None 이다 — 비교 창이 주석을 건너뛰어 이어지지 않도록 경계로 쓴다."""
     stripped = line.strip()
@@ -74,41 +110,101 @@ def _norm(line: str, marks: tuple[str, ...]) -> str | None:
     return _WS.sub(" ", stripped)
 
 
-def _has_docstring(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    first = node.body[0] if node.body else None
-    return (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
-            and isinstance(first.value.value, str))
+def _py_locals(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """함수 안에서 생긴 이름 — 인자·대입·for·with·컴프리헨션 대상·except 이름."""
+    found: set[str] = set()
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.arg):
+            found.add(sub.arg)
+        elif isinstance(sub, ast.Name) and isinstance(sub.ctx, (ast.Store, ast.Del)):
+            found.add(sub.id)
+        elif isinstance(sub, ast.ExceptHandler) and sub.name:
+            found.add(sub.name)
+    return found
 
 
-def _py_decls(text: str, rel: str) -> list[_Decl]:
-    """함수 선언. 이름과 독스트링을 뺀 본문 AST 덤프가 지문이라 이름만 갈린 재구현도 같게 본다."""
+def _py_tree(path: Path, text: str, rel: str) -> ast.AST | None:
+    """구문 사실 캐시의 ast 를 쓴다 — 중첩 def·함수 길이 검사가 이미 같은 파일을 파싱했다."""
+    found = facts.facts_for(path, rel) if profile.SYNTAX == "python" else None
+    tree = found.extra.get("tree") if found is not None and not found.error else None
     try:
-        tree = ast.parse(text)
+        return tree if isinstance(tree, ast.AST) else ast.parse(text)
     except (SyntaxError, ValueError):
+        return None
+
+
+def _py_decls(path: Path, text: str, rel: str) -> list[_Decl]:
+    """Python 함수 선언. 독스트링을 뺀 본문을 `ast.unparse` 한 문자열의 지문이다."""
+    tree = _py_tree(path, text, rel)
+    if tree is None:
         return []
     found: list[_Decl] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        body = node.body[1:] if _has_docstring(node) else node.body
-        if len(body) < MIN_DECL_STATEMENTS:
+        body = node.body[1:] if ast.get_docstring(node, clean=False) is not None else node.body
+        if not body:
             continue
-        digest = ast.dump(ast.Module(body=body, type_ignores=[]))
-        found.append(_Decl(rel, node.lineno, node.end_lineno or node.lineno, node.name, digest))
+        digest, size = fingerprint(ast.unparse(ast.Module(body=body, type_ignores=[])), _py_locals(node))
+        if size >= MIN_DECL_TOKENS:
+            found.append(_Decl(rel, node.lineno, node.end_lineno or node.lineno, node.name, digest))
+    return found
+
+
+def _brace_locals(header: str, body: str) -> set[str]:
+    """중괄호 언어의 지역 이름 — 머리 괄호 안의 이름 전부(인자·리시버, 타입 이름이 섞여도 일관되게 바뀌어 무해하다)와
+    본문의 선언."""
+    depth = 0
+    inside: list[str] = []
+    for char in header:
+        depth += {"(": 1, ")": -1}.get(char, 0)
+        inside.append(char if depth > 0 else " ")
+    found = set(_IDENT.findall("".join(inside)))
+    for match in _DECLARED.finditer(body):
+        for group in match.groups():
+            if group:
+                found.update(_IDENT.findall(group))
+    return found - _NOT_LOCAL
+
+
+def _split_body(span: str) -> tuple[str, str] | None:
+    """(머리, 본문). 본문은 인자 괄호가 닫힌 뒤 처음 여는 중괄호부터 마지막 닫는 중괄호까지다."""
+    depth, seen = 0, False
+    for index, char in enumerate(span):
+        if char == "(":
+            depth, seen = depth + 1, True
+        elif char == ")":
+            depth -= 1
+        elif char == "{" and depth == 0 and seen:
+            close = span.rfind("}")
+            return (span[:index], span[index + 1:close]) if close > index else None
+    return None
+
+
+def _span_decls(path: Path, text: str, rel: str, marks: tuple[str, ...]) -> list[_Decl]:
+    """Python 밖 서버 언어 — 구문 사실의 함수 범위. 분석기가 없으면 빈 목록이고 러너가 [TOOL] 로 먼저 끊는다."""
+    found_facts = facts.facts_for(path, rel)
+    if found_facts is None or found_facts.error:
+        return []
+    lines = text.split("\n")
+    found: list[_Decl] = []
+    for fn in found_facts.functions:
+        kept = [line for line in lines[fn.line - 1:fn.end_line] if not line.strip().startswith(marks)]
+        parts = _split_body(_BLOCK_COMMENT.sub(" ", "\n".join(kept)))
+        if parts is None:
+            continue
+        digest, size = fingerprint(parts[1], _brace_locals(*parts))
+        if size >= MIN_DECL_TOKENS:
+            found.append(_Decl(rel, fn.line, fn.end_line, fn.name, digest))
     return found
 
 
 def _brace_end(lines: list[str], start: int) -> int | None:
     """선언 여는 중괄호의 짝이 닫히는 줄 인덱스. 상한 안에 못 닫으면 None."""
-    depth = 0
-    opened = False
+    depth, opened = 0, False
     for index in range(start, min(len(lines), start + _UI_SCAN_LIMIT)):
-        for char in lines[index]:
-            if char == "{":
-                depth += 1
-                opened = True
-            elif char == "}":
-                depth -= 1
+        depth += lines[index].count("{") - lines[index].count("}")
+        opened = opened or "{" in lines[index]
         if opened and depth <= 0:
             return index
     return None
@@ -126,20 +222,23 @@ def _ui_decls(text: str, rel: str) -> list[_Decl]:
         end = _brace_end(lines, index)
         if end is None:
             continue
-        body = [n for n in (_norm(raw, _UI_COMMENT) for raw in lines[index + 1:end]) if n]
-        if len(body) < MIN_DECL_UI_LINES:
+        body = "\n".join(n for n in (_norm(raw, _UI_COMMENT) for raw in lines[index + 1:end]) if n)
+        digest, size = fingerprint(body, _brace_locals(line, body))
+        if size < MIN_DECL_TOKENS:
             continue
         name = matched.group(1) or matched.group(2)
-        found.append(_Decl(rel, index + 1, end + 1, name, "\n".join(body)))
+        found.append(_Decl(rel, index + 1, end + 1, name, digest))
     return found
 
 
-def _cluster(decls: list[_Decl]) -> list[list[_Decl]]:
-    """지문이 같고 **서로 다른 파일**에 걸친 묶음만. 한 파일 안 반복은 지역 문제라 뺀다."""
+def _cluster(decls: list[_Decl], gap: int) -> list[list[_Decl]]:
+    """지문이 같은 묶음. 한 파일 안에서만 겹치면 시작 줄이 `gap` 이상 떨어져야 별개의 사본이다."""
     buckets: dict[str, list[_Decl]] = defaultdict(list)
     for decl in decls:
         buckets[decl.digest].append(decl)
-    return [group for group in buckets.values() if len({d.rel for d in group}) >= 2]
+    return [group for group in buckets.values()
+            if len({d.rel for d in group}) >= 2
+            or (len(group) >= 2 and max(d.line for d in group) - min(d.line for d in group) >= gap)]
 
 
 def _key(rels: list[str]) -> str:
@@ -159,25 +258,29 @@ def _collapse(groups: list[list[_Decl]]) -> list[list[_Decl]]:
                   key=lambda g: (-len({d.rel for d in g}), g[0].rel, g[0].line))
 
 
-def _positions(group: list[_Decl]) -> str:
-    """파일당 첫 위치만 — 겹친 창을 전부 찍으면 한 줄이 수십 개가 된다."""
-    first: dict[str, int] = {}
-    for decl in group:
-        first.setdefault(decl.rel, decl.line)
-    return ", ".join(f"{rel}:{line}" for rel, line in sorted(first.items()))
+def _positions(group: list[_Decl], gap: int) -> str:
+    """파일마다 서로 `gap` 이상 떨어진 시작 위치만 — 겹친 창을 전부 찍으면 한 줄이 수십 개가 된다."""
+    kept: dict[str, list[int]] = defaultdict(list)
+    for decl in sorted(group, key=lambda d: (d.rel, d.line)):
+        lines = kept[decl.rel]
+        if not lines or decl.line - lines[-1] >= gap:
+            lines.append(decl.line)
+    return ", ".join(f"{rel}:{line}" for rel, lines in sorted(kept.items()) for line in lines)
 
 
 def _decl_violation(group: list[_Decl]) -> str:
     names = "/".join(sorted({d.name for d in group if d.name}))
-    return (f"{group[0].rel}:{group[0].line}: identical declaration body ({names}) — "
-            f"{len({d.rel for d in group})} files carry the same implementation. Move it to a shared module "
-            f"and keep one copy. At: {_positions(group)}")
+    files = len({d.rel for d in group})
+    where = (f"{files} files carry the same implementation. Move it to a shared module and keep one copy"
+             if files > 1 else "declared twice in one file. Keep one and call it")
+    return f"{group[0].rel}:{group[0].line}: identical declaration body ({names}) — {where}. At: {_positions(group, 1)}"
 
 
 def _block_violation(group: list[_Decl]) -> str:
-    return (f"{group[0].rel}:{group[0].line}: identical {BLOCK_WINDOW}-line block — "
-            f"{len({d.rel for d in group})} files share the same chunk. Extract a shared function. "
-            f"At: {_positions(group)}")
+    files = len({d.rel for d in group})
+    where = f"{files} files share the same chunk" if files > 1 else "repeated within one file"
+    return (f"{group[0].rel}:{group[0].line}: identical {BLOCK_WINDOW}-line block — {where}. Extract a shared function. "
+            f"At: {_positions(group, BLOCK_WINDOW)}")
 
 
 def _block_decls(text: str, rel: str, marks: tuple[str, ...],
@@ -201,21 +304,21 @@ def _block_decls(text: str, rel: str, marks: tuple[str, ...],
     return found
 
 
-def _sources(py_files: list[Path], ui_files: list[Path]) -> list[tuple[str, str, tuple[str, ...]]]:
-    """(경로, 본문, 주석표기) — 파일을 한 번만 읽어 두 검사가 함께 쓴다.
+def _sources(py_files: list[Path], ui_files: list[Path]) -> list[tuple[Path, str, str, bool]]:
+    """(파일, 경로, 본문, 화면 여부) — 파일을 한 번만 읽어 두 검사가 함께 쓴다.
 
-    일회성 스크립트(scratch)는 뺀다. 재사용할 코드가 아니므로 중복이 있어도 정본을 다시 짠 신호가
+    일회성 스크립트(scratch)와 테스트는 뺀다. 재사용할 코드가 아니므로 중복이 있어도 정본을 다시 짠 신호가
     아니고, baseline 에 올려 봐야 없앨 수 없는 부채만 남는다.
     """
     scratch = profile.scratch()
-    out: list[tuple[str, str, tuple[str, ...]]] = []
-    for marks, files in ((_PY_COMMENT, py_files), (_UI_COMMENT, ui_files)):
+    out: list[tuple[Path, str, str, bool]] = []
+    for ui, files in ((False, py_files), (True, ui_files)):
         for path in files:
             rel = _rel(path)
-            if scratch and rel.startswith(scratch):
+            if (scratch and rel.startswith(scratch)) or is_test_path(rel):
                 continue
             try:
-                out.append((rel, path.read_text(encoding=READ_ENC), marks))
+                out.append((path, rel, path.read_text(encoding=READ_ENC), ui))
             except OSError:
                 continue
     return out
@@ -229,11 +332,17 @@ def _analyze(py_files: list[Path],
     함께 세면 "감소만 허용"이 모호해진다(한 번 고쳤는데 두 항목이 준다).
     """
     sources = _sources(py_files, ui_files)
+    mark = profile.pattern("comment") or "#"       # 언어팩의 줄 주석. `#` 이 아니면 블록 주석의 줄머리도 주석이다
+    marks = (mark,) if mark == "#" else (mark, "/*", "*")
+    python = profile.SYNTAX == "python"
 
     decls: list[_Decl] = []
-    for rel, text, marks in sources:
-        decls += _py_decls(text, rel) if marks is _PY_COMMENT else _ui_decls(text, rel)
-    decl_groups = _collapse(_cluster(decls))
+    for path, rel, text, ui in sources:
+        if ui:
+            decls += _ui_decls(text, rel)
+        else:
+            decls += _py_decls(path, text, rel) if python else _span_decls(path, text, rel, marks)
+    decl_groups = _collapse(_cluster(decls, 1))
 
     covered: dict[str, list[tuple[int, int]]] = defaultdict(list)
     for group in decl_groups:
@@ -241,9 +350,9 @@ def _analyze(py_files: list[Path],
             covered[decl.rel].append((decl.line, decl.end_line))
 
     blocks: list[_Decl] = []
-    for rel, text, marks in sources:
-        blocks += _block_decls(text, rel, marks, covered[rel])
-    return decl_groups, _collapse(_cluster(blocks))
+    for _path, rel, text, ui in sources:
+        blocks += _block_decls(text, rel, _UI_COMMENT if ui else marks, covered[rel])
+    return decl_groups, _collapse(_cluster(blocks, BLOCK_WINDOW))
 
 
 def check_duplication(py_files: list[Path],

@@ -54,13 +54,13 @@ _KNOWN_NAMES = frozenset({
     "HUB_DOMAIN_MD_IMPLICIT", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "LOCAL_HOOKS", "HARNESS_MAP",
     "ROOT_FILES", "LEGACY_PATHS", "LESSONS_DOC", "AGENT_MODEL_POLICY", "MAINTENANCE",
     "VERSIONED_PROMPTS", "UI_COPY", "HARNESS_SELF", "PRESET_SUMMARY",
-    "PRESET_FITS", "PROFILE_SCHEMA", "UI_NPM_DIR", "COMPONENT_GRAPH", "MERGE_FLOW",
+    "PRESET_FITS", "PROFILE_SCHEMA", "UI_NPM_DIR", "COMPONENT_GRAPH", "MERGE_FLOW", "NAMING", "OWNED",
 })
 _STR_NAMES = ("STAGE", "LANG", "ARCH", "SYNTAX", "HARNESS_MAP", "LESSONS_DOC", "UI_NPM_DIR", "COMPONENT_GRAPH",
               "MERGE_FLOW")
 MERGE_FLOWS = ("direct", "pr")
 _DICT_NAMES = ("CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "PATTERNS",
-               "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY")
+               "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY", "NAMING", "OWNED")
 _SEQ_NAMES = ("HUBS", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "LOCAL_HOOKS", "ROOT_FILES",
               "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS", "FRAMEWORK")
 _SUB_KEYS = {
@@ -114,6 +114,10 @@ def _shape_errors(mod: Any) -> list[str]:
                 found.append(f"{PROFILE_FILE}: {name}[{key!r}] must be a tuple — a bare string splits into characters")
             elif name in _PATH_VALUED and value is not None and not isinstance(value, str):
                 found.append(f"{PROFILE_FILE}: {name}[{key!r}] must be a path string or None")
+    for name, error in (("NAMING", lang.valid_naming(getattr(mod, "NAMING", {}))),
+                        ("OWNED", lang.valid_patterns(getattr(mod, "OWNED", {}), None, allow_none=True))):
+        if error and isinstance(getattr(mod, name, {}), dict):
+            found.append(f"{PROFILE_FILE}: {name} {error}")
     return found
 
 
@@ -205,7 +209,8 @@ SERVER: dict[str, Any] | None = _FRAMEWORKS["server"]
 UI: dict[str, Any] | None = _FRAMEWORKS["ui"]
 
 # 화면 소스 패턴의 기본값은 화면팩이 준다. 프로파일이 명시하면 그것이 이긴다 — 언어팩의 SOURCE_EXT 와 같은 규칙이다.
-UI_EXT: tuple[str, ...] = _seq("UI_EXT", tuple(UI["UI_EXT"]) if UI else ())
+# 빈 튜플은 선언이 아니다 — 템플릿이 `UI_EXT = ()` 를 실어 보내 React 팩 기본값을 덮고 화면 검사 6종을 깨뜨렸다.
+UI_EXT: tuple[str, ...] = _seq("UI_EXT") or (tuple(UI["UI_EXT"]) if UI else ())
 
 # 언어팩이 준 것 위에 프로파일이 덮어쓴다 — 프로젝트 사정이 언어 관례보다 우선이다.
 PATTERNS: dict[str, str] = dict(_PACK["PATTERNS"])
@@ -237,6 +242,21 @@ if _MOD and getattr(_MOD, "NOT_APPLICABLE", None):
     NOT_APPLICABLE.update(_na_prefixed(dict(_MOD.NOT_APPLICABLE), SYNTAX))
 
 LINTERS: tuple = _seq("LINTERS", tuple(_PACK["LINTERS"]))
+
+# 이름 표기(kernel/gates/naming.py) — 언어팩 위에 프로파일이 키별로 덮는다. None 은 그 판정을 끈다.
+# 덮기 전 값(`*_OVERRIDE`)은 편집 표면(harness_gates/edit_surface.py)이 끄기·넓히기·바꿔치기를 세려고 따로 둔다.
+NAMING_OVERRIDE: dict[str, str | None] = _dict("NAMING")
+NAMING: dict[str, str] = {key: value for key, value in {**_PACK["NAMING"], **NAMING_OVERRIDE}.items() if value}
+# 한 주인 기능(kernel/gates/owners.py). 프로파일 OWNED 가 같은 가족 이름을 덮고 None 이면 끈다. 화면팩에 없는 새 가족은 서버 쪽이다.
+OWNED_OVERRIDE: dict[str, str | None] = _dict("OWNED")
+_UI_FAMILIES = dict(UI["OWNED"]) if UI else {}
+OWNED_FAMILIES: frozenset[str] = frozenset({**_PACK["OWNED"], **_UI_FAMILIES})
+OWNED: dict[str, str] = {name: rule for name, rule in
+                         {**_PACK["OWNED"], **{k: v for k, v in OWNED_OVERRIDE.items() if k not in _UI_FAMILIES}}.items()
+                         if rule}
+UI_OWNED: dict[str, str] = {name: rule for name, rule in
+                            {**_UI_FAMILIES, **{k: v for k, v in OWNED_OVERRIDE.items() if k in _UI_FAMILIES}}.items()
+                            if rule}
 
 
 def pattern(name: str) -> str:

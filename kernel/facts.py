@@ -4,8 +4,10 @@
 분석기다. 언어별 차이는 분석기와 언어팩에만 있고 판정은 어느 언어에서든 같다.
 
   python      kernel/analyzers/python.py     표준 `ast`. 설치 의존 0
-  treesitter  kernel/analyzers/treesitter.py 언어팩의 QUERIES 를 실행한다. `tree_sitter` 가 없으면 [TOOL]
+  treesitter  kernel/analyzers/treesitter.py 언어팩의 QUERIES 를 실행한다. `tree_sitter` 가 없으면 [TOOL] —
+                                             팩이 REGEX 도 선언했으면 정규식 엔진으로 내려간다
   command     kernel/analyzers/command.py    언어팩의 ANALYZER_CMD 가 낸 JSON 을 검증한다. 명령이 없으면 [TOOL]
+  regex       kernel/analyzers/regex.py      언어팩의 REGEX 로 중괄호 언어를 읽는다. 설치 의존 0
 
 어느 것을 쓸지는 언어팩의 ANALYZER 가 정하고, 비어 있으면 `kernel.lang.analyzer_kind` 가 SYNTAX 로 추정한다.
 
@@ -97,20 +99,26 @@ def _pack_kinds(pack: Mapping[str, object]) -> frozenset[str]:
         return python_analyzer.KINDS
     if kind == "command":
         return command.KINDS
-    queries = pack.get("QUERIES")
-    return query_kinds(queries) if kind == "treesitter" and isinstance(queries, Mapping) else frozenset()
+    key = {"treesitter": "QUERIES", "regex": "REGEX"}.get(kind or "")
+    patterns = pack.get(key) if key else None
+    return query_kinds(patterns) if isinstance(patterns, Mapping) else frozenset()
 
 
 def analyzer_for_pack(pack: Mapping[str, object], root: Path) -> tuple[Analyzer | None, str]:
     """팩 하나의 (분석기, 못 쓰는 사유). 사유가 비면 쓸 수 있다. pack_check 가 프로파일과 무관하게 쓴다."""
     # 분석기가 이 모듈의 사실형을 쓰므로 여기서는 늦게 import 한다 — 순환 import 회피.
-    from kernel.analyzers import command, python as python_analyzer, treesitter
+    from kernel.analyzers import command, python as python_analyzer, regex, treesitter
 
     kind = lang.analyzer_kind(dict(pack))
     if kind == "python":
         return python_analyzer.PythonAnalyzer(), ""
     if kind == "treesitter":
-        return treesitter.build(pack, root)
+        engine, reason = treesitter.build(pack, root)
+        if engine is None and pack.get("REGEX") and treesitter.install_missing(reason):
+            return regex.build(pack, root, "regex (tree-sitter missing)")   # 설치 없이 돈다. 쿼리 결함은 덮지 않는다
+        return engine, reason
+    if kind == "regex":
+        return regex.build(pack, root)
     if kind == "command":
         return command.build(pack, root)
     syntax = pack.get("SYNTAX")
@@ -176,4 +184,18 @@ def facts_for(path: Path, rel: str | None = None, analyzer: Analyzer | None = No
         return FileFacts(where, analyzer.module_key(where), error=str(exc))
     found = analyzer.analyze(text, where)
     _CACHE[key] = found
+    return found
+
+
+def function_names(rels: list[str], wanted: set[str]) -> set[str]:
+    """`wanted` 중 프로파일 분석기의 함수 사실에 있는 이름. 다 찾으면 멈춘다 — 정규식으로 못 찾은 이름만 넘긴다."""
+    analyzer, _reason = select(profile.SYNTAX)
+    found: set[str] = set()
+    if analyzer is None or "functions" not in analyzer.kinds:
+        return found
+    for rel in rels:
+        file_facts = facts_for(ROOT / rel, rel, analyzer) if rel.endswith(analyzer.suffixes) else None
+        found |= {fn.name for fn in file_facts.functions} & wanted if file_facts else set()
+        if found >= wanted:
+            break
     return found

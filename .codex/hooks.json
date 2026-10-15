@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
+            "command": "\"$(command -v python || command -v python3)\" -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PreToolUse",
             "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PreToolUse; exit $LASTEXITCODE",
             "timeout": 180,
             "statusMessage": "Isolation gate (edit guard, worktree naming, exit verify)"
@@ -21,7 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PostToolUse",
+            "command": "\"$(command -v python || command -v python3)\" -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event PostToolUse",
             "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event PostToolUse; exit $LASTEXITCODE",
             "timeout": 180,
             "statusMessage": "Checking edited files"
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event Stop",
+            "command": "\"$(command -v python || command -v python3)\" -X utf8 \"$(git rev-parse --show-toplevel)/kernel/hook.py\" --agent codex --event Stop",
             "commandWindows": "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; python -X utf8 (Join-Path (git rev-parse --show-toplevel) 'kernel/hook.py') --agent codex --event Stop; exit $LASTEXITCODE",
             "timeout": 600,
             "statusMessage": "Checking the full checkout"

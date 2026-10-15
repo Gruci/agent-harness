@@ -21,7 +21,7 @@ If the global setup is missing, install it with `python -X utf8 setup_global_per
 The installer preserves unrelated user settings and globally installs the rule that, in feature work, the user is asked only to clarify an ambiguous scope or to approve a plan. A skill's own question step (the assembly workflow's classification proposal) and facts only the user knows (the repository URL) are the other questions.
 If the runtime enforces its own restrictions, installation may need one approval, and those restrictions stay in effect for the current session.
 Do not repeat setup when the check passes.
-Connect git and the GitHub remote before any code; the shared assembly workflow's 「git 과 원격」 step lists what to do in each state. Without a remote the turn is not blocked, but `python -X utf8 -m kernel.task finish` refuses to finish a task.
+Connect git and the GitHub remote before any code; the shared assembly workflow's 「git 과 원격」 step lists what to do in each state. Without a remote the turn is not blocked, and `python -X utf8 -m kernel.task finish` merges locally only (no backup). Even when gh is signed in, show the account and ask the user once before creating a repo.
 
 ## Editing prerequisites
 
@@ -51,7 +51,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - Work inside that worktree directory. The shared PreToolUse hook blocks edits in the main checkout, edits in a worktree owned by another session's task, and any edit before your `#sid` task file exists. The exemptions are `workboard/**`, `docs/tasks/**`, and at most one uncommitted changed line in the whole main checkout.
 - A later session takes over an open task with `python -X utf8 -m kernel.task resume <scope> --sid <sid8>`, and only when the previous session has ended. The guard's block message prints the command with your session id filled in.
 - Inside a worktree the save and stop gates only notify through `systemMessage`. Before `git push`, `gh pr create`, `gh pr merge`, or a `git merge` of a task branch in the main checkout, the hook runs `python -X utf8 -m kernel.runner --verify` in the checkout whose work leaves and blocks unless it exits 0. Every such command in one command line is checked, and `cd` or `git -C` decide the checkout.
-- Finish with `python -X utf8 -m kernel.task finish --sid <sid8>`. It archives the task documents into the branch, verifies that worktree, fast-forwards the default branch, pushes, and cleans up in order: originals, worktree, branch, and the task file last. It refuses without a remote. When it says the cleanup must run outside the worktree, run it again from the main checkout.
+- Finish with `python -X utf8 -m kernel.task finish --sid <sid8>`. It archives the task documents into the branch, verifies that worktree, fast-forwards the default branch, pushes, and cleans up in order: originals, worktree, branch, and the task file last. Without a remote it merges locally only. A small fix in existing files can start with `--small` instead of a plan; finish measures the real diff and refuses if it grew. Drop an abandoned task with `python -X utf8 -m kernel.task abandon --sid <sid8>`. When it says the cleanup must run outside the worktree, run it again from the main checkout.
 - Preserve unrelated edits. Never commit, revert, clean, reset, or delete them. The shared guard blocks force-pushing or deleting the default branch, `git reset --hard` and `git clean -f` in the main checkout, force-deleting a branch or worktree another session's task holds, and recursive deletes outside the repository or of shared folders. When it blocks, report what you meant to do and why; never run the same thing another way (`python -c`, a script file).
 - Use task-suffixed document names when another session may be active: `docs/tasks/research_<task>.md` and `docs/tasks/plan_<task>.md`.
 
@@ -63,7 +63,7 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - UI uses the selected project stack and approved delivery component. Verify the consuming screen when a feature includes one.
 - Before changing a signature or response shape, trace callers and consumers across DB, API, and screen code.
 - Prefer existing helpers, the standard library, native platform features, and installed dependencies. Make surgical changes. Report unrelated dead code without removing it.
-- Architecture and database conventions live in `dev/ARCHITECTURE.md`, `dev/NAMING.md`, `dev/DATA_MODEL.md`, and `dev/CONVENTIONS.md`. `kernel/runner.py` enforces the machine-checkable subset.
+- Architecture, naming, data model and code conventions each have their canonical doc under `dev/` (see the routing table in `CLAUDE.md`). `kernel/runner.py` enforces the machine-checkable subset.
 
 ## Evidence and debugging
 

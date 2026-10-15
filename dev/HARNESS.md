@@ -4,10 +4,11 @@
 
 하네스를 고치려면 먼저 하네스 전체를 볼 수 있어야 하고, 이 파일이 그 지도다. 하네스 구성이 바뀌면 같은
 턴에 이 파일도 갱신한다. 빠뜨리면 하네스 지도 검사(검사 28)가 실물과 대조해 잡는다.
+처음 보는 사람은 [하네스 한눈에](OVERVIEW.md)에서 부품과 용어를 먼저 읽는다.
 
 ## 공용 하네스 운영
 
-공통 절차는 [작업 절차 허브](dev/workflows/README.md)가 정본이다.
+공통 절차는 [작업 절차 허브](workflows/README.md)가 정본이다.
 각 에이전트의 진입 문서와 스킬은 공통 절차에 자기 도구만 연결한다.
 
 | 책임 | 계약 |
@@ -18,7 +19,9 @@
 | Codex 연결 | `.codex/hooks.json`이 Bash·apply_patch·Edit·Write 실행 전과 patch 후와 Stop에 공통 진입점을 호출한다. 과업 명령 `kernel.task` 도 두 런타임 공용이다 |
 | 설치 진단 | `python -X utf8 harness_install.py --check-agents`로 누락과 배선 불일치를 검사한다 |
 
-### 과업 명령 — 기계 단계는 명령 셋이 한다
+### 과업 명령 — 기계 단계는 명령 다섯이 한다
+
+괄호 안 기호(E·F·G·H)는 그 명령이 닫은 결함 이름이고, 경위는 `kernel/task.py`·`kernel/task_finish.py` 헤더에 있다.
 
 판단 단계(범위 인터뷰·research·plan·승인)는 그대로다. 모델이 손으로 밟던 기계 단계만 `python -X utf8 -m kernel.task` 로 접었다.
 정본은 `kernel/task.py`(start·resume·명령줄)와 `kernel/task_finish.py`(finish 상태 기계)이고, 절차는 `workboard/README.md` 다.
@@ -26,9 +29,10 @@
 | 명령 | 닫는 결함 |
 |---|---|
 | `plan` | 보드 등록이 3단계였는데 산출물은 1단계에 생겨, 계획 중인 범위가 다른 세션에 안 보이고 승인 대기 동안 남은 산출물 검사(⑰)가 턴을 막던 것 |
-| `start` | 손으로 지은 worktree 이름을 훅이 사후에 막던 것. `origin/<기본>` 에서 딴 브랜치에 upstream 이 자동 등록돼 합친 뒤 `branch -d` 가 거부되던 것. 요약 없는 14칸 plan 이 그대로 승인 요청이 되던 것 |
-| `finish` | 합치기 검사가 합치기 전 본체를 보던 것(E). 훅이 더럽힌 추적 파일 때문에 ff 가 거부되던 것(F). 커밋된 적 없는 plan 을 `git mv` 할 수 없던 것(G). 저장 훅이 지도를 갱신했다고 가정하던 것. 래칫 파일 증가가 어디에도 안 남던 것 |
+| `start` | 손으로 지은 worktree 이름을 훅이 사후에 막던 것. `origin/<기본>` 에서 딴 브랜치에 upstream 이 자동 등록돼 합친 뒤 `branch -d` 가 거부되던 것. 요약 없는 14칸 plan 이 그대로 승인 요청이 되던 것. `--small` — 작은 수정에도 research·plan 을 쓰던 것(크기는 finish 가 잰다) |
+| `finish` | 합치기 검사가 합치기 전 본체를 보던 것(E). 훅이 더럽힌 추적 파일 때문에 ff 가 거부되던 것(F). 커밋된 적 없는 plan 을 `git mv` 할 수 없던 것(G). 저장 훅이 지도를 갱신했다고 가정하던 것. 래칫 파일 증가가 어디에도 안 남던 것. 원격이 없으면 첫날 설정조차 끝낼 수 없던 것(로컬에만 합친다). 커밋 없던 과업을 "merged" 라고 보고하던 것. 소규모 과업이 상한을 넘은 채 합쳐지던 것 |
 | `resume` | 새 session_id 로는 자기 과업도 못 고치던 것(H). `/clear` 뒤 열린 과업이 다시 안 들어오던 것 |
+| `abandon` | 버린 과업을 손으로 치우다(`worktree remove --force`·`branch -D`) 남의 과업이나 커밋 안 한 작업까지 지우던 위험 |
 
 finish 는 나올 때 검사(⑧-7)가 지키는 셸 명령이 아니다 — 같은 `verify_checkout` 을 직접 부른다. 손으로 합치는 길은 ⑧-7 이 지킨다.
 
@@ -129,7 +133,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ① | SessionStart | `code-master.md` 주입 — 코딩 페르소나(단순성 우선·근본 원인·비타협 안전) | 항상 | 통과 |
 | ② | SessionStart | git·origin 검사 | 저장소 아님 또는 origin 미설정 | 경고 문자열 |
 | ③ | SessionStart | 프로파일 검사 — 판정 `kernel/profile.py` `setup_notice` | `harness_profile.py` 없음, 하네스 레포 자신의 프로파일인데 원류 원격이 없음(설치 전 clone), `LANG` 미선택, 또는 `PROFILE_SCHEMA` 가 커널 요구치보다 낮음(새 항목 목록 고지) | `[HARNESS SETUP]` 경고 문자열 |
-| ④ | SessionStart | 인터프리터 검사 | python 실행 불가 또는 3.10 미만 | 경고 문자열 |
+| ④ | SessionStart | 인터프리터 검사 — 훅 명령은 모두 `python` 을 먼저, 없으면 `python3` 을 찾는다(Windows 의 `python3` 는 대개 실행되지 않는 스토어 바로가기라 순서가 이렇다) | 둘 다 없음 또는 3.10 미만 | 경고 문자열 |
 | ⑤ | SessionStart | `git_staleness.py` | 시작·`/clear`·compact·resume 마다 세션 sid 와 열린 과업 주입(남의 과업에는 인계 명령, worktree 없는 과업에는 그 사실) + 기본 브랜치가 origin 보다 뒤면 정렬 (**정렬만 startup 한정**) | sid 한 줄 · 과업 목록 · ff-only 자동 정렬 |
 | ⑥ | SessionStart | `check_maintenance.py` | 정비 임계치 초과 (**startup 한정**) | 밀린 정비 목록 |
 | ⑦ | UserPromptSubmit | `check_context_growth.py` | transcript 가 임계 초과 | 경고 + `/clear` 권고 |
@@ -139,10 +143,10 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ⑧-2 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit·EnterWorktree·Bash·PowerShell) | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | 새 worktree 이름에 `--<sid8>` 접미 없음, 또는 `EnterWorktree(name)` 생성 | **차단** |
 | ⑧-2 | 〃 | `check_pretool.py` — 판정 `kernel/worktree.py`, Codex 공유 | worktree 이름 앞부분이 내 workboard 범위와 다름 (내 보드 파일 있을 때만) | **차단** |
 | ⑧-6 | 〃 | `check_pretool.py` — 판정 `kernel/isolation.py`, Codex 공유 | 남의 과업 worktree 편집 — 그 범위 보드 파일의 `#sid` 가 내 sid 가 아님 | **차단** + `kernel.task resume` 명령 |
-| ⑧-6 | 〃 | 〃 | 메인 체크아웃에서 구현 파일 편집 (예외 `workboard/`·`docs/tasks/`·본체 전체에 바뀐 줄 1줄 — 이미 쌓인 커밋 안 된 줄을 더해 센다) | **차단** + `kernel.task start`·진입 명령 |
+| ⑧-6 | 〃 | 〃 | 메인 체크아웃에서 구현 파일 편집 (예외 `workboard/`·`docs/tasks/`·본체 전체에 바뀐 줄 1줄 — 이미 쌓인 커밋 안 된 줄을 더해 센다. 그래프에 컴포넌트가 없는 설정 단계에는 프로파일·`PROJECT.md`·`profiles/`·`docs/architecture/`·`.github/workflows/` 도 예외) | **차단** + `kernel.task start`·진입 명령 |
 | ⑧-6 | 〃 | 〃 | 내 `#sid` 과업 파일 없이 편집 (예외 같음 — 등록 자체는 막지 않는다) | **차단** + `kernel.task start` 명령과 보드 서식 |
 | ⑧-7 | 〃 | `check_pretool.py` — 판정 `kernel/exit_gate.py`, Codex 공유 | `git push`·`gh pr create`·`gh pr merge`·`git merge` 직전 나가는 트리의 체크아웃에서 `--verify` 가 exit 0 아님 (`[TOOL]`·`[DECISION]`·러너 실행 불능 포함). 한 명령줄의 합치는 명령을 전부 검사하고 `cd`·`git -C` 가 체크아웃을 정한다. 본체의 `git merge <과업 브랜치>` 는 그 브랜치의 worktree 를 검사하고, worktree 안 merge 와 `origin/…` 동기화는 대상이 아니다 | **차단** + 위반 목록 |
-| ⑧-8 | 〃 | `check_pretool.py` — 판정 `kernel/irreversible.py`, Codex 와 플러그인 공유 | 되돌릴 수 없는 명령 — 기본 브랜치를 겨눈 강제 push 나 삭제 push, 메인 체크아웃의 `git reset --hard` 와 `git clean -f`, 남의 `#sid` 과업이 잡은 브랜치나 worktree 의 강제 삭제, 레포 밖과 레포 루트와 공유 폴더(`.git`·`workboard`·`worktrees` 와 worktree 폴더)의 재귀 삭제. 자기 브랜치의 강제 push 와 드라이런과 worktree 안 롤백과 임시 폴더와 값 모르는 변수와 패턴 글롭은 통과하고, git 조회는 위험한 모양에서만 한다. worktree 이름 검사와 나올 때 검사보다 먼저 돈다 | **차단** + 무엇을 왜 하려 했는지 사용자에게 보고하고 사람에게 맡기라는 안내 |
+| ⑧-8 | 〃 | `check_pretool.py` — 판정 `kernel/irreversible.py`, Codex 와 플러그인 공유 | 되돌릴 수 없는 명령 — 기본 브랜치를 겨눈 강제 push 나 삭제 push, 메인 체크아웃의 `git reset --hard`·`git clean -f`·경로를 덮는 `git checkout -- <경로>`·작업 트리 `git restore`, 남의 `#sid` 과업이 잡은 브랜치나 worktree 의 강제 삭제, 레포 밖과 레포 루트와 공유 폴더(`.git`·`workboard`·`worktrees` 와 worktree 폴더)의 재귀 삭제. 자기 브랜치의 강제 push 와 드라이런과 worktree 안 롤백과 임시 폴더와 값 모르는 변수와 패턴 글롭은 통과하고, git 조회는 위험한 모양에서만 한다. worktree 이름 검사와 나올 때 검사보다 먼저 돈다 | **차단** + 무엇을 왜 하려 했는지 사용자에게 보고하고 사람에게 맡기라는 안내 |
 | ⑧-9 | 〃 | `check_pretool.py` — 판정 `kernel/local_hooks.py`, Codex 와 플러그인 공유 | 프로파일 `LOCAL_HOOKS` 가 켠 프로젝트 훅 `harness_hooks/<이름>.py` 의 `check` 가 사유를 돌려줌. 핵심 가드가 전부 통과한 뒤에만 돈다. 훅 자체의 예외는 막지 않고 경고와 `gate_error` 관찰로 남긴다 | `MODE = "block"` 이면 **차단**, `"warn"` 이면 경고 |
 | ⑧-4 | PreToolUse(Workflow) | `check_workflow_script.py` | 스크립트의 `agent(model=…)` 호출에 model 미지정 | **차단** |
 | ⑧-5 | PreToolUse(Edit·Write·MultiEdit·NotebookEdit) | `check_workboard_overlap.py` | 다른 과업의 `손대는 곳` 글로브에 걸리는 파일을 편집 | 경고 (추론) — exit 0 JSON. `systemMessage` 로 사용자에게, `additionalContext` 로 모델에게 넘긴다. 후자는 문서화된 필드지만 실측 확인은 아직이다 |
@@ -151,7 +155,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | ⑫ | Stop | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | `workboard/` 에 자기 `#sid` 과업 파일이 **머지 후에도** 남아 있음 (진행 중은 통과) | 경고 (추론) |
 | ⑫-1 | 〃 | `check_editing_lock.py` — 판정 `kernel/workspace.py`, Codex 공유 | 주인 없는 과업 파일 — 머지됐고 브랜치가 origin·로컬 양쪽에 없음 | 경고 (추론) |
 | ⑬ | Stop | `check_coding_rules.py` | 전체 게이트 검사에서 위반이 남아 있음 | **차단** — worktree 안에서는 `[WIP]` 알림(exit 0, 사용자 한 줄, 모델 몫은 다음 저장에) |
-| ⑭ | Stop | `check_git_remote.py` — 판정 `kernel/workspace.py`, Codex 공유 | GitHub 원격이 설정되지 않음 | 경고 (사람 답이 필요한 조건) — 차단은 `kernel.task finish` 가 한다 |
+| ⑭ | Stop | `check_git_remote.py` — 판정 `kernel/workspace.py`, Codex 공유 | GitHub 원격이 설정되지 않음 | 경고 (사람 답이 필요한 조건) — 그동안 `kernel.task finish` 는 로컬에만 합친다 |
 | ⑮ | Stop | `check_worktree_residue.py` — 판정 `kernel/worktree.py`, Codex 공유 | 머지 끝난 worktree 가 남아 있음 — upstream 이 자기 브랜치일 때만 push 이력으로 센다 | 경고 (추론) + 정리 순서 제시 |
 | ⑯ | Stop | `check_mockup_residue.py` — 판정 `kernel/workspace.py`, Codex 공유 | `docs/mockup/` 에 판단이 끝난 시안이 남아 있음. 보드에 열린 범위의 폴더 `mockup/<범위>/` 는 검토 중이라 예외이고 `kernel.task finish` 가 archive 로 옮긴다. `wip_` 접두는 하위 호환 예외다 | **차단** |
 | ⑰ | Stop | `check_task_residue.py` — 판정 `kernel/workspace.py`, Codex 공유 | 보드가 비었는데 `docs/tasks/` 루트에 산출물이 남아 있음. 리서치를 시작할 때 `kernel.task plan` 이 보드에 올리므로 승인 대기는 보드가 증명한다. `wip_` 와 최근 24시간 안에 수정한 파일(등록 전에 쓴 산출물)은 예외다 | **차단** |
@@ -248,10 +252,11 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 토큰 추정식은 ASCII 4자당 1토큰, 그 외 1자당 1토큰이다. 한글이 UTF-8 3바이트라 바이트로
 재면 3배 과대평가된다.
 
-⑭ 는 턴 종료를 막지 않는다. 막는 자리는 원격이 실제로 필요한 과업 끝내기(`kernel.task finish`)다 — gh 가 인증되지 않았거나
-사용자가 지금 답할 수 없으면 모델이 고칠 수단이 없어, 매 턴 차단은 검사가 아니라 교착이었다(`dev/LESSONS.md` §19).
-그래도 **무엇을 하면 되는지 완성된 명령으로 준다.** `gh` 가 인증돼 있으면
-계정과 폴더 이름을 이미 알기 때문에 사용자에게 물을 게 없다. 인증이 없을 때만 질문이 남는다.
+⑭ 는 턴 종료를 막지 않는다 — gh 가 인증되지 않았거나 사용자가 지금 답할 수 없으면 모델이 고칠 수단이 없어, 매 턴 차단은
+검사가 아니라 교착이었다(`dev/LESSONS.md` §19). 과업 끝내기(`kernel.task finish`)도 원격이 없으면 거절하지 않고 로컬에만
+합친 뒤 백업이 없다고 알린다 — 거절하던 동안 온보딩 첫날의 설정 변경이 worktree 에 갇혔다. PR 흐름(`MERGE_FLOW = "pr"`)만 원격을 요구한다.
+**무엇을 하면 되는지 완성된 명령으로 준다.** 다만 `gh` 가 인증돼 있어도 묻지 않고 만들지 않는다 — 공용 PC 의 활성 계정이
+사용자의 것이라는 보장이 없다. 현재 계정을 보여 주고 한 번 묻는다(그 계정에 비공개로, 다른 주소, 나중에).
 레포는 항상 `--private` 로 만든다 — 공개 발행은 되돌리기 어려워 사람이 정할 일이다.
 
 ## 게이트
@@ -274,10 +279,10 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | 12 | 설정 밖 환경변수 | `env_access` | 환경변수 읽는 지점이 흩어지는 것 |
 | 13 | await 없는 async | `web_async` | 비동기인 척하는 동기 핸들러 |
 | 15 | 전역 SSL 패치 위치 | `ssl_bypass` | 검증 우회가 아무 데서나 켜지는 것 |
-| 16 | 라우트 에러 응답 | `routes_error` | 에러 형식이 라우트마다 다른 것 |
+| 16 | 라우트 응답 모양 | `routes_error` | 응답·에러 형식이 라우트마다 다른 것 — 라우트 함수의 `return` 은 응답 래퍼 호출·`None`·서버팩 `RESPONSE_EXEMPT` 만, 에러는 어느 응답에도 4xx 나 에러 본문을 싣지 않고 예외로. 지역 변수와 같은 파일의 도우미는 한 단계 따라간다 |
 | 17 | 공용 래퍼 없는 fetch | `raw_fetch` | 캐시·에러 처리 없는 직접 호출 — **ESLint 위임** |
-| 18 | 프론트 색 리터럴 | `hex_literal` | 색 하드코딩 (rgb·hsl 우회 포함) — **ESLint 위임** |
-| 19 | 고정 폭 | `responsive` | 폰을 깨뜨리는 px 폭과 `100vw` — **ESLint 위임** |
+| 18 | 프론트 색 리터럴 | `hex_literal` | 색 하드코딩 (rgb·hsl·이름 색 포함) — 스크립트는 **ESLint 위임**, 스타일시트와 템플릿의 `<style>`·`style=` 은 텍스트 검사(`kernel/gates/ui_styles.py`). 테스트 파일은 면제 |
+| 19 | 고정 폭 | `responsive` | 폰을 깨뜨리는 px 폭(문자열·숫자·Tailwind `w-[…px]`)과 `100vw` — 같은 두 갈래 |
 | 20 | 브라우저 API 직접 호출 | `browser_api` | 앱 이식 때 교체 범위가 퍼지는 것 — **ESLint 위임** |
 | 22 | 행동 테스트 짝 | `test_pairing` | 깨져도 아무도 모르는 수집·계산 모듈 |
 | 23 | DDL 저장 타입 | `ddl_types` | 소스 정밀도를 못 담는 컬럼 |
@@ -288,20 +293,22 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | 28 | 하네스 지도 | `md_harness_map` | 이 파일과 실물의 어긋남 — 양방향(빠진 실물·지도에만 남은 유령 행) |
 | 29 | 에이전트 모델 정책 | `agent_model` | frontmatter 와 정책표의 드리프트 |
 | 30 | 사고 절 승격 상태 | `lessons_promotion` | 사고를 적고 판단을 미루는 것. `> 강제:` 가 이름으로 인용한 `harness_gates/`·`harness_hooks/` 파일이 프로파일에 안 켜진 것(선언만 하고 연결 안 한 §15 의 구멍) |
-| 31 | 소비 UI 없는 API 라우트 | `orphan_api` | 화면이 없어 사용자에겐 존재하지 않는 기능 — 라우트 인식은 서버 프레임워크팩의 정규식 |
+| 31 | 소비 UI 없는 API 라우트 | `orphan_api` | 화면이 없어 사용자에겐 존재하지 않는 기능 — 라우트 인식은 서버 프레임워크팩의 정규식. 라우터 접두(`PREFIX_PATTERN`)를 붙이고, 파라미터 뒤 고정 마디(`/export`)까지 화면에 있어야 소비다. 기반 라우트(`INFRA_ROUTES`)는 보지 않는다 |
 | 32 | 미정의 모듈 상수 | `undefined_const` | import 는 통과하고 호출 시점에 터지는 이름 |
 | 33 | MD 함수 참조 실존 | `md_fn_refs` | 개명 후 MD 에 남은 유령 함수 |
-| 34 | 선언 본문 중복 | `dup_decl` | 이름만 갈린 정본 재구현 |
-| 35 | 블록 중복 | `dup_block` | 함수로 안 뽑힌 복붙 |
+| 34 | 선언 본문 중복 | `dup_decl` | 이름만 갈린 정본 재구현 — 지역 이름을 등장 순서로 바꾼 지문이라 변수 이름을 바꾼 복사도 잡는다. 호출 대상·멤버·리터럴은 그대로라 다른 API 를 부르면 다른 구현이다. 같은 파일 안 쌍도 센다. 함수 범위는 구문 사실이라 언어 무관이고, 분석기가 없으면 `[TOOL]` |
+| 35 | 블록 중복 | `dup_block` | 함수로 안 뽑힌 복붙 — 같은 파일이면 두 창이 8줄 이상 떨어진 것만 |
 | 36 | 헤더 경로 주석 | `header_path` | 파일 이사 후 남은 옛 경로 주석 |
 | 37 | 함수 길이 상한 | `func_limit` | 파일 400줄 상한이 못 보는 축 — 한 파일에 400줄 함수 하나 |
 | 38 | TYPE_CHECKING 짝 | `type_checking_future` | future annotations 없는 3.11 NameError — 로컬에서는 통과하고 CI 에서 깨진다 |
 | 42 | 해시 네비 단일 기전 | `hash_nav` | 이벤트를 안 내는 History API 혼용 — 주소만 바뀌고 화면이 안 따라온다 — **ESLint 위임** |
-| 43 | 프론트 로직 테스트 짝 | `ui_logic_tests` | tsc·빌드가 못 잡는 값 오류 — export 함수 .ts |
-| 44 | 프론트 컴포넌트 테스트 짝 | `ui_component_tests` | 〃 — 렌더 테스트 없는 .tsx |
+| 43 | 프론트 로직 테스트 짝 | `ui_logic_tests` | tsc·빌드가 못 잡는 값 오류 — export 함수가 있는 로직 파일(화면팩 `LOGIC_EXT`). 선언이 없으면 `[N/A]` |
+| 44 | 프론트 컴포넌트 테스트 짝 | `ui_component_tests` | 〃 — 렌더 테스트 없는 컴포넌트(화면팩 `COMPONENT_EXT`). 앱 진입 파일(`ENTRY_MARKERS`)은 대상이 아니다 |
 | 45 | 루트 직속 잡파일 | `root_litter` | 확장자와 상관없이 루트에 쌓인 덤프·메모 — 아직 추적되지 않은 커밋 후보도 포함 |
 | 46 | 프롬프트 버전 범프 | `prompt_version` | 버전은 그대로 두고 본문만 바꾼 LLM 프롬프트 — 산출물을 판정할 근거가 사라진다 |
 | 47 | 프로파일 형식 | `profile_shape` | 설정 이름 오타·튜플 자리의 문자열 — 예외 없이 게이트 대부분이 대상 0건으로 조용히 초록불이 된다 |
+| 48 | 이름 일관성 | `naming` | 세션마다 다른 이름 — 함수 표기(팩 `NAMING["function"]`), 같은 폴더·같은 대상의 다른 읽기 동사(`get`·`fetch`·`load` …), 응답 키 표기(`keys`), 화면 API 타입 필드 표기(`ui_keys`)와 한 타입 안 snake·camel 혼용. 탈출은 `name-ok`·`key-ok`. 팩이 `NAMING` 을 선언하지 않으면 `[N/A]` |
+| 49 | 한 주인 기능 | `single_owner` | 두 번째 HTTP 클라이언트·DB 연결·날짜 포맷터 — 팩 `OWNED` 의 가족이 두 파일 이상에 나오면 파일마다 위반. 테스트는 보지 않는다. 표준 라이브러리라 의존 검사가 못 보는 재구현을 잡는다 |
 
 문서↔코드 대조(`doc_sync`)는 프로파일의 `DOC_SYNC` 가 정의한 만큼 늘어난다.
 
@@ -319,9 +326,11 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 | `stack_words` | 문서·에이전트에 스택 이름이 되돌아오는 것. 원칙은 프로파일 키로, 스택 관례는 `kernel/frameworks/<이름>.md` 조각으로 둔다는 정리를 잠그는 래칫이다. 허용 위치는 `dev/LESSONS.md`(사고 경위)·조각·픽스처·`docs/tasks/`·벤더 사본이고, 조각에서 생성한 `dev/CONVENTIONS.md` 「스택 관례」 절은 대상이 아니다. 제품 프로젝트는 자기 문서에 자기 스택을 쓰는 게 정상이라 커널이 아니라 여기 산다 |
 | `english_output` | 하네스 출력에 한국어가 돌아오는 것. 출력 영어화를 잠그는 래칫이다. 대상은 `kernel/`·`.claude/hooks/`·`harness_gates/`·`profiles/`·설치 스크립트의 문자열 리터럴(docstring 제외)과 훅 설정의 `echo` 문구다. 한국어 문서·데이터 서식을 읽는 리터럴은 그 줄이나 바로 윗줄의 `# ko-ok: <사유>` 로만 남긴다. 문서는 한국어라 대상이 아니다 |
 
-`edit_surface` 의 동결본은 `harness_surface.txt` 이고, 다른 래칫(줄어들 수만 있게 잠근 목록)처럼 **감소만 허용**한다.
+`edit_surface` 의 동결본은 `harness_surface.txt` 이고 **늘면 검사가 실패한다** — 래칫 가운데 증가를 막는 것은 이것뿐이다.
+세는 것은 `ALLOWLIST`·`SCOPE["exclude_all"]` 항목, 그리고 프로파일 `NAMING`·`OWNED` 의 세 가지 덮기다 — `None` 으로 끄기, 표기 넓히기(`snake|camel`), 팩 기본 가족의 정규식 바꿔치기.
+표기를 하나에서 다른 하나로 바꾸는 것과 새 가족을 더하는 것은 검사를 느슨하게 하지 않아 세지 않는다.
 회고의 판정을 사람이 하는 동안 면제를 늘리는 길이 열려 있으면, 개선 루프는 규칙을 고치는 대신 면제를
-늘리는 쪽으로 기운다. 나머지 래칫 파일과 프로파일 제외 목록은 막지 않고 **관찰**한다 — `kernel.task finish` 가 늘어난 행을
+늘리는 쪽으로 기운다. 나머지 래칫 파일(`*_baseline.txt`·`md_ref_allowlist.txt`)과 프로파일의 문서 제외 목록(`MD[…]`)은 막지 않고 **관찰**한다 — `kernel.task finish` 가 늘어난 행을
 `[RATCHET]` 로 알리고 `ratchet_growth` 로 기록하며, 한 건이라도 있으면 회고가 당겨진다(`kernel/baseline.py`).
 
 프로젝트 전용 **실행 전** 규칙은 게이트가 아니라 훅이다. `harness_hooks/<이름>.py` 에 `check(tool, tool_input, cwd)` 와
@@ -331,7 +340,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 추론 판정의 시작 단계다. 관찰이 쌓인 뒤 회고가 `block` 으로 올린다.
 
 예외의 종류는 둘이고 넣을 곳이 다르다. **allowlist 는 사유 있는 영구 예외**다 — 래퍼 정본
-자신처럼 규칙의 대상이 아닌 것. **baseline 은 리팩토링으로 없앨 부채**라 줄어들기만 한다.
+자신처럼 규칙의 대상이 아닌 것. **baseline 은 리팩토링으로 없앨 부채**라 줄이는 것이 원칙이다. 늘면 finish 가 `[RATCHET]` 으로 알린다.
 이 구분이 없으면 부채가 영구 예외가 된다.
 기존 baseline 단위는 게이트와 파일이므로 같은 파일에 추가된 새 위반도 숨길 수 있다.
 설치는 현재 위반을 자동 동결하지 않는다.
@@ -341,7 +350,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 컴포넌트 분류와 공개 계약 검사가 첫 코드의 위치와 허용 의존 관계를 확인한다.
 
 34·35 는 **전량 모드 전용**이다. 파일끼리 교차 비교하는 검사라 파일 하나만 보는 작성 시점 `--file` 에는 비교할 상대가 없다.
-동결본은 `dup_decl_baseline.txt`·`dup_block_baseline.txt` 이고 다른 래칫과 같이 감소만 허용한다.
+동결본은 `dup_decl_baseline.txt`·`dup_block_baseline.txt` 이고 다른 동결 목록과 같이 줄이는 것이 원칙이다(늘면 `[RATCHET]`).
 키가 내용 해시가 아니라 **정렬된 파일 목록**인 이유는 해시로 얼리면 한 줄만 고쳐도 키가 빗나가
 동결이 조용히 풀리기 때문이다. 현재 키 전체는 `python -X utf8 -m kernel.gates.duplication` 이 출력한다.
 
@@ -362,7 +371,7 @@ Codex 에는 EnterWorktree 툴이 없어 `git worktree add` 만 대상이다. Co
 ## 컴포넌트 그래프와 사용자 결정
 
 [컴포넌트 계약](COMPONENTS.md)이 분류와 승인 기록의 정본이다.
-[작동 예시](https://github.com/Gruci/agent-harness/tree/master/examples/harness-reference)는 원류에만 있는 한 스택의 검증 사례이며 기본 제품 스택이 아니다.
+첫 분류는 설정 때 `python -X utf8 -m kernel.graph_workflow starter --source <폴더> --response "<설정 답>" --conversation <참조>` 가 코드 전체를 planned 컴포넌트 `app` 하나로 기록한다 — `bind` 처럼 사용자가 이미 한 답을 결정으로 남긴다. 나누기는 영역이 둘 이상 생길 때 plan 의 「분류 제안」 행이 맡는다.
 AI는 분류되지 않은 변경을 찾으면 구체적인 분류 제안과 함께 사용자에게 알린다.
 사용자가 대화에서 실제로 한 답변을 변경안에 기록하며, 호스트 전용 알림 API는 필요하지 않다.
 로컬 기록 검사는 일관성을 확인하며 사용자 신원을 인증하지 않는다.
@@ -446,15 +455,18 @@ Python 의미론에만 있는 게이트(`kernel/lang.py` `PYTHON_ONLY` — 32·3
 
 ### 구문 사실 — 게이트는 `ast` 를 보지 않는다
 
-중첩 def(2)·함수 길이(37)·타입힌트(8)와 컴포넌트 의존 방향(`component_dependencies`)은 파일마다 한 번 뽑아 둔 구문 사실(함수·import·최상위 이름 같은 구문 정보, 정의는 `kernel/facts.py`)만 읽는다. 구문 사실을 만드는 것은 분석기이고, 언어를 아는 것도 분석기뿐이다.
+중첩 def(2)·함수 길이(37)·타입힌트(8)·선언 본문 중복(34)·이름 일관성(48)·MD 함수 참조(33)와 컴포넌트 의존 방향(`component_dependencies`)은 파일마다 한 번 뽑아 둔 구문 사실(함수·import·최상위 이름 같은 구문 정보, 정의는 `kernel/facts.py`)만 읽는다. 구문 사실을 만드는 것은 분석기이고, 언어를 아는 것도 분석기뿐이다. 그래서 하네스를 새 언어로 옮기는 일은 분석기가 읽을 선언(언어팩)을 쓰는 일이다.
 
-어느 분석기를 쓸지는 언어팩의 `ANALYZER` 가 정하고, 비어 있으면 `SYNTAX` 로 추정한다(python → `python`, 그 밖에 `QUERIES` 가 있으면 `treesitter`).
+어느 분석기를 쓸지는 언어팩의 `ANALYZER` 가 정하고, 비어 있으면 `SYNTAX` 로 추정한다(python → `python`, 그 밖에 `QUERIES` 가 있으면 `treesitter`, `REGEX` 만 있으면 `regex`). `QUERIES` 와 `REGEX` 를 함께 선언한 팩은 tree-sitter 가 설치되지 않았을 때 `regex` 로 내려간다 — 쿼리 컴파일 오류는 내려가지 않고 팩 결함으로 보고한다.
 
 | 분석기 | 실물 | 설치 |
 |---|---|---|
 | `python` | `kernel/analyzers/python.py` — 표준 `ast` | 없음 |
-| `treesitter` | `kernel/analyzers/treesitter.py` — 팩의 `QUERIES` 실행 | `tree-sitter` 와 팩 `GRAMMAR` 문법 패키지. 초기 설정의 스택 맞춤에서 설치하고, 없으면 `[TOOL]` |
-| `command` | `kernel/analyzers/command.py` — 팩 `ANALYZER_CMD` 가 낸 구문 사실 JSON 을 계약으로 검증 | 그 언어의 툴체인. 명령이 없으면 `[TOOL]`, 출력이 계약과 다르면 그 파일은 `error`(통과 아님) |
+| `regex` | `kernel/analyzers/regex.py` — 팩 `REGEX` 로 함수 머리·import·최상위 이름을 찾고, 주석·문자열을 지운 본문에서 함수 머리 뒤 `{` 의 짝을 범위로 삼는다. 중괄호가 맞지 않으면 그 파일은 `error` | 없음. Go·TypeScript·Java 팩이 이것으로 돈다 |
+| `treesitter` | `kernel/analyzers/treesitter.py` — 팩의 `QUERIES` 실행 | `tree-sitter` 와 팩 `GRAMMAR` 문법 패키지. 없으면 `REGEX` 로 내려가고, 그것도 없으면 `[TOOL]` |
+| `command` | `kernel/analyzers/command.py` — 팩 `ANALYZER_CMD` 가 낸 구문 사실 JSON 을 계약으로 검증 | 그 언어의 툴체인. 명령의 상대경로는 프로젝트 루트 기준이다. 명령이 없으면 `[TOOL]`, 출력이 계약과 다르면 그 파일은 `error`(통과 아님) |
+
+import 를 레포 모듈로 푸는 규칙(`MODULE_RULE`)은 `kernel/analyzers/modules.py` 하나를 tree-sitter·정규식 두 분석기가 같이 쓴다 — `go_package`(가장 가까운 `go.mod`), `relative`(`./x`·`../y`, `/index` 는 폴더 키), `dotted`(`a.b.C`·`crate::a::b` 를 레포 모듈 키의 접미로). 표준 라이브러리는 팩 `STDLIB` 가 정하고, 컴포넌트 `external` 의 `"*"` 는 모든 외부 의존을 허용한다(첫 분류 `starter` 가 쓴다).
 
 Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain 부수효과)의 재료는 Python 분석기의 `extra` 로만 전달되고, 다른 언어에서는 그 부분을 건너뛴다.
 프레임워크 판정(13·16)과 미정의 상수(32)는 아직 Python `ast` 다. 13·16 은 서버 프레임워크팩이 판정 방식(`ASYNC_HANDLER`·`ERROR_STATUS_KWARG`)을 선언했을 때만 돌고, 다른 언어에서는 설치 사유가 아니라 "분석기 없음"으로 찍힌다. 32 는 `PYTHON_ONLY` 라 팩 선언으로 `[N/A]` 가 된다. 포트 검사는 포트를 선언했을 때만 Python 분석기를 묻는다.
@@ -471,8 +483,8 @@ Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain
 
 | 역할 | 선언 | 읽는 게이트 |
 |---|---|---|
-| `server` | 라우트 정규식, await 없는 async 판정 방식, 스트림 반환 타입, 에러 상태 키워드 | 13 · 16 · 31 |
-| `ui` | 화면 소스 패턴, ESLint 파서와 옵션, 설치 안내 | 10 · 17~20 · 42, 그리고 `UI_EXT` 기본값 |
+| `server` | 라우트 정규식, await 없는 async 판정 방식, 스트림 반환 타입, 에러 상태 키워드, 래퍼 대신 허용할 응답 타입, 라우터 접두 정규식, 기반 라우트 | 13 · 16 · 31 |
+| `ui` | 화면 소스 패턴, ESLint 파서와 옵션(확장자별 파서 `PARSERS`), 설치 안내, 테스트 짝 확장자와 진입 표식, 한 주인 기능(`OWNED`) | 10 · 17~20 · 42 · 43 · 44 · 49, 그리고 `UI_EXT` 기본값 |
 
 - 로더는 `kernel/framework.py`. 선언 목록의 정본은 그 헤더다. 같은 이름을 `profiles/framework/<이름>.py` 에 두면 프로젝트 것이 이긴다.
 - 기본 탑재 팩 두 개(`kernel/frameworks/`)는 이 하네스가 처음 쓰인 프로젝트의 동작을 그대로 옮긴 것이라, 그 둘을 고른 프로젝트의 게이트 출력은 도입 전과 같다(골든으로 고정).
@@ -505,7 +517,7 @@ Python 의미론에만 있는 판정(속성 경유 참조·동적 import·domain
 - DB 계열 게이트는 어느 팩에도 없다 — 배치·라이브러리도 DB 를 가질 수 있어 "정의상 부재"가 아니다.
   프로젝트별 부재는 프로파일 `NOT_APPLICABLE` 이 담당한다.
 
-설치 상태 점검은 `python -X utf8 harness_install.py --doctor` 다.
+설치 상태 점검은 `python -X utf8 harness_install.py --doctor` 다. 훅 인터프리터(`python`·`python3`)·git 사용자·검사 도구·분석기처럼 훅이나 `--verify` 를 멈추게 할 것이 빠지면 exit 1 이고(`kernel/preflight.py`), gh·원격은 정보로만 찍는다. 새 프로젝트의 첫 커밋은 어느 셸에서든 `python -X utf8 harness_install.py --new` 다(`kernel/fresh_repo.py` — 원류에서 막 clone 한 이력만 지운다).
 
 ## 에이전트
 

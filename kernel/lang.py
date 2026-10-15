@@ -14,12 +14,18 @@
   PUBLIC_RULE      공개 이름 판정 — PUBLIC_RULES 중 하나
   FIXTURES         적합성 검사용 최소 예제 — 서식은 kernel/pack_check.py 헤더
   ANALYZER         구문 사실을 만드는 분석기 — ANALYZERS 중 하나. 비우면 SYNTAX 로 추정한다
-                   (python → 표준 ast, 그 밖에 QUERIES 가 있으면 tree-sitter)
+                   (python → 표준 ast, 그 밖에 QUERIES 가 있으면 tree-sitter, REGEX 만 있으면 설치 0개인 regex)
   ANALYZER_CMD     ANALYZER="command" 일 때 실행할 명령. 파일 경로를 인자로 받아 FileFacts JSON 배열을
                    stdout 에 낸다 — 계약은 kernel/analyzers/command.py 헤더
   GRAMMAR          tree-sitter 문법 패키지 모듈 이름. 비우면 tree_sitter_<SYNTAX> 다
   REQUIRES         이 팩이 1급으로 돌기 위해 필요한 외부 도구 — {"name", "check"(확인 명령), "install"(설치 안내)}.
                    `harness_install.py --doctor` 가 확인 명령을 돌려 없는 것만 보고한다. 설치는 사용자가 결정한다
+  REGEX            정규식 분석기(설치 0개)가 쓰는 패턴 — functions·imports·top_symbols. 이름은 이름 있는 그룹이 잡고
+                   imports 의 `block` 그룹은 그 안의 따옴표 문자열 전부가 경로다. 실행은 kernel/analyzers/regex.py.
+                   QUERIES 와 함께 선언하면 tree-sitter 가 없을 때 이것으로 내려간다
+  STDLIB           표준 라이브러리 이름 접두 — 사람에게 물을 외부 의존이 아니다. `.`·`:`·`/` 로 끝나면 접두, 아니면 이름 하나
+  NAMING           이름 표기 — function(snake·camel·pascal, `|` 로 여럿)·keys(응답 키)·ui_keys(화면 API 타입, 기본은 keys)
+  OWNED            한 모듈만 맡을 기능 — {가족 이름: 정규식}. 두 파일 이상에서 나오면 위반이다(kernel/gates/owners.py)
 
 `NOT_APPLICABLE` 이 따로 있는 이유: "못 함"과 "해당 없음"은 다르다. Go 에 타입힌트
 게이트가 안 도는 건 손실이 아니라 언어가 이미 보장하기 때문이고, 커넥션 블록 게이트가
@@ -63,19 +69,26 @@ DEFAULTS: dict[str, Any] = {
     "ANALYZER_CMD": (),
     "GRAMMAR": None,
     "REQUIRES": (),
+    "REGEX": {},
+    "STDLIB": (),
+    "NAMING": {},
+    "OWNED": {},
 }
 _PACK_KEYS = ("EXT", "SYNTAX", "NOT_APPLICABLE", "LINTERS", "QUERIES", "MODULE_RULE", "PUBLIC_RULE", "FIXTURES",
-              "ANALYZER", "ANALYZER_CMD", "GRAMMAR", "REQUIRES")
+              "ANALYZER", "ANALYZER_CMD", "GRAMMAR", "REQUIRES", "REGEX", "STDLIB", "NAMING", "OWNED")
 
 # Python 의미론에만 있는 게이트. Python 이 아닌 언어팩은 NOT_APPLICABLE 에 성립하지 않는 사유를 적는다.
 # 러너가 SYNTAX 만 보고 알아서 빼지 않는 것은 사유가 팩마다 다르기 때문이다 — 컴파일러가 잡는 언어와 잡을 도구가 없는 언어.
 PYTHON_ONLY = ("undefined_const", "type_checking_future")
 
-# 분석기(kernel/analyzers/treesitter.py)가 구현한 규칙 이름. 팩은 이 중 하나만 고른다.
-MODULE_RULES = ("go_package",)
+# 모듈 규칙(kernel/analyzers/modules.py)이 구현한 이름. 팩은 이 중 하나만 고른다.
+MODULE_RULES = ("go_package", "relative", "dotted")
 PUBLIC_RULES = ("capitalized", "underscore")
 # kernel/analyzers/ 에 실물이 있는 분석기. 팩은 이 중 하나를 고르거나 비워서 추정에 맡긴다.
-ANALYZERS = ("python", "treesitter", "command")
+ANALYZERS = ("python", "treesitter", "command", "regex")
+REGEX_KINDS = ("functions", "imports", "top_symbols")
+NAMING_KEYS = ("function", "keys", "ui_keys")
+NAMING_STYLES = ("snake", "camel", "pascal")
 _REQUIRE_KEYS = ("name", "check", "install")
 
 
@@ -83,7 +96,8 @@ def unselected() -> dict[str, Any]:
     """LANG 을 선언하지 않은 상태 — 확장자도 구문도 비어 있다. 하네스가 파이썬으로 쓰였다고 제품 언어도 파이썬이라 짐작하지 않는다."""
     return {"EXT": (), "SYNTAX": None, "PATTERNS": {}, "NOT_APPLICABLE": {}, "LINTERS": (),
             "QUERIES": {}, "MODULE_RULE": None, "PUBLIC_RULE": None, "FIXTURES": {},
-            "ANALYZER": None, "ANALYZER_CMD": (), "GRAMMAR": None, "REQUIRES": ()}
+            "ANALYZER": None, "ANALYZER_CMD": (), "GRAMMAR": None, "REQUIRES": (),
+            "REGEX": {}, "STDLIB": (), "NAMING": {}, "OWNED": {}}
 
 
 def analyzer_kind(pack: dict[str, Any]) -> str | None:
@@ -93,7 +107,9 @@ def analyzer_kind(pack: dict[str, Any]) -> str | None:
         return str(declared)
     if pack.get("SYNTAX") == "python":
         return "python"
-    return "treesitter" if pack.get("QUERIES") else None
+    if pack.get("QUERIES"):
+        return "treesitter"
+    return "regex" if pack.get("REGEX") else None
 
 
 def grammar_module(pack: dict[str, Any]) -> str | None:
@@ -116,6 +132,8 @@ def _check_analyzer(pack: dict[str, Any], name: str) -> None:
         raise ValueError(f"language pack ANALYZER='python' only works with SYNTAX='python': {name}")
     if kind == "treesitter" and not pack["QUERIES"]:
         raise ValueError(f"language pack ANALYZER='treesitter' needs QUERIES: {name}")
+    if kind == "regex" and not pack["REGEX"]:
+        raise ValueError(f"language pack ANALYZER='regex' needs REGEX: {name}")
     if not _is_str_seq(pack["ANALYZER_CMD"]):
         raise ValueError(f"language pack ANALYZER_CMD must be a list of command strings: {name}")
     if kind == "command" and not pack["ANALYZER_CMD"]:
@@ -125,6 +143,49 @@ def _check_analyzer(pack: dict[str, Any], name: str) -> None:
         raise ValueError(f"language pack GRAMMAR must be a grammar package module name or None: {name}")
     if not valid_requires(pack["REQUIRES"]):
         raise ValueError(f"language pack REQUIRES must list mappings of name, check (command list), install: {name}")
+
+
+def valid_patterns(mapping: object, keys: tuple[str, ...] | None, allow_none: bool = False) -> str:
+    """정규식 사전(REGEX·OWNED)의 형식 오류 한 줄. 비면 정상이다. `keys` 가 있으면 그 키만 받는다."""
+    if not isinstance(mapping, dict):
+        return "must be a mapping"
+    for key, source in mapping.items():
+        if keys is not None and key not in keys:
+            return f"unknown key {key!r} — allowed: {' '.join(keys)}"
+        if source is None and allow_none:
+            continue
+        if not isinstance(source, str) or not source:
+            return f"{key} must be a regex string"
+        try:
+            re.compile(source)
+        except re.error as exc:
+            return f"{key} is not a valid regex: {exc}"
+    return ""
+
+
+def valid_naming(naming: object) -> str:
+    """NAMING 의 형식 오류 한 줄. 값은 표기 이름을 `|` 로 이은 문자열이다."""
+    if not isinstance(naming, dict):
+        return "must be a mapping"
+    for key, value in naming.items():
+        if key not in NAMING_KEYS:
+            return f"unknown key {key!r} — allowed: {' '.join(NAMING_KEYS)}"
+        if value is not None and (not isinstance(value, str)
+                                  or not all(part in NAMING_STYLES for part in value.split("|"))):
+            return f"{key} must be styles joined by | from {' '.join(NAMING_STYLES)}"
+    return ""
+
+
+def _check_declarations(pack: dict[str, Any], name: str) -> None:
+    """정규식 분석기·표준 라이브러리·이름·한 주인 선언. 틀리면 그 게이트가 조용히 대상 0건이 되므로 팩 오류로 올린다."""
+    for key, error in (("REGEX", valid_patterns(pack["REGEX"], REGEX_KINDS)),
+                       ("OWNED", valid_patterns(pack["OWNED"], None)),
+                       ("NAMING", valid_naming(pack["NAMING"]))):
+        if error:
+            raise ValueError(f"language pack {key} {error}: {name}")
+    if not isinstance(pack["STDLIB"], (tuple, list)) or not all(isinstance(item, str) and item
+                                                                 for item in pack["STDLIB"]):
+        raise ValueError(f"language pack STDLIB must be a list of module name prefixes: {name}")
 
 
 def valid_requires(requires: object) -> bool:
@@ -207,5 +268,6 @@ def load(name: str | None) -> dict[str, Any]:
         raise ValueError(f"language pack PUBLIC_RULE must be one of {' '.join(PUBLIC_RULES)}: {name}")
     if not isinstance(pack["FIXTURES"], dict):
         raise ValueError(f"language pack FIXTURES must be a mapping: {name}")
+    _check_declarations(pack, name)
     _check_analyzer(pack, name)
     return pack

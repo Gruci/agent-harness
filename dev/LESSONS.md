@@ -366,7 +366,7 @@ UI 작업은 렌더된 화면을 직접 확인하는 것까지가 검증이다.
 
 ## §25 — 백그라운드 작업 중 Stop 반복 차단: 작업 공간과 본체를 안 가르면 게이트가 작업을 막는다
 
-> 강제: 훅 ⑧-6·⑧-7(`check_pretool.py`, 판정 `kernel/isolation.py`) — 메인 체크아웃 편집과 보드 미등록 편집을 막고 push·PR·merge 직전에 `--verify` exit 0 을 요구한다. worktree 안에서는 저장 시점 검사(⑨)와 Stop 전량 검사(⑬)를 `[WIP]` 알림으로 낮췄다(`kernel/hook.py`, 채널은 `kernel/channel.py`). 그 알림이 모델에게 닿는지는 원류 tests/test_isolation_hooks.py 가 잠근다(§26)
+> 강제: 훅 ⑧-6·⑧-7(`check_pretool.py`, 판정 `kernel/isolation.py`) — 메인 체크아웃 편집과 보드 미등록 편집을 막고 push·PR·merge 직전에 `--verify` exit 0 을 요구한다. worktree 안에서는 저장 시점 검사(⑨)와 Stop 전량 검사(⑬)를 `[WIP]` 알림으로 낮췄다(`kernel/hook.py`). 그 알림이 모델에게 닿는지는 원류 tests/test_isolation_hooks.py 가 잠근다(§26)
 > 출처: 이 레포 (2026-09-28, 세션 cde18a4e)
 
 스택 중립 P1 을 executor 에 위임하고 메인 세션은 기다렸다. 워커가 커널을 고치는 동안 메인 세션의 턴이 끝날 때마다 Stop ⑬ 이 돌았고, 그림 검사 48 이 "노드가 가리키는 행이 없다 · 영수증 해시가 다르다" 로 네 번 막았다(`harness_trace.jsonl` 09:29 · 09:30 · 09:32 · 10:40). 막힌 조건은 전부 워커가 쓰는 중인 파일이었고 그림 deliver 는 커밋 뒤에만 가능하다 — 메인 세션이 그 자리에서 할 수 있는 일이 없었다. §19 의 "고칠 수단 없는 차단" 이 형태만 바꿔 다시 났다.

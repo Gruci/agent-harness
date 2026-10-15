@@ -40,8 +40,8 @@ SECRET_TOKEN = re.compile(
 
 # 줄 끝 주석(`code;  // 설명`) — 화면 밖이라 UI 금칙어 검사에서 제외한다. `://`(URL)는 주석이 아니다.
 TRAILING_COMMENT = re.compile(r"(?<!:)//.*$")
-
-_HEADER_PATH = re.compile(r"^#\s+([\w./-]+\.py)\b")
+# 줄 주석으로 시작하는 줄 — 서버·화면 소스를 함께 보는 검사가 언어를 묻지 않고 건너뛴다
+COMMENT_MARKS = ("#", "//", "/*", "*")
 
 
 def _alt(words: tuple[str, ...]) -> str:
@@ -49,8 +49,9 @@ def _alt(words: tuple[str, ...]) -> str:
 
 
 def _abbrev_name_re() -> re.Pattern[str] | None:
+    """단독 대입 — `x = …` 와 Go 의 `x := …`."""
     names = profile.VOCAB["abbrev_names"]
-    return re.compile(rf"^\s*({_alt(names)})\s*=") if names else None
+    return re.compile(rf"^\s*({_alt(names)})\s*:?=") if names else None
 
 
 def _abbrev_prefix_re() -> re.Pattern[str] | None:
@@ -75,15 +76,18 @@ def check_line_limit(files: list[Path]) -> list[str]:
 
 
 def check_header_path_comment(files: list[Path]) -> list[str]:
-    """1행 `# <경로>.py` 헤더 주석이 실제 경로와 다르면 위반 (디렉토리를 옮긴 뒤 남은 옛 경로 주석을 잡는다)."""
+    """1행 `<주석> <경로>` 헤더 주석이 실제 경로와 다르면 위반 (디렉토리를 옮긴 뒤 남은 옛 경로 주석을 잡는다).
+    주석 표기는 언어팩 `PATTERNS["comment"]` 이고, 확장자가 그 파일 자신의 것과 같은 경로만 헤더로 본다 — 다른 파일을
+    가리키는 첫 줄 설명(`# see docs/x.md`)은 헤더가 아니다."""
+    header = re.compile(rf"^{re.escape(profile.pattern('comment') or '#')}\s+([\w./-]+\.\w+)\b")
     bad: list[str] = []
     for f in files:
         rel = _rel(f)
         if _is_scratch(rel):
             continue
         first = f.read_text(encoding=READ_ENC).split("\n", 1)[0]
-        m = _HEADER_PATH.match(first)
-        if m and "/" in m.group(1) and m.group(1) != rel:
+        m = header.match(first)
+        if m and "/" in m.group(1) and m.group(1).endswith(f.suffix) and m.group(1) != rel:
             bad.append(f"{rel}: header comment '{m.group(1)}' ≠ actual path — update the comment to the actual path")
     return bad
 
@@ -203,7 +207,7 @@ def check_abbrev_prefixes(files: list[Path]) -> list[str]:
             continue
         for i, line in enumerate(f.read_text(encoding=READ_ENC).splitlines(), 1):
             stripped = line.strip()
-            if stripped.startswith("#"):
+            if stripped.startswith(COMMENT_MARKS):
                 continue
             m = pattern.search(line)
             if m:

@@ -25,7 +25,8 @@
 
 규칙 본문은 스크립트 AST 기준이라 프레임워크를 모른다. 어느 파서로 AST 를 만들고 어느 확장자를 볼지는
 화면 프레임워크팩(`kernel/framework.py`)이 선언하고, 러너가 환경변수 HARNESS_UI_PARSER ·
-HARNESS_UI_PARSER_OPTIONS · HARNESS_UI_FILES 로 설정 파일에 넘긴다.
+HARNESS_UI_PARSER_OPTIONS · HARNESS_UI_PARSERS(확장자별 파서) · HARNESS_UI_FILES 로 설정 파일에 넘긴다.
+worktree 에는 `node_modules` 가 없으므로 공유 체크아웃의 설치를 쓰고, 그 위치를 HARNESS_UI_MODULES 로 넘긴다.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ from pathlib import Path
 
 from kernel import profile
 from kernel.context import ROOT, _rel
+from kernel.workboard import board_dir
 
 TIMEOUT_SECONDS = 90
 
@@ -86,8 +88,10 @@ def run_one(entry: dict) -> tuple[list[str], str]:
         hint = entry.get("install") or ""
         tail = f" — install: {hint}" if hint else ""
         return [], f"{absent} not installed{tail}"
+    # 실행 파일을 경로로 풀어서 부른다 — Windows 의 `npx` 는 `npx.CMD` 셈이라 이름만으로는 CreateProcess 가 못 찾는다.
+    cmd = [shutil.which(entry["cmd"][0]) or entry["cmd"][0], *entry["cmd"][1:]]
     try:
-        done = subprocess.run(entry["cmd"], cwd=ROOT, capture_output=True, text=True,
+        done = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired:
         return [], f"{slug}: no response within {TIMEOUT_SECONDS}s — check could not run"
@@ -119,8 +123,11 @@ def sections() -> list[tuple[str, str, list[str], str]]:
 UI_SLUGS = ("ts_any", "raw_fetch", "hex_literal", "responsive", "browser_api", "hash_nav")
 UI_CONFIG = Path(__file__).resolve().parent / "eslint.harness.mjs"
 _SLUG_TAG = re.compile(r"^\[(\w+)\]\s*")
-# 정규식 방식을 쓰던 때 admin 화면(`ui_admin` 레이어와 경로의 /admin/)을 면제하던 네 검사
+# 프로파일 `ui_admin` 레이어를 면제하는 네 검사. 경로에 /admin/ 이 들어 있다고 면제하던 암묵 규칙은 없앴다 —
+# 선언 없이 검사 넷이 꺼져 편집 표면 래칫에도 안 보였다.
 _ADMIN_SLUGS = ("raw_fetch", "hex_literal", "responsive", "browser_api")
+# 테스트는 토큰 값을 단언하느라 색 리터럴을 쓴다
+_TEST_GLOBS = ("**/*.test.*", "**/*.spec.*")
 
 
 @dataclass
@@ -138,11 +145,25 @@ def ui_npm_dir() -> Path | None:
     return ROOT / (profile.UI_NPM_DIR or ui.split("/", 1)[0])
 
 
+def _shared_npm_dir(npm_dir: Path) -> Path | None:
+    """worktree 라면 공유 체크아웃의 같은 npm 폴더. `node_modules` 는 git 이 추적하지 않아 worktree 에 없다 —
+    링크를 만들지 않고 공유 체크아웃의 설치를 그대로 쓴다. 이미 공유 체크아웃이거나 루트 밖이면 None."""
+    shared = board_dir().parent
+    try:
+        twin = shared / npm_dir.resolve().relative_to(ROOT.resolve())
+    except ValueError:
+        return None
+    return twin if twin.resolve() != npm_dir.resolve() else None
+
+
 def ui_eslint_bin(npm_dir: Path) -> Path | None:
     """실행 파일이 실제로 있는지 본다. `npx --no-install` 은 패키지가 없으면 npm 오류만 내고 끝나는데, 파서는 이를
-    위반 0건으로 읽어 조용히 통과시킨다. 그래서 실행 파일의 존재로 판단한다."""
-    exe = npm_dir / "node_modules" / ".bin" / ("eslint.cmd" if os.name == "nt" else "eslint")
-    return exe if exe.exists() else None
+    위반 0건으로 읽어 조용히 통과시킨다. 그래서 실행 파일의 존재로 판단한다. 이 체크아웃에 없으면 공유 체크아웃의 것을 쓴다."""
+    tail = Path("node_modules") / ".bin" / ("eslint.cmd" if os.name == "nt" else "eslint")
+    if (npm_dir / tail).exists():
+        return npm_dir / tail
+    shared = _shared_npm_dir(npm_dir)
+    return shared / tail if shared and (shared / tail).exists() else None
 
 
 def _npm_relative(npm_dir: Path, rel_path: str) -> str:
@@ -151,12 +172,10 @@ def _npm_relative(npm_dir: Path, rel_path: str) -> str:
 
 
 def ui_allow(npm_dir: Path) -> dict[str, list[str]]:
-    """slug 별 면제 glob(npm 디렉토리 기준). 면제 대상은 프로파일 ALLOWLIST, admin 화면, 토큰 정본 파일이다.
-    정규식 방식을 쓰던 때의 allow·admin 판정을 그대로 옮겼다."""
-    admin = ["**/admin/**"]
+    """slug 별 면제 glob(npm 디렉토리 기준). 면제 대상은 프로파일 ALLOWLIST, 선언한 admin 레이어, 토큰 정본 파일,
+    그리고 색 검사의 테스트 파일이다."""
     admin_layer = profile.layer("ui_admin")
-    if admin_layer:
-        admin.append(_npm_relative(npm_dir, admin_layer) + "**")
+    admin = [_npm_relative(npm_dir, admin_layer) + "**"] if admin_layer else []
     allow = profile.ALLOWLIST
     tokens = profile.layer_raw("ui_tokens")
     per_slug: dict[str, list[str]] = {          # 없는 slug 는 설정 쪽 `allow[slug] || []` 가 빈 면제로 읽는다
@@ -165,8 +184,8 @@ def ui_allow(npm_dir: Path) -> dict[str, list[str]]:
         "responsive": [],
         "browser_api": list(allow["ui_platform"]),
     }
-    return {slug: (admin if slug in _ADMIN_SLUGS else []) + [_npm_relative(npm_dir, p) for p in paths]
-            for slug, paths in per_slug.items()}
+    return {slug: (admin if slug in _ADMIN_SLUGS else []) + (list(_TEST_GLOBS) if slug == "hex_literal" else [])
+            + [_npm_relative(npm_dir, p) for p in paths] for slug, paths in per_slug.items()}
 
 
 def ui_file_globs(patterns: tuple[str, ...]) -> list[str]:
@@ -184,9 +203,14 @@ def eslint_report(npm_dir: Path, targets: list[Path], allow: dict[str, list[str]
     exe = ui_eslint_bin(npm_dir)
     if not exe:
         raise FileNotFoundError(f"{npm_dir}/node_modules/.bin/eslint")
+    parsers = {glob: parser for pattern, parser in dict(ui_pack.get("PARSERS") or {}).items()   # type: ignore[call-overload]  # framework.load 가 매핑임을 검증했다
+               for glob in ui_file_globs((pattern,))}
+    # 파서는 실행 파일이 든 node_modules 에서 찾는다 — worktree 면 공유 체크아웃의 설치다. cwd 는 그대로 이 체크아웃이라
+    # 대상 파일이 ESLint 기준 경로 안에 있다.
     env = {**os.environ, "HARNESS_UI_ALLOW": json.dumps(allow), "HARNESS_UI_TOKENS": tokens_note,
            "HARNESS_UI_PARSER": str(ui_pack["ESLINT_PARSER"]),
            "HARNESS_UI_PARSER_OPTIONS": json.dumps(ui_pack["PARSER_OPTIONS"]),
+           "HARNESS_UI_PARSERS": json.dumps(parsers), "HARNESS_UI_MODULES": str(exe.parent.parent.parent),
            "HARNESS_UI_FILES": json.dumps(ui_file_globs(tuple(ui_pack["UI_EXT"])))}   # type: ignore[arg-type]  # framework.load 가 목록임을 검증했다
     done = subprocess.run([str(exe), "-c", str(UI_CONFIG), "--no-config-lookup", "--format", "json",
                            "--no-error-on-unmatched-pattern", *map(str, targets)],

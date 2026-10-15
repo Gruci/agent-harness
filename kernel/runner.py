@@ -26,15 +26,16 @@ import importlib
 import sys
 from pathlib import Path
 
-from kernel import component_graph, graph_checks, linters, local_hooks, profile
+from kernel import component_graph, facts, graph_checks, linters, local_hooks, profile
 # 러너를 거쳐 쓰도록 다시 내보낸다. trace 는 violation_path 를, 설치 스크립트는 BASELINE_FILE·load_baseline 을 쓴다.
 from kernel.baseline import (BASELINE_FILE, apply_baseline as _apply_baseline,  # noqa: F401
                              load_baseline, violation_path)
 from kernel.context import ROOT, _rel, app_code, is_harness_own, tracked
-from kernel.gates import (api_types, core, duplication, harness_self, layers, md_graph, md_style,
-                          orphan_api, placement, prompt_version, schema, tests_pairing)
+from kernel.gates import (api_types, core, duplication, harness_self, layers, md_graph, md_style, naming,
+                          orphan_api, owners, placement, prompt_version, schema, tests_pairing, ui_styles)
 from kernel.sections import (CONDITIONAL, NO_PY, NO_SERVER_PACK, NO_UI, NO_UI_PACK, Section, entry,
-                             framework_section, linter_sections, need_layer, syntax_section, ui_entry)
+                             framework_section, linter_sections, need_layer, pack_section, syntax_section,
+                             ui_entry)
 
 LOCAL_PACKAGE = "harness_gates"
 
@@ -44,16 +45,27 @@ def _print_style_reports(reports: list[str]) -> None:
         print(f"[REPORT] {report}")
 
 
-def _print_sections(sections: list[Section]) -> int:
+def _print_sections(sections: list[Section], compact: bool = False) -> int:
     """[FAIL] 머리에 slug 를 함께 찍는다.
 
     slug 는 이 하네스에서 게이트를 식별하는 이름이다. 동결 키도 로컬 섹션 이름도 slug 다. 그런데
     출력에만 없어서, `[FAIL]` 을 보고도 `harness_baseline.txt` 에 무엇을 적어야 하는지 알 수
     없었다. 관찰 기록(`kernel/trace.py`)이 파싱하는 출력 형식도 이 함수가 정본이다.
+    `compact` 는 사유가 같은 건너뜀을 한 줄로 묶는다 — 설치 직후 사람이 읽는 출력용이고, 골든·관찰은 기본 형식을 본다.
     """
     total = 0
+    grouped: dict[tuple[str, str], list[str]] = {}
+    if compact:
+        for _slug, title, _violations, skipped in sections:
+            if skipped:
+                grouped.setdefault(skipped, []).append(title)
     for slug, title, violations, skipped in sections:
-        if skipped:
+        if skipped and compact:
+            titles = grouped.pop(skipped, None)
+            if titles:
+                head = f"{len(titles)} checks — {skipped[1]}: " if len(titles) > 1 else ""
+                print(f"[{skipped[0]:<4}] {head}{', '.join(titles) if head else titles[0] + ' — ' + skipped[1]}")
+        elif skipped:
             grade, reason = skipped
             print(f"[{grade:<4}] {title} — {reason}")
         elif violations:
@@ -73,7 +85,7 @@ def _under(files: list[Path], layer_name: str) -> list[Path]:
     return [f for f in files if _rel(f).startswith(prefix)]
 
 
-def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
+def _kernel_sections(files: list[Path], ui_files: list[Path], style_files: list[Path] | None = None) -> list[Section]:
     both = files + ui_files
     web = _under(files, "routes")
     vocab = profile.VOCAB
@@ -83,6 +95,8 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
     ui_ok = ui_files and profile.UI
     ui_need = NO_UI if not ui_files else NO_UI_PACK
     lint = linters.run_ui_lint(ui_files) if ui_ok else linters.UiLint({}, "")
+    # 스크립트 밖 스타일(스타일시트·템플릿)은 전체 실행에서만 텍스트로 본다 — 같은 slug 섹션에 합친다.
+    styles = ui_styles.check_styles(style_files) if ui_ok and style_files else {}
     server_need = NO_UI if not ui_files else NO_SERVER_PACK if not profile.SERVER else need_layer("routes")
 
     return [
@@ -114,21 +128,23 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
                            layers.check_web_async_no_await, (files,), web, need_layer("web"), "ASYNC_HANDLER"),
         entry("ssl_bypass", "Global SSL patch call site", layers.check_ssl_bypass_location(files),
               files and profile.symbol("ssl_bypass"), CONDITIONAL["ssl_bypass"]),
-        framework_section("routes_error", "Route error response format",
+        framework_section("routes_error", "Route response format",
                           layers.check_routes_error_response, (files,),
                           _under(files, "routes") and profile.symbol("error_response"),
                           CONDITIONAL["routes_error"], "ERROR_STATUS_KWARG"),
         ui_entry("raw_fetch", "fetch without the shared wrapper", lint, ui_ok, ui_need),
-        ui_entry("hex_literal", "Frontend color literals", lint, ui_ok, ui_need),
-        ui_entry("responsive", "Fixed widths that break phones", lint, ui_ok, ui_need),
+        ui_entry("hex_literal", "Frontend color literals", lint, ui_ok, ui_need, styles.get("hex_literal")),
+        ui_entry("responsive", "Fixed widths that break phones", lint, ui_ok, ui_need, styles.get("responsive")),
         ui_entry("browser_api", "Direct browser API calls", lint,
                  ui_ok and profile.ALLOWLIST["ui_platform"],
                  ui_need if not ui_ok else CONDITIONAL["browser_api"]),
         ui_entry("hash_nav", "Single hash navigation mechanism", lint, ui_ok, ui_need),
-        entry("ui_logic_tests", "Frontend logic test pairs",
-               tests_pairing.check_ui_logic_test_pairing(ui_files), ui_files, NO_UI),
-        entry("ui_component_tests", "Frontend component test pairs",
-               tests_pairing.check_ui_component_test_pairing(ui_files), ui_files, NO_UI),
+        # 짝 대상 확장자는 화면팩이 선언한다 — 선언이 없으면 대상 0건 [OK] 가 아니라 [N/A] 다
+        pack_section("ui_logic_tests", "Frontend logic test pairs", tests_pairing.check_ui_logic_test_pairing,
+                     (ui_files,), ui_ok, ui_need, tests_pairing.ui_test_exts("LOGIC_EXT")),
+        pack_section("ui_component_tests", "Frontend component test pairs",
+                     tests_pairing.check_ui_component_test_pairing, (ui_files,), ui_ok, ui_need,
+                     tests_pairing.ui_test_exts("COMPONENT_EXT")),
         entry("root_litter", "Stray files at repo root", placement.check_root_litter(),
                profile.ROOT_FILES, "no allowed root files set in the profile"),
         entry("prompt_version", "Prompt version bump", prompt_version.check_prompt_version(),
@@ -150,6 +166,10 @@ def _kernel_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
                server_need),
         syntax_section("undefined_const", "Undefined module constants",
                         core.check_undefined_module_constants, (files,), files, NO_PY, "python"),
+        pack_section("naming", "Naming consistency", naming.check_naming, (files, ui_files), both, NO_PY,
+                     profile.NAMING, "functions" if files else None),
+        pack_section("single_owner", "One owner per shared capability", owners.check_single_owner,
+                     (files, ui_files), both, NO_PY, profile.OWNED or profile.UI_OWNED),
     ]
 
 
@@ -222,9 +242,9 @@ def _local_sections(files: list[Path], ui_files: list[Path]) -> list[Section]:
 
 def _build_sections(
     files: list[Path], ui_files: list[Path], include_md: bool, md_files: list[Path],
-    full: bool = True,
+    full: bool = True, style_files: list[Path] | None = None,
 ) -> list[Section]:
-    sections = _kernel_sections(files, ui_files)
+    sections = _kernel_sections(files, ui_files, style_files)
     if include_md and files:            # 린터는 레포 전체를 보므로 --file 모드에선 건너뛴다
         sections += linter_sections()
     # 중복은 파일 간 교차 비교라 대상이 전량일 때만 성립한다. `--file` 은 비교 상대가 없다.
@@ -232,8 +252,11 @@ def _build_sections(
         decl, block = (duplication.check_duplication(files, ui_files)
                        if files or ui_files else ([], []))
         both = files or ui_files
+        # 서버 선언은 구문 사실의 함수 범위로 읽는다. 분석기가 없으면 대상 0건 [OK] 가 아니라 [TOOL] 이다.
+        no_spans = facts.unavailable("functions") if files and profile.SYNTAX != "python" else ""
+        dup_title = "Duplicate declaration bodies (reimplementation)"
         sections += [
-            entry("dup_decl", "Duplicate declaration bodies (reimplementation)", decl, both, NO_PY),
+            ("dup_decl", dup_title, [], ("TOOL", no_spans)) if no_spans else entry("dup_decl", dup_title, decl, both, NO_PY),
             entry("dup_block", "Duplicate blocks (copy-paste in declarations)", block, both, NO_PY),
         ]
     sections += _local_sections(files, ui_files)
@@ -266,6 +289,12 @@ def source_files() -> tuple[list[Path], list[Path]]:
     files = ([f for f in app_code(*profile.SOURCE_EXT) if _in_scope(f) and f not in ui_files]
              if profile.SOURCE_EXT else [])
     return files, ui_files
+
+
+def style_files() -> list[Path]:
+    """ui 레이어의 스타일시트와 템플릿 파일 — 화면 색·폭 검사의 스크립트 밖 대상(kernel/gates/ui_styles.py)."""
+    ui = profile.layer("ui")
+    return [f for f in app_code(*ui_styles.STYLE_EXT, under=ui) if _in_scope(f)] if ui else []
 
 
 def collect_all_violations() -> list[tuple[str, str]]:
@@ -322,16 +351,18 @@ def main(argv: list[str]) -> int:
         print(f"[SETUP] {profile.PROFILE_FILE} missing — the project is unknown. "
               f"Every gate that needs a layer is [SKIP].")
     full = not (len(argv) >= 2 and argv[0] == "--file")
+    styles: list[Path] = []
     if not full:
         files, ui_files, include_md, md_files = _single_file_lists(argv[1])
         if not files and not ui_files and not include_md and not md_files:
             include_md = False
     else:
         files, ui_files = source_files()
+        styles = style_files()
         include_md, md_files = True, tracked_md_files()
-    sections = _apply_baseline(_build_sections(files, ui_files, include_md, md_files, full))
+    sections = _apply_baseline(_build_sections(files, ui_files, include_md, md_files, full, styles))
     sections += graph_checks.sections(ROOT, verify="--verify" in argv)
-    total = _print_sections(sections)
+    total = _print_sections(sections, compact="--compact" in argv)
     violations = [v for _, _, found, _ in sections for v in found]
     decisions = [v for v in violations if "needs_decision" in v]
     if decisions:                       # [TOOL] 이나 다른 [FAIL] 이 함께 있어도 결정 요청은 가려지지 않는다

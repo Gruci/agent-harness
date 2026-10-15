@@ -40,6 +40,13 @@ def runner_command(root: Path, *args: str) -> tuple[list[str], dict[str, str]] |
     return None
 
 
+def shown_command(module: str) -> str:
+    """안내문에 적을 커널 명령. 플러그인 설치에서는 `-m kernel.<모듈>` 이 프로젝트에 없어 실패하므로 플러그인 경로로 적는다."""
+    if KERNEL_HOME == ROOT:
+        return f"python -X utf8 -m kernel.{module}"
+    return f'python -X utf8 "{KERNEL_HOME.as_posix()}/kernel" {module}'
+
+
 # utf-8-sig — BOM 이 붙은 파일도 읽는다. Windows 에서 PowerShell 의 `Set-Content`·`Out-File`
 # 이 기본으로 BOM 을 붙이고, 그 BOM 을 그냥 utf-8 로 읽으면 첫 글자가 ﻿ 가 되어
 # `ast.parse` 가 SyntaxError 를 낸다. 그러면 게이트가 "파싱 실패"를 보고하거나 조용히 건너뛴다.

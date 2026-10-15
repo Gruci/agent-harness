@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 from types import ModuleType
 
-from kernel import profile, runner, shipped, upgrade
+from kernel import fresh_repo, preflight, profile, runner, shipped, upgrade
 from kernel.context import KERNEL_HOME, ROOT
 from kernel.gates import api_types
 
@@ -96,7 +96,9 @@ def report_install_location() -> bool:
     print(f"       rmdir {nested}")
     print("       python -X utf8 harness_install.py")
     print("\n   If you are starting a new repo, it is better to clone straight into the project folder:")
-    print("       git clone <url> my-project && cd my-project && rm -rf .git && git init")
+    print("       git clone <url> my-project")
+    print("       cd my-project")
+    print("       python -X utf8 harness_install.py --new")
     return False
 
 
@@ -151,11 +153,14 @@ def analyzer_status(pack: dict) -> tuple[str, str]:
     kind = lang.analyzer_kind(pack)
     if kind == "python":
         return "stdlib ast", "nothing to install"
+    if kind == "regex":
+        return "regex", "nothing to install"
     if kind == "treesitter":
         grammar = lang.grammar_module(pack) or "?"
         core = "found" if importlib.util.find_spec("tree_sitter") else "missing"
         found = "found" if importlib.util.find_spec(grammar) else "missing"
-        return "tree-sitter", f"tree_sitter {core} · grammar {grammar} {found}"
+        fallback = " — regex fallback runs meanwhile" if "missing" in (core, found) and pack.get("REGEX") else ""
+        return "tree-sitter", f"tree_sitter {core} · grammar {grammar} {found}{fallback}"
     if kind == "command":
         command = [str(part) for part in pack.get("ANALYZER_CMD") or ()]
         found = "found" if command and (shutil.which(command[0]) or (ROOT / command[0]).is_file()) else "missing"
@@ -174,7 +179,7 @@ def print_stack_report(pack: dict, frameworks: list[dict] | None = None) -> int:
     requires = [entry for source in (pack, *(frameworks or ()))
                 for entry in (source.get("REQUIRES") or ()) if isinstance(entry, dict)]
     if not requires:
-        print("No tools required by the packs — 0 installs required.")
+        print("Pack requirements beyond the linters above: none.")
         return 0
     missing = 0
     print("Tools required by the packs:")
@@ -319,11 +324,19 @@ def _prune() -> int:
 def _parse(argv: list[str]) -> argparse.Namespace:
     # 모르는 옵션은 무시하지 않고 거절한다(argparse 기본 exit 2). `--dryrun` 오타가 실제 설치로 실행돼
     # 동결 파일을 덮어쓰는 것이 실제로 사고가 나는 경로다. `allow_abbrev=False` — 줄임 옵션도 오타와 같이 거절한다.
-    parser = argparse.ArgumentParser(prog="harness_install.py", allow_abbrev=False)
-    for flag in ("--list", "--doctor", "--prune", "--dry-run", "--check-update", "--upgrade",
-                 "--keep-local", "--check-agents"):
-        parser.add_argument(flag, action="store_true")
-    parser.add_argument("--preset", default=DEFAULT_PRESET)
+    parser = argparse.ArgumentParser(prog="harness_install.py", allow_abbrev=False,
+                                     description="Install the harness profile and verify; with no option, install and verify.")
+    for flag, about in (("--new", "start a fresh project from a just-cloned harness: new git history, install, first commit"),
+                        ("--doctor", "check the environment: hook interpreter, git user, check tools; exit 1 if something blocks"),
+                        ("--list", "list profile presets"),
+                        ("--dry-run", "show current violations without installing"),
+                        ("--prune", "drop fixed rows from harness_baseline.txt"),
+                        ("--check-update", "say whether a newer harness exists upstream"),
+                        ("--upgrade", "update harness-owned files from upstream"),
+                        ("--keep-local", "with --upgrade: keep files you changed and upgrade the rest"),
+                        ("--check-agents", "check Claude Code and Codex hook wiring")):
+        parser.add_argument(flag, action="store_true", help=about)
+    parser.add_argument("--preset", default=DEFAULT_PRESET, help="profile preset to install (default: %(default)s)")
     return parser.parse_args(argv)
 
 
@@ -359,11 +372,17 @@ def main(argv: list[str]) -> int:
         from kernel.harness_setup import check_agents
 
         print_language_report()
-        return 0 if PLUGIN else check_agents(ROOT)
+        blocked = preflight.report()
+        return max(blocked, 0 if PLUGIN else check_agents(ROOT))
 
     # 설치 위치를 가장 먼저 확인한다. 위치가 틀리면 나머지를 다 해도 훅이 하나도 실행되지 않는다.
     if not report_install_location():
         return 2
+
+    if args.new:
+        code = fresh_repo.prepare(ROOT)
+        if code:
+            return code
 
     if not args.prune and not args.dry_run:
         try:
@@ -372,6 +391,8 @@ def main(argv: list[str]) -> int:
             print(f"[PROFILE] {exc}")
             return 2
         install_gate_baselines()
+        if args.new and fresh_repo.commit(ROOT):
+            return 2
         if created:
             print("\nProfile created. Decide the stack and classification graph with the user, then wire up the check tools.")
             return 0
@@ -394,7 +415,7 @@ def main(argv: list[str]) -> int:
 
     # 신규 위반을 동결하지 않고 실제 검증 결과를 반환한다.
     print("\nRunning verification:")
-    code = runner.main(["--verify"])
+    code = runner.main(["--verify", "--compact"])
     if code == 0:
         print("\nInstall verified — no violations were baselined automatically.")
 

@@ -29,7 +29,7 @@ FIXTURES = {
 }
 
 PATTERNS = {
-    "env_read":    r"\bos\.(getenv|environ)\b",
+    "env_read":    r"\bos\.(getenv|environ)\b|^\s*from\s+os\s+import\s+[^#\n]*\b(?:getenv|environ)\b",
     "any_type":    r"[:\[,]\s*Any\b|->\s*Any\b",
     "any_escape":  "any-ok",
     "closure_escape": "closure-ok",
@@ -38,6 +38,17 @@ PATTERNS = {
 }
 
 NOT_APPLICABLE: dict[str, str] = {}
+
+# 이름 표기(kernel/gates/naming.py) — PEP 8 함수 이름, 응답 dict 키도 snake_case.
+NAMING = {"function": "snake", "keys": "snake"}
+
+# 한 모듈만 맡을 기능(kernel/gates/owners.py). 표준 라이브러리 클라이언트(urllib·http.client)도 두 번째 HTTP 클라이언트다.
+# 날짜 포맷은 표시 형식을 정하는 strftime 만 센다 — isoformat() 은 형식이 하나라 갈라질 수 없다.
+OWNED = {
+    "http_client": r"^[ \t]*(?:import|from)[ \t]+(?:requests|httpx|aiohttp|urllib3|urllib\.request|http\.client)\b",
+    "db_connect": r"\b(?:sqlite3|psycopg2?|pymysql|MySQLdb|oracledb|pymongo)\.connect\(|\bcreate_engine\(",
+    "date_format": r"\.strftime\(",
+}
 
 # 규칙 집합을 고정한다. ruff 기본 규칙은 버전마다 넓어져, 깔기만 해도 하네스 자기 코드가 빨개졌다(dev/LESSONS.md §28).
 # 하네스 소유 경로는 제품 코드가 아니다(kernel/context.py HARNESS_OWN_*). 규칙을 넓히려면 프로파일 LINTERS 로 덮어쓴다 —

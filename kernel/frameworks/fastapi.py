@@ -22,6 +22,17 @@ STREAM_RETURNS = ("StreamingResponse", "EventSourceResponse")
 # 프로파일 SYMBOLS["error_response"] 래퍼가 이 키워드에 4xx·5xx 를 실으면 에러를 예외 대신 반환한 것이다.
 ERROR_STATUS_KWARG = "status_code"
 
+# 라우트가 응답 래퍼 대신 돌려줘도 되는 응답 — 스트림·리다이렉트·파일. 이름이 정확히 같아야 한다(JSONResponse 는 아니다).
+# 본문 없는 응답(`Response(status_code=204)`)과 HTML·텍스트 응답은 JSON 봉투 대상이 아니다
+RESPONSE_EXEMPT = ("StreamingResponse", "EventSourceResponse", "RedirectResponse", "FileResponse", "Response",
+                   "HTMLResponse", "PlainTextResponse")
+
+# `APIRouter(prefix="/api/invoices")` — 소비 UI 없는 라우트(31)가 경로 앞에 붙인다.
+PREFIX_PATTERN = r"""\bAPIRouter\([^)]*\bprefix\s*=\s*["']([^"']+)"""
+
+# 화면이 소비하지 않는 기반 라우트. 경로 끝 마디가 같으면 접두(`/api/v1/health`)가 달라도 기반 라우트다.
+INFRA_ROUTES = ("/health", "/healthz", "/livez", "/readyz", "/metrics", "/docs", "/redoc", "/openapi.json")
+
 # 적합성 검사 예제 — route 에서 라우트 하나가 인식되고, consumer 는 소비로 통과하며, stranger 는 검출돼야 [1급] 이다.
 FIXTURES = {
     "orphan_api": {

@@ -21,12 +21,24 @@ ASYNC_HANDLER = None
 STREAM_RETURNS: tuple[str, ...] = ()
 # 에러 상태를 실어 보내는 키워드 인자. None 이면 라우트 에러 응답 검사가 성립하지 않음
 ERROR_STATUS_KWARG = None
+# 응답 래퍼 대신 돌려줘도 되는 응답 타입 이름(스트림·리다이렉트·파일) — 정확히 같은 이름만
+RESPONSE_EXEMPT: tuple[str, ...] = ()
+# 라우트 파일의 라우터 접두 선언. 그룹 1 이 접두다 — 소비 UI 없는 라우트 검사가 경로 앞에 붙인다. 비우면 접두를 모른다
+PREFIX_PATTERN = r"""\.use\(\s*["']([^"']+)"""
+# 화면이 소비하지 않는 기반 라우트 — 소비 UI 없는 라우트 검사가 보지 않는다
+INFRA_ROUTES = ("/health", "/metrics")
 
 # ── ROLE = "ui" ──────────────────────────────────────────────────────────────
 UI_EXT = ("*.vue", "*.ts")                  # 화면 소스 패턴. 프로파일 UI_EXT 의 기본값이다
 ESLINT_PARSER = "vue-eslint-parser"         # 화면 게이트 6종이 쓸 ESLint 파서 패키지
 PARSER_OPTIONS = {"sourceType": "module"}   # 그 파서에 넘길 parserOptions
+PARSERS = {"*.ts": "@typescript-eslint/parser"}   # 확장자마다 다른 파서가 필요하면 glob → 패키지
 ESLINT_INSTALL = "npm i -D eslint vue-eslint-parser"   # 비우면 파서 이름으로 만든다
+LOGIC_EXT = (".ts",)                        # 행동 테스트 짝을 요구할 로직 파일. 비우면 그 검사는 [N/A]
+COMPONENT_EXT = (".vue",)                   # 렌더 테스트 짝을 요구할 컴포넌트 파일. 비우면 [N/A]
+ENTRY_MARKERS = ("createApp(",)             # 이 문자열을 담은 파일은 앱 진입점이라 렌더 테스트 짝 대상이 아니다
+# 한 모듈만 맡을 화면 기능 — {가족 이름: 정규식}. 두 파일 이상에서 나오면 위반이다
+OWNED = {"locale_format": r"\bIntl\.(?:DateTimeFormat|NumberFormat)\b|\.toLocale(?:Date|Time)?String\("}
 
 # ── 공통 ─────────────────────────────────────────────────────────────────────
 # 적합성 검사 예제 — 서식은 kernel/pack_check.py 헤더.

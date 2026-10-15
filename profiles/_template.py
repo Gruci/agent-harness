@@ -25,9 +25,12 @@ COMPONENT_GRAPH = "docs/architecture/components.json"
 MERGE_FLOW = "direct"
 
 # LANG 선택 후 언어팩 값을 사용한다. 필요할 때 SOURCE_EXT, SYNTAX, LINTERS를 명시한다.
-# 화면 언어 및 npm 도구도 프로젝트 선택에 따라 구성한다.
-UI_EXT: tuple[str, ...] = ()
+# 화면 소스 패턴(UI_EXT)은 화면팩이 준다 — 다를 때만 적는다. npm 폴더도 ui 레이어의 첫 세그먼트와 다를 때만 적는다.
 UI_NPM_DIR: str | None = None
+# 이름 표기와 한 모듈만 맡을 기능은 언어팩·화면팩이 준다. 키별로 덮고, None 이면 그 판정을 끈다.
+# 예: NAMING = {"keys": "camel"} — 응답 키를 camelCase 로 쓰는 프로젝트. OWNED = {"date_format": None} — 날짜 포맷을 여러 곳에서 허용.
+NAMING: dict[str, str | None] = {}
+OWNED: dict[str, str | None] = {}
 
 # 기술 검사 대상일 뿐 아키텍처 분류가 아니다. 업무 컴포넌트/역할은 COMPONENT_GRAPH 정본에 둔다.
 CHECK_PATHS: dict[str, str | None] = {

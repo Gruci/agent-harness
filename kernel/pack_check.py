@@ -19,6 +19,7 @@ FIXTURES 서식 — 값은 소스 문자열이다.
     "files"        {"go.mod": "…"}                        분석기가 읽을 보조 파일. 모듈 키 규칙이 쓴다
     게이트 slug    {"violating": "…", "passing": "…"}     closures · func_limit · type_hints
     사실 종류      {"source": "…", "expect": [...]}       imports(모듈 키) · top_symbols(이름). expect 가 부분집합이면 통과
+                   "path": "src/orders/api.ts"            (선택) 예제 파일의 상대경로 — 상대 import 는 이 위치에서 푼다
   서버팩
     "orphan_api"   {"route": "…", "consumer": "…", "stranger": "…"}
                    route 에서 라우트가 정확히 하나 인식되고, consumer 는 그 라우트를 쓰며, stranger 는 안 써야 한다
@@ -212,8 +213,10 @@ def _summary(verdicts: list[Verdict]) -> str:
 
 
 def report(name: str, pack: Mapping[str, object], verdicts: list[Verdict]) -> str:
-    engine = {"python": "stdlib ast", "treesitter": "tree-sitter", "command": "external command"}.get(
-        lang.analyzer_kind(dict(pack)) or "", "none")
+    kind = lang.analyzer_kind(dict(pack)) or ""
+    analyzer, _reason = facts.analyzer_for_pack(pack, lang.ROOT)    # 실제로 돈 엔진 — tree-sitter 가 없으면 정규식 대체
+    engine = ("stdlib ast" if kind == "python" else analyzer.label if analyzer else
+              {"treesitter": "tree-sitter", "command": "external command", "regex": "regex"}.get(kind, "none"))
     lines = [f"language pack {name} (SYNTAX {pack.get('SYNTAX')}) — analyzer: {engine}"]
     lines += [f"[{grade.upper()}] {slug} — {reason}" for grade, slug, reason in verdicts]
     lines.append(_summary(verdicts))
