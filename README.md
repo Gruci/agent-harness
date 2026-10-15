@@ -210,7 +210,7 @@ For a project that already has code, run `--dry-run` first to see current violat
 
 | Version | Changes |
 |:--|:--|
-| **v1.1.0** | Go, TypeScript and Java checks with nothing to install (other languages port in one short file), new consistency checks for copied code, naming and response shapes, and a one-line install in any shell that works without GitHub. |
+| **v1.1.0** | Broader language support. |
 | **v1.0.0** | First public release. |
 
 ## License
