@@ -11,7 +11,7 @@ agent-harness v1.1.0 · Claude Code · Codex
 
 [English](README.md) · [한국어](README.ko.md)
 
-<img src="docs/readme/handoff.en.svg" width="900" alt="Session 1 hands work to session 2 and Codex through what the repo keeps: the open task, plans and decisions, rejected ideas, lessons that became checks, conventions, and rules run as hooks.">
+<img src="docs/readme/handoff.en.svg" width="900" alt="One harness under every agent and session: three sessions — Claude Code and Codex — work on separate tasks at the same time today, and a new session picks up a task tomorrow. All share the task board, plans and decisions, conventions and lessons, and the same checks.">
 
 </div>
 
@@ -53,11 +53,9 @@ cd my-project
 python -X utf8 harness_install.py --new
 ```
 
-The three lines are the same in PowerShell, cmd and bash. Use `python3` where `python` is missing (macOS, Linux). `--new` gives the folder its own git history and first commit; if git does not know your name and email yet, it shows the two commands to run and changes nothing.
+Same in PowerShell, cmd and bash (`python3` on macOS and Linux). Needs Python 3.10+ and git; GitHub is optional.
 
-You need Python 3.10+ and git. GitHub is optional — the setup asks once, and you can stay local.
-
-> **Permissions.** Inside this folder Claude Code runs without approval prompts (`.claude/settings.json` sets `bypassPermissions`); the hooks stop irreversible commands such as wiping the main folder or force-pushing the main branch. `setup_global_permissions.py` turns prompts off for **every project on this computer** — run it only if you want that.
+> **Permissions.** Inside this folder Claude Code runs without approval prompts, and hooks still stop irreversible commands. `setup_global_permissions.py` turns prompts off for **every project on this computer** — run it only if you want that.
 
 Open Claude Code in the folder and say:
 
@@ -65,7 +63,7 @@ Open Claude Code in the folder and say:
 set up the harness
 ```
 
-It asks what you want to build — no technical terms needed. If the language or framework isn't decided, it explains what changes with each option and you choose. It creates the settings file, prepares checks for the stack you chose and connects GitHub. Then just ask for work:
+It asks what you want to build, helps you pick a stack, and sets everything up. Then just ask for work:
 
 ```
 add a login feature
@@ -78,7 +76,7 @@ add a login feature
 /plugin install agent-harness@agent-harness
 ```
 
-Then, in a repo you want checked, say `set up the harness`. Only the settings file (`harness_profile.py`) and a few check records are added to your project, and repos you don't connect are left alone.
+Then say `set up the harness` in the repo you want checked. Only a settings file and a few check records are added; other repos are left alone.
 
 ## How a change flows (template)
 
@@ -88,13 +86,11 @@ Then, in a repo you want checked, say `set up the harness`. Only the settings fi
                                   where you answer
 ```
 
-- It asks about scope first, then waits for you to approve the plan. Screen work adds a mockup you approve. Setup asks what you are building and starts all code as one part; it proposes splitting when a second area appears.
-- Small fixes to existing files skip the planning step. Their size is measured when the work is merged (up to 3 files and 40 changed lines, no new files); a fix that grew goes back to a plan.
-- The plan names the files to change and includes real code. Blanks like "implement later" make it invalid.
-- Building happens in a separate work copy (worktree) for each task. The main folder holds only plans and the work board.
-- Every save runs the checks and reports violations; the AI fixes them right away. Inside a work copy they are reported, not blocked.
-- Merging into the main copy or pushing reruns every check first. Nothing is merged while violations remain.
-- Screen work starts with a mockup file you approve, and the build follows it exactly.
+- You answer twice: the scope questions and the plan approval. Screen work adds a mockup to approve.
+- Small fixes (up to 3 files, 40 lines) skip the plan; a fix that grows goes back to one.
+- Each task is built in its own work copy (worktree). The main folder holds only plans and the task board.
+- Every save runs the checks, and the AI fixes what they find.
+- Nothing merges or pushes until every check passes.
 
 ## What it catches
 
@@ -140,27 +136,14 @@ Guesses never block. For example, "this work copy looks finished" is only a warn
 
 ## FAQ
 
-**Can I install it before choosing a stack?**
-Yes. No language is assumed; you decide together before the first line of code.
-
-**Which languages does it check?**
-The harness itself runs on Python; your product can be in any language. Python, Go, TypeScript and Java checks are built in (`kernel/langs/`), along with one server and one screen framework pack (`kernel/frameworks/`). Reading the code needs no installs; each language's own linter (ruff, go vet and staticcheck, tsc) is suggested at setup and installed only if you agree — `--doctor` lists what is missing. If you decline, setup removes that linter from the settings so work can still be finished; the AI tells you which rules that leaves unchecked. For another language, setup ports the harness by writing one short language file — a few regular expressions for functions, imports and top-level names, plus the import rule and standard library — and `python -X utf8 -m kernel.pack_check <name>` proves the checks really turn on. Checks that only mean something in one language are declared `[N/A]`; a check that cannot run shows `[TOOL]` and never counts as passing. Setup also binds the component graph to the language you chose (`python -X utf8 -m kernel.graph_workflow bind`), so files in that language are classified instead of ignored.
-
-**My service has no screens, but screen checks keep showing `[SKIP]`.**
-Put `ARCH = "backend_only"` (server only) or `ARCH = "headless"` (no web, no screens) in `harness_profile.py`. They become `[N/A]`. If you do have screens and screen checks show `[SKIP]`, list your framework pack names (file names in `kernel/frameworks/`) in `FRAMEWORK`.
-
-**Do I need GitHub?**
-No. Without a remote, finished work is merged on your computer only, and the harness reminds you that nothing is backed up. When you want one, it shows the signed-in `gh` account and asks before creating a private repository, or takes an address you give it.
-
-**I changed my mind about a task.**
-Ask the AI to drop it. `python -X utf8 -m kernel.task abandon` removes the task's work copy and branch. It refuses while there is unsaved work, and while there are commits not yet merged unless you agree to lose them (`--discard-commits`). Its research and plan notes stay in `docs/tasks/`; delete them if you will not reuse them.
-
-**How do I update the harness?**
-For the plugin, `/plugin update agent-harness@agent-harness`. For the template, `python -X utf8 harness_install.py --check-update` tells you whether a new version exists; commit your changes and run `--upgrade`. It judges each harness-owned file by upstream history: upstream changes and deletions are applied, files you added are left alone, and a file you changed stops the upgrade with a draft issue so the fix can go upstream (`--keep-local` keeps your version and upgrades the rest). Your settings, hooks wiring and docs stay; wiring that differs from upstream is reported, not changed.
-Coming from v1.0.0, copy the hook commands from upstream `.claude/settings.json` so the hooks also find `python3`. New checks may flag existing code — fix it or list it in `harness_baseline.txt`.
-
-**Is there an architecture diagram tool?**
-Not included. If you need one, install it separately.
+| Question | Answer |
+|:--|:--|
+| Can I install before choosing a stack? | Yes. You pick it together before the first line of code. |
+| Which languages are checked? | Python, Go, TypeScript and Java out of the box. Setup ports any other language with one short file. |
+| No screens, but screen checks show `[SKIP]` | Set `ARCH = "backend_only"` or `"headless"` in `harness_profile.py`. |
+| Do I need GitHub? | No. Without a remote, work merges on your computer. |
+| How do I drop a task? | Ask the AI. Unsaved or unmerged work is never deleted without your OK. |
+| How do I update? | Plugin: `/plugin update agent-harness@agent-harness`. Template: `python -X utf8 harness_install.py --upgrade`. |
 
 ## Details
 
