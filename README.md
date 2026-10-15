@@ -5,9 +5,9 @@
 **Every AI session picks up where the last one left off — as if one engineer did all the work.**
 
 Plans, decisions, conventions and lessons stay in the repo, and hooks keep every session working from them —
-Claude Code or Codex, today's session or next month's.
+whichever agent, today's session or next month's.
 
-agent-harness v1.1.0 · Claude Code · Codex
+agent-harness v1.1.0 · for coding agents
 
 [English](README.md) · [한국어](README.ko.md)
 
@@ -24,7 +24,7 @@ agent-harness v1.1.0 · Claude Code · Codex
 | Conventions | Each session invents its own | One registry. A renamed copy of an existing function is caught |
 | A mistake | Happens again next week | Written up as a lesson, and turned into a check when it can be |
 | Several sessions at once | They overwrite each other | One worktree per task. A shared board shows who has what |
-| Claude Code and Codex | Follow different rules | Read the same rules and run the same checks |
+| Different agents | Follow different rules | Read the same rules and run the same checks |
 | "Done" | A claim | The full check has to pass before the work merges |
 
 <details>
