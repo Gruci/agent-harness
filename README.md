@@ -157,6 +157,7 @@ Ask the AI to drop it. `python -X utf8 -m kernel.task abandon` removes the task'
 
 **How do I update the harness?**
 For the plugin, `/plugin update agent-harness@agent-harness`. For the template, `python -X utf8 harness_install.py --check-update` tells you whether a new version exists; commit your changes and run `--upgrade`. It judges each harness-owned file by upstream history: upstream changes and deletions are applied, files you added are left alone, and a file you changed stops the upgrade with a draft issue so the fix can go upstream (`--keep-local` keeps your version and upgrades the rest). Your settings, hooks wiring and docs stay; wiring that differs from upstream is reported, not changed.
+Coming from v1.0.0, copy the hook commands from upstream `.claude/settings.json` so the hooks also find `python3`. New checks may flag existing code — fix it or list it in `harness_baseline.txt`.
 
 **Is there an architecture diagram tool?**
 Not included. If you need one, install it separately.
@@ -209,7 +210,7 @@ For a project that already has code, run `--dry-run` first to see current violat
 
 | Version | Changes |
 |:--|:--|
-| **v1.1.0** | Built-in Go, TypeScript and Java checks with no installs, and a short language file to port to any other language. Catches renamed copies, second HTTP clients and date formatters, mixed naming, and per-route response shapes. One-line install in any shell, local-only finish without GitHub, small fixes without a plan, `abandon`, a blocking `--doctor`. Template installs: after `--upgrade`, copy the hook commands from upstream `.claude/settings.json` (they now find `python3` too) — wiring is reported, not changed. New checks may flag existing code: fix it or list it in `harness_baseline.txt`. |
+| **v1.1.0** | Go, TypeScript and Java checks with nothing to install (other languages port in one short file), new consistency checks for copied code, naming and response shapes, and a one-line install in any shell that works without GitHub. |
 | **v1.0.0** | First public release. |
 
 ## License
