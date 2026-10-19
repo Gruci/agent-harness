@@ -55,6 +55,17 @@ NO_REMOTE = ("[TASK] No remote — merged locally only. Nothing is backed up unt
 
 
 def finish(sid8: str, scope: str | None) -> int:
+    from kernel.task_lock import task_lock
+
+    shared = board_dir().parent
+    found = my_task(board_dir(), sid8, scope)
+    if found is None:
+        return 1
+    with task_lock(shared, "land"), task_lock(shared, "scope:" + found[0].stem):
+        return _finish(sid8, scope)
+
+
+def _finish(sid8: str, scope: str | None) -> int:
     board = board_dir()
     shared = board.parent
     found = my_task(board, sid8, scope)       # 내 #sid 과업이 둘 이상이면 --scope 를 요구한다
@@ -68,18 +79,32 @@ def finish(sid8: str, scope: str | None) -> int:
         return fail(f"{task_file.stem} is still in planning — start it with `python -X utf8 -m kernel.task start "
                     f"{task_file.stem} --sid {sid8} --branch <branch> --touch <glob> --plan <plan>` first. "
                     f"If the plan was abandoned, delete workboard/{task_file.stem}.md by hand.", 1)
+    if profile.TEAM:
+        from kernel.team_finish import finish as team_finish
+
+        return team_finish(shared, task_file, text, branch, tree)
     if state.startswith("PR#"):
         return _after_pr(shared, task_file, text, branch, tree, state.removeprefix("PR#"))
     dirty = uncommitted(tree) if tree is not None else []
     if dirty:
         return fail("commit or revert these in the worktree first:\n" + "\n".join(f"  {line}" for line in dirty), 1)
-    if not _merged(shared, branch):
+    if not _merged(shared, branch) or not _remote_contains(shared, branch):
         code = _land(shared, task_file, text, branch, tree)
         if code or profile.MERGE_FLOW == "pr":
             return code
     elif not _had_commits(shared, branch):
         return _cleanup(shared, task_file, text, branch, tree, outcome="had no commits — nothing to merge")
     return _cleanup(shared, task_file, text, branch, tree)
+
+
+def _remote_contains(shared: Path, branch: str) -> bool:
+    """A locally merged commit is not complete until origin confirms it; failures keep the task recoverable."""
+    if workspace.git_remote() is not None:
+        return True
+    base = default_branch()
+    if not base or git(shared, "fetch", "--quiet", "origin", base).returncode:
+        return False
+    return git(shared, "merge-base", "--is-ancestor", branch, f"origin/{base}").returncode == 0
 
 
 def my_task(board: Path, sid8: str, scope: str | None) -> tuple[Path, str] | None:
@@ -276,7 +301,11 @@ def _open_pr(task_file: Path, branch: str, tree: Path, target: str) -> int:
     pushed = git(tree, "push", "-u", "origin", branch)
     if pushed.returncode:
         return fail(f"push failed — {pushed.stderr.strip()[:300]}", 2)
-    created = _gh(tree, "pr", "create", "--fill", "--base", target.removeprefix("origin/"), "--head", branch)
+    existing = _gh(tree, "pr", "view", branch, "--json", "url,state", "-q", '.url + " " + .state')
+    if existing.returncode == 0 and existing.stdout.strip().endswith(" OPEN"):
+        created = existing
+    else:
+        created = _gh(tree, "pr", "create", "--fill", "--base", target.removeprefix("origin/"), "--head", branch)
     number = _PR_NUMBER.search(created.stdout + created.stderr)
     if created.returncode or number is None:
         return fail(f"gh pr create failed — {(created.stderr or created.stdout).strip()[:300]}", 2)

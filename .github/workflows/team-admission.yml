@@ -1,0 +1,57 @@
+name: harness-team-admission
+on:
+  workflow_run:
+    workflows: [harness]
+    types: [completed]
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  statuses: write
+jobs:
+  admit:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'pull_request' ||
+       github.event.workflow_run.event == 'merge_group' ||
+       (github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout protected checker
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout candidate Git objects
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download candidate data
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: harness-candidate
+          path: ${{ runner.temp }}/harness-candidate
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Admit with protected code
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HARNESS_TEAM_CI_TOKEN: ${{ secrets.HARNESS_TEAM_CI_TOKEN }}
+          TEAM_TRUSTED_ROOT: ${{ github.workspace }}/trusted
+          TEAM_CANDIDATE_ROOT: ${{ github.workspace }}/candidate
+          TEAM_RESULT_ARTIFACT: ${{ runner.temp }}/harness-candidate/harness-candidate.json
+        run: |
+          gh auth setup-git
+          python -I -c 'import os, sys; os.environ.pop("HARNESS_ROOT", None); sys.path.insert(0, sys.argv[1]); from kernel.team_ci import main; raise SystemExit(main(sys.argv[2:]))' "$TEAM_TRUSTED_ROOT" --trusted "$TEAM_TRUSTED_ROOT" --candidate "$TEAM_CANDIDATE_ROOT" --event "$GITHUB_EVENT_PATH" --artifact "$TEAM_RESULT_ARTIFACT"

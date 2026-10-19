@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="614" viewBox="0 0 1000 614" role="img" aria-labelledby="title description">
+  <title id="title">Optional team mode across computers</title>
+  <desc id="description">Each computer has eight agent sessions, its own worktrees and local board. An authenticated HTTPS coordinator keeps shared task and resource reservations in a server-local SQLite database. GitHub pull request and merge queue CI test integration candidates. Confirmed merges release reservations.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#58a6ff"/></marker>
+    <marker id="green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3fb950"/></marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Arial,sans-serif;fill:#e6edf3}
+      .title{font-size:25px;font-weight:700}.heading{font-size:17px;font-weight:650}.body{font-size:14px}.small{font-size:12px}.muted{fill:#9da7b3}.blue{fill:#79c0ff}.green{fill:#7ee787}.session{font-size:12px;font-weight:600;text-anchor:middle}
+      .card{fill:#161b22;stroke:#30363d;stroke-width:1.5}.chip{fill:#192f49;stroke:#31557e}.line{fill:none;stroke:#58a6ff;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1000" height="614" rx="14" fill="#0d1117"/>
+  <text x="26" y="41" class="title">Several computers. One integration path.</text>
+  <text x="26" y="67" class="body muted">Optional team mode · each computer keeps its own working copies</text>
+  <text x="26" y="100" class="small muted">LOCAL WORK</text>
+  <text x="350" y="100" class="small muted">SHARED COORDINATION</text>
+  <text x="708" y="100" class="small muted">GITHUB INTEGRATION</text>
+
+  <rect x="24" y="114" width="270" height="180" rx="10" class="card"/>
+  <text x="42" y="144" class="heading">Computer A</text><text x="42" y="165" class="small muted">8 sessions · separate local worktrees</text>
+  <g><rect x="42" y="182" width="48" height="25" rx="5" class="chip"/><rect x="104" y="182" width="48" height="25" rx="5" class="chip"/><rect x="166" y="182" width="48" height="25" rx="5" class="chip"/><rect x="228" y="182" width="48" height="25" rx="5" class="chip"/>
+  <rect x="42" y="216" width="48" height="25" rx="5" class="chip"/><rect x="104" y="216" width="48" height="25" rx="5" class="chip"/><rect x="166" y="216" width="48" height="25" rx="5" class="chip"/><rect x="228" y="216" width="48" height="25" rx="5" class="chip"/>
+  <text x="66" y="199" class="session">S1</text><text x="128" y="199" class="session">S2</text><text x="190" y="199" class="session">S3</text><text x="252" y="199" class="session">S4</text>
+  <text x="66" y="233" class="session">S5</text><text x="128" y="233" class="session">S6</text><text x="190" y="233" class="session">S7</text><text x="252" y="233" class="session">S8</text></g>
+  <text x="42" y="272" class="body muted">Own clone + local task board</text>
+
+  <rect x="24" y="318" width="270" height="180" rx="10" class="card"/>
+  <text x="42" y="348" class="heading">Computer B</text><text x="42" y="369" class="small muted">8 sessions · separate local worktrees</text>
+  <g><rect x="42" y="386" width="48" height="25" rx="5" class="chip"/><rect x="104" y="386" width="48" height="25" rx="5" class="chip"/><rect x="166" y="386" width="48" height="25" rx="5" class="chip"/><rect x="228" y="386" width="48" height="25" rx="5" class="chip"/>
+  <rect x="42" y="420" width="48" height="25" rx="5" class="chip"/><rect x="104" y="420" width="48" height="25" rx="5" class="chip"/><rect x="166" y="420" width="48" height="25" rx="5" class="chip"/><rect x="228" y="420" width="48" height="25" rx="5" class="chip"/>
+  <text x="66" y="403" class="session">S1</text><text x="128" y="403" class="session">S2</text><text x="190" y="403" class="session">S3</text><text x="252" y="403" class="session">S4</text>
+  <text x="66" y="437" class="session">S5</text><text x="128" y="437" class="session">S6</text><text x="190" y="437" class="session">S7</text><text x="252" y="437" class="session">S8</text></g>
+  <text x="42" y="476" class="body muted">Own clone + local task board</text>
+
+  <path d="M294 204H344" class="line"/><path d="M294 408H322V367H344" class="line"/>
+  <text x="320" y="183" class="small blue" text-anchor="middle">HTTPS</text>
+  <rect x="350" y="154" width="300" height="296" rx="12" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="370" y="186" class="heading">Authenticated coordinator</text>
+  <text x="370" y="208" class="small muted">Worker role / integration role</text>
+  <path d="M370 225H630" stroke="#30363d"/>
+  <text x="370" y="251" class="body">Atomic task + resource claims</text>
+  <text x="370" y="278" class="body">Lease renewal + epoch fencing</text>
+  <text x="370" y="305" class="body">Fixed candidate SHA + proof events</text>
+  <path d="M370 323H630" stroke="#30363d"/>
+  <ellipse cx="393" cy="351" rx="22" ry="7" fill="#192f49" stroke="#58a6ff"/>
+  <path d="M371 351V377C371 386 415 386 415 377V351" fill="#192f49" stroke="#58a6ff"/>
+  <path d="M371 365C371 374 415 374 415 365" fill="none" stroke="#58a6ff"/>
+  <text x="430" y="358" class="heading">SQLite on the server</text>
+  <text x="430" y="382" class="small muted">Shared metadata outside Git main</text>
+  <text x="370" y="426" class="small muted">Operator runs HTTPS, service and backups</text>
+
+  <path d="M650 204H702" class="line"/><text x="676" y="183" class="small blue" text-anchor="middle">submit</text>
+  <rect x="708" y="114" width="268" height="246" rx="10" class="card"/>
+  <text x="726" y="145" class="heading">Pull request + merge queue</text>
+  <text x="726" y="175" class="body muted">CI tests the merged candidate</text>
+  <path d="M726 193H958" stroke="#30363d"/>
+  <text x="726" y="221" class="body">Check actual changed paths</text>
+  <text x="726" y="249" class="body">Bind tests to candidate + policy</text>
+  <text x="726" y="277" class="body">Return authenticated proof</text>
+  <text x="726" y="333" class="small muted">Required checks set by the operator</text>
+  <path d="M708 300H656" fill="none" stroke="#3fb950" stroke-width="2" marker-end="url(#green)"/>
+  <path d="M842 360V396" fill="none" stroke="#3fb950" stroke-width="2" marker-end="url(#green)"/>
+  <rect x="708" y="402" width="268" height="96" rx="10" fill="#112119" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="726" y="433" class="heading green">main</text>
+  <text x="726" y="460" class="body">Confirmed merge releases</text><text x="726" y="482" class="body">the task's reservations</text>
+  <path d="M708 480H680V474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
+
+  <rect x="24" y="539" width="952" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="500" y="570" text-anchor="middle" class="body muted">Local edits stay isolated. Shared state is transactional. CI verifies the integration candidate.</text>
+</svg>

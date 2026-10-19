@@ -1,14 +1,41 @@
-# Runs every gate on each push and pull request.
+# Required gates also run on the exact merge-queue candidate.
 name: harness
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  merge_group:
+concurrency:
+  group: harness-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
 jobs:
   verify:
+    if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       # Stack setup adds the tools the user agreed to install here (for example: pip install ruff).
       - name: Gates
         run: python -X utf8 -m kernel.runner --verify
+      - name: Record tested candidate identity
+        env:
+          TEAM_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          TEAM_EVENT: ${{ github.event_name }}
+        run: |
+          python -X utf8 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          Path('harness-candidate.json').write_text(json.dumps({'base_sha': os.environ['TEAM_BASE_SHA'], 'head_sha': head, 'event': os.environ['TEAM_EVENT']}), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harness-candidate
+          path: harness-candidate.json
+          retention-days: 3

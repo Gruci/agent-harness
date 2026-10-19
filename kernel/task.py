@@ -32,6 +32,7 @@ from kernel.isolation import SETUP_PREFIXES
 from kernel.workboard import (BRANCH_PATTERN, add_list_item, board_dir, board_text, branch_of, field, list_field,
                               sid_of, task_files)
 from kernel.worktree import worktree_of
+from kernel.team_resources import TeamError
 
 GIT_TIMEOUT_SEC = 60                       # fetch·push 가 느린 망에서도 끝나는 값
 SCOPE_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)+")
@@ -55,6 +56,13 @@ def fail(message: str, code: int) -> int:
 
 
 def plan(scope: str, sid8: str, branch: str) -> int:
+    from kernel.task_lock import task_lock
+
+    with task_lock(board_dir().parent, "scope:" + scope):
+        return _plan(scope, sid8, branch)
+
+
+def _plan(scope: str, sid8: str, branch: str) -> int:
     """리서치를 시작할 때 보드에 올린다. 승인 대기 중에도 보드에 과업이 있어 다른 세션이 같은 범위를 잡지 않고 ⑰ 이 막지 않는다."""
     board = board_dir()
     if not SCOPE_NAME.fullmatch(scope) or not BRANCH_PATTERN.fullmatch(branch):
@@ -74,7 +82,15 @@ def plan(scope: str, sid8: str, branch: str) -> int:
 
 
 def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None, on: str | None,
-          small: bool = False) -> int:
+          small: bool = False, goal: str = "", depends_on: list[str] | None = None) -> int:
+    from kernel.task_lock import task_lock
+
+    with task_lock(board_dir().parent, "scope:" + scope):
+        return _start(scope, sid8, branch, touch, plan, on, small, goal, depends_on)
+
+
+def _start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None, on: str | None,
+           small: bool, goal: str, depends_on: list[str] | None) -> int:
     board = board_dir()
     shared = board.parent
     if not SCOPE_NAME.fullmatch(scope) or not BRANCH_PATTERN.fullmatch(branch) or not touch:
@@ -98,6 +114,9 @@ def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None
         return fail(f"{plan} has no `{SUMMARY_HEADINGS[0]}` or `{SUMMARY_HEADINGS[1]}` heading — add four plain-language lines before starting: "
                     "what the user gets, what changes, the risk and how to undo it, what is deferred on purpose "
                     "(dev/workflows/feature-workflow.md). The approval request shows that summary, not the whole plan.", 2)
+    from kernel import team_tasks
+
+    team_tasks.claim(shared, scope, sid8, branch, touch, base, goal, depends_on)
     board.mkdir(exist_ok=True)
     body = board_text(scope, branch, sid8, tuple(touch), artifacts, date.today().isoformat())
     if small:
@@ -107,6 +126,7 @@ def start(scope: str, sid8: str, branch: str, touch: list[str], plan: str | None
     added = git(shared, "worktree", "add", "--no-track", "-b", branch, name, base)
     if added.returncode:
         _restore(task_file, previous)         # 보드만 남으면 worktree 없는 과업이 된다 — 등록이나 계획 단계 본문을 되돌린다
+        team_tasks.release(shared, scope)
         return fail(f"git worktree add failed — {added.stderr.strip()[:300]}", 2)
     print(f"[TASK] Started {scope} on {branch} from {base}. Board: workboard/{scope}.md")
     print(f'Next — Claude: EnterWorktree(path="{name}") · Codex: work in {name}')
@@ -174,6 +194,13 @@ def _already_open(task_file: Path, sid8: str) -> int:
 
 
 def resume(scope: str, sid8: str) -> int:
+    from kernel.task_lock import task_lock
+
+    with task_lock(board_dir().parent, "scope:" + scope):
+        return _resume(scope, sid8)
+
+
+def _resume(scope: str, sid8: str) -> int:
     """다른 세션이 남긴 과업을 이 세션이 넘겨받는다. 그 세션이 끝났을 때만 쓴다 — 판정은 사람과 모델이 한다."""
     board = board_dir()
     shared = board.parent
@@ -182,6 +209,12 @@ def resume(scope: str, sid8: str) -> int:
         opened = ", ".join(path.stem for path, _text in task_files(board)) or "none"
         return fail(f"no task file workboard/{scope}.md — open tasks: {opened}", 1)
     text = task_file.read_text(encoding="utf-8")
+    from kernel import profile, team_tasks
+
+    if profile.TEAM:
+        current = team_tasks.refresh(shared, scope)
+        if current["state"] == "active":
+            team_tasks.operation(shared, scope, "renew")
     old = sid_of(text)
     if old != sid8:
         text = text.replace(f"#sid:{old}", f"#sid:{sid8}", 1) if old else text
@@ -228,6 +261,8 @@ def main(argv: list[str] | None = None) -> int:
     starter.add_argument("--on", help="branch to stack on instead of the default branch")
     starter.add_argument("--small", action="store_true",
                          help="no plan: existing files only, small diff — finish measures it and refuses if it grew")
+    starter.add_argument("--goal", default="", help="shared goal identifier for related independent tasks")
+    starter.add_argument("--depends-on", nargs="*", default=[], metavar="TASK_ID")
     finisher = commands.add_parser("finish", help="archive, verify the worktree, merge, push, clean up")
     finisher.add_argument("--sid", required=True)
     finisher.add_argument("--scope")
@@ -243,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "plan":
         return plan(args.scope, sid8, args.branch)
     if args.command == "start":
-        return start(args.scope, sid8, args.branch, args.touch, args.plan, args.on, args.small)
+        return start(args.scope, sid8, args.branch, args.touch, args.plan, args.on, args.small, args.goal, args.depends_on)
     if args.command == "resume":
         return resume(args.scope, sid8)
     if args.command == "abandon":
@@ -254,4 +289,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (TeamError, ValueError, OSError, TimeoutError) as exc:
+        sys.exit(fail(str(exc), 2))

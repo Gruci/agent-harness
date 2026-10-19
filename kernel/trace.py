@@ -22,11 +22,13 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from contextlib import AbstractContextManager, nullcontext
 from datetime import datetime
 from pathlib import Path
 
 from kernel.context import READ_ENC, ROOT, git_common_dir
 from kernel.runner import violation_path
+from kernel.task_lock import task_lock
 
 TRACE = ROOT / "harness_trace.jsonl"
 PENDING_NAME = "harness-trace.jsonl"
@@ -74,14 +76,31 @@ def _read(path: Path) -> list[dict[str, str]]:
     return found
 
 
-def records() -> list[dict[str, str]]:
-    """기록 전체 — 추적 파일과 대기 파일을 합쳐 읽는다. 회고와 정비 알림의 건수가 그대로 맞는다."""
+def _write_lock() -> AbstractContextManager[None]:
+    """Share a process lock in Git repositories while preserving the non-Git fallback."""
+    return nullcontext() if git_common_dir(TRACE.parent) is None else task_lock(TRACE.parent, "trace")
+
+
+def _records_unlocked() -> list[dict[str, str]]:
+    """Read both files under the caller's lock, without reacquiring a non-reentrant lock."""
     pending = pending_path()
     return _read(TRACE) + (_read(pending) if pending != TRACE else [])
 
 
+def records() -> list[dict[str, str]]:
+    """기록 전체 — 추적 파일과 대기 파일을 합쳐 읽는다. 회고와 정비 알림의 건수가 그대로 맞는다."""
+    with _write_lock():
+        return _records_unlocked()
+
+
 def flush(target: Path) -> int:
     """대기 기록을 그 체크아웃의 추적 파일 끝으로 옮기고 대기 파일을 비운다. 옮긴 줄 수를 돌려준다."""
+    with _write_lock():
+        return _flush_unlocked(target)
+
+
+def _flush_unlocked(target: Path) -> int:
+    """Keep the entire read, append and truncate operation in one critical section."""
     pending = pending_path()
     if pending == target or not pending.exists():
         return 0
@@ -98,6 +117,12 @@ def reclaim(checkout: Path) -> int:
 
     업그레이드한 설치의 첫 finish 가 본체의 더러운 추적 파일 때문에 막히지 않게 하는 이행 경로다. 옮긴 줄 수를 돌려준다.
     """
+    with _write_lock():
+        return _reclaim_unlocked(checkout)
+
+
+def _reclaim_unlocked(checkout: Path) -> int:
+    """Move legacy records without racing another writer's append or flush."""
     name = TRACE.name
     try:
         diff = subprocess.run(["git", "-C", str(checkout), "diff", "-U0", "HEAD", "--", name],
@@ -170,10 +195,11 @@ def record(hook: str, kind: str, sid: str = "", gate: str = "",
         }
         # debt:append 할 때마다 파일 전체를 읽어 중복을 확인한다. 관찰은 드물고 파일은 작아서 지금은
         # 이게 제일 싸다. 수천 줄이 되면 마지막 N줄만 읽는 것으로 바꾼다.
-        if _key(item) in {_key(old) for old in records()}:
-            return
-        with pending_path().open("a", encoding="utf-8") as out:
-            out.write(json.dumps(item, ensure_ascii=False) + "\n")
+        with _write_lock():
+            if _key(item) in {_key(old) for old in _records_unlocked()}:
+                return
+            with pending_path().open("a", encoding="utf-8") as out:
+                out.write(json.dumps(item, ensure_ascii=False) + "\n")
     except Exception:
         return
 

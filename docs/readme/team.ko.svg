@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="614" viewBox="0 0 1000 614" role="img" aria-labelledby="title description">
+  <title id="title">여러 컴퓨터에서 사용하는 선택형 팀 모드</title>
+  <desc id="description">컴퓨터마다 에이전트 세션 여덟 개와 작업 사본, 로컬 보드를 사용합니다. 인증된 HTTPS 조정 서버가 공유 과업과 리소스 예약을 서버의 SQLite에 보관합니다. GitHub PR과 머지 큐의 CI가 합쳐질 후보를 검사하고, 실제 병합 확인 뒤 예약을 풉니다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#58a6ff"/></marker>
+    <marker id="green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3fb950"/></marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",Arial,sans-serif;fill:#e6edf3}
+      .title{font-size:25px;font-weight:700}.heading{font-size:17px;font-weight:650}.body{font-size:14px}.small{font-size:12px}.muted{fill:#9da7b3}.blue{fill:#79c0ff}.green{fill:#7ee787}.session{font-size:12px;font-weight:600;text-anchor:middle}
+      .card{fill:#161b22;stroke:#30363d;stroke-width:1.5}.chip{fill:#192f49;stroke:#31557e}.line{fill:none;stroke:#58a6ff;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1000" height="614" rx="14" fill="#0d1117"/>
+  <text x="26" y="41" class="title">여러 컴퓨터의 작업을 하나의 통합 경로로.</text>
+  <text x="26" y="67" class="body muted">선택형 팀 모드 · 컴퓨터마다 자신의 작업 사본을 사용합니다</text>
+  <text x="26" y="100" class="small muted">로컬 작업</text>
+  <text x="350" y="100" class="small muted">공유 작업 조정</text>
+  <text x="708" y="100" class="small muted">GITHUB 통합</text>
+
+  <rect x="24" y="114" width="270" height="180" rx="10" class="card"/>
+  <text x="42" y="144" class="heading">컴퓨터 A</text><text x="42" y="165" class="small muted">세션 8개 · 각자 로컬 작업 사본 사용</text>
+  <g><rect x="42" y="182" width="48" height="25" rx="5" class="chip"/><rect x="104" y="182" width="48" height="25" rx="5" class="chip"/><rect x="166" y="182" width="48" height="25" rx="5" class="chip"/><rect x="228" y="182" width="48" height="25" rx="5" class="chip"/>
+  <rect x="42" y="216" width="48" height="25" rx="5" class="chip"/><rect x="104" y="216" width="48" height="25" rx="5" class="chip"/><rect x="166" y="216" width="48" height="25" rx="5" class="chip"/><rect x="228" y="216" width="48" height="25" rx="5" class="chip"/>
+  <text x="66" y="199" class="session">S1</text><text x="128" y="199" class="session">S2</text><text x="190" y="199" class="session">S3</text><text x="252" y="199" class="session">S4</text>
+  <text x="66" y="233" class="session">S5</text><text x="128" y="233" class="session">S6</text><text x="190" y="233" class="session">S7</text><text x="252" y="233" class="session">S8</text></g>
+  <text x="42" y="272" class="body muted">자신의 clone + 로컬 작업 보드</text>
+
+  <rect x="24" y="318" width="270" height="180" rx="10" class="card"/>
+  <text x="42" y="348" class="heading">컴퓨터 B</text><text x="42" y="369" class="small muted">세션 8개 · 각자 로컬 작업 사본 사용</text>
+  <g><rect x="42" y="386" width="48" height="25" rx="5" class="chip"/><rect x="104" y="386" width="48" height="25" rx="5" class="chip"/><rect x="166" y="386" width="48" height="25" rx="5" class="chip"/><rect x="228" y="386" width="48" height="25" rx="5" class="chip"/>
+  <rect x="42" y="420" width="48" height="25" rx="5" class="chip"/><rect x="104" y="420" width="48" height="25" rx="5" class="chip"/><rect x="166" y="420" width="48" height="25" rx="5" class="chip"/><rect x="228" y="420" width="48" height="25" rx="5" class="chip"/>
+  <text x="66" y="403" class="session">S1</text><text x="128" y="403" class="session">S2</text><text x="190" y="403" class="session">S3</text><text x="252" y="403" class="session">S4</text>
+  <text x="66" y="437" class="session">S5</text><text x="128" y="437" class="session">S6</text><text x="190" y="437" class="session">S7</text><text x="252" y="437" class="session">S8</text></g>
+  <text x="42" y="476" class="body muted">자신의 clone + 로컬 작업 보드</text>
+
+  <path d="M294 204H344" class="line"/><path d="M294 408H322V367H344" class="line"/>
+  <text x="320" y="183" class="small blue" text-anchor="middle">HTTPS</text>
+  <rect x="350" y="154" width="300" height="296" rx="12" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="370" y="186" class="heading">인증된 작업 조정 서버</text>
+  <text x="370" y="208" class="small muted">작업자 역할 / 통합 담당 역할</text>
+  <path d="M370 225H630" stroke="#30363d"/>
+  <text x="370" y="251" class="body">과업과 리소스를 한 번에 예약</text>
+  <text x="370" y="278" class="body">lease 갱신 + epoch로 세대 확인</text>
+  <text x="370" y="305" class="body">고정된 후보 SHA + 검증 증거 이력</text>
+  <path d="M370 323H630" stroke="#30363d"/>
+  <ellipse cx="393" cy="351" rx="22" ry="7" fill="#192f49" stroke="#58a6ff"/>
+  <path d="M371 351V377C371 386 415 386 415 377V351" fill="#192f49" stroke="#58a6ff"/>
+  <path d="M371 365C371 374 415 374 415 365" fill="none" stroke="#58a6ff"/>
+  <text x="430" y="358" class="heading">서버의 SQLite</text>
+  <text x="430" y="382" class="small muted">공유 상태는 Git main 밖에 보관</text>
+  <text x="370" y="426" class="small muted">HTTPS·상시 실행·백업은 운영자가 설정</text>
+
+  <path d="M650 204H702" class="line"/><text x="676" y="183" class="small blue" text-anchor="middle">제출</text>
+  <rect x="708" y="114" width="268" height="246" rx="10" class="card"/>
+  <text x="726" y="145" class="heading">Pull request + 머지 큐</text>
+  <text x="726" y="175" class="body muted">CI가 합쳐질 후보를 검사</text>
+  <path d="M726 193H958" stroke="#30363d"/>
+  <text x="726" y="221" class="body">실제 변경 경로와 예약 대조</text>
+  <text x="726" y="249" class="body">후보·검사 정책에 테스트 증거 연결</text>
+  <text x="726" y="277" class="body">인증된 검증 증거를 서버로 전달</text>
+  <text x="726" y="333" class="small muted">필수 검사는 운영자가 GitHub에 설정</text>
+  <path d="M708 300H656" fill="none" stroke="#3fb950" stroke-width="2" marker-end="url(#green)"/>
+  <path d="M842 360V396" fill="none" stroke="#3fb950" stroke-width="2" marker-end="url(#green)"/>
+  <rect x="708" y="402" width="268" height="96" rx="10" fill="#112119" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="726" y="433" class="heading green">main</text>
+  <text x="726" y="460" class="body">실제 병합을 확인한 뒤</text><text x="726" y="482" class="body">해당 과업의 예약 해제</text>
+  <path d="M708 480H680V474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
+
+  <rect x="24" y="539" width="952" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="500" y="570" text-anchor="middle" class="body muted">로컬 편집은 격리하고, 공유 상태는 트랜잭션으로 다루고, 합쳐질 결과는 CI로 검증합니다.</text>
+</svg>

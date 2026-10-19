@@ -23,6 +23,9 @@ FRAMEWORK: tuple[str, ...] = ()
 COMPONENT_GRAPH = "docs/architecture/components.json"
 # 끝난 과업을 본체에 합치는 방식. "direct" 는 ff 로 바로 합치고 "pr" 은 PR 을 거친다(kernel/task_finish.py).
 MERGE_FLOW = "direct"
+# Optional shared task coordinator; credentials are read from the named local environment variable.
+# Enabling TEAM requires MERGE_FLOW = "pr" and protected server-side admission (dev/TEAM.md).
+TEAM: dict[str, str] = {}
 
 # LANG 선택 후 언어팩 값을 사용한다. 필요할 때 SOURCE_EXT, SYNTAX, LINTERS를 명시한다.
 # 화면 소스 패턴(UI_EXT)은 화면팩이 준다 — 다를 때만 적는다. npm 폴더도 ui 레이어의 첫 세그먼트와 다를 때만 적는다.

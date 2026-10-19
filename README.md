@@ -7,7 +7,7 @@
 Plans, decisions, conventions and lessons stay in the repo, and hooks keep every session working from them —
 whichever agent, today's session or next month's.
 
-agent-harness v1.1.0 · for coding agents
+agent-harness v1.2.0 · for coding agents
 
 [English](README.md) · [한국어](README.ko.md)
 
@@ -38,6 +38,7 @@ agent-harness v1.1.0 · for coding agents
 | Blocks writing source files through the shell | ✓ | ✓ |
 | Plan before code: scope → research → plan → your approval | ✓ | — |
 | One worktree per task and a shared task board | ✓ | — |
+| Coordination across computers through an authenticated service | optional | — |
 | GitHub remote | optional — without one, finished work merges locally | — |
 | Codex support | ✓ | — |
 | Lessons become gates, the harness map stays in sync, maintenance reminders | ✓ | — |
@@ -92,6 +93,42 @@ Then say `set up the harness` in the repo you want checked. Only a settings file
 - Every save runs the checks, and the AI fixes what they find.
 - Nothing merges or pushes until every check passes.
 
+## Several computers — optional team mode
+
+<p align="center"><img src="docs/readme/team.en.svg" width="1000" alt="Two computers each run eight agent sessions with local worktrees and boards. An authenticated HTTPS coordinator stores shared reservations in SQLite. GitHub PR and merge queue CI verify the integration candidate before main; merge confirmation releases the reservation."></p>
+
+Each computer keeps its own clone, worktrees and local work board.
+Team mode adds a coordinator for shared task ownership, file and contract reservations, and lease generations.
+That live coordination state stays in the coordinator's SQLite database, outside the Git history of your project.
+
+For the template, configure `harness_profile.py` after deploying the coordinator:
+
+```python
+MERGE_FLOW = "pr"
+TEAM = {
+    "url": "https://harness.example.com",
+    "repository": "owner/repository",
+    "token_env": "HARNESS_WORKER_TOKEN",
+}
+```
+
+The operator runs the service with its database and configuration outside the repository:
+
+```bash
+python -X utf8 -m kernel.team serve --database /srv/harness/team.sqlite --config /srv/harness/team.json
+```
+
+The server configuration maps actors to environment variable names and either the `worker` or `integration` role.
+Give each actor a distinct token of at least 32 characters through its environment; keep token values out of committed files.
+Remote access requires HTTPS, normally through an operator-managed TLS reverse proxy.
+The operator also sets up service persistence, database backups and GitHub's required checks and merge queue.
+The harness does not create those GitHub protections automatically.
+
+Workers claim their scope and resources, renew their leases, and submit an immutable commit.
+CI checks the actual changed paths and the merged result; an authenticated merge confirmation releases the reservations.
+With `TEAM = {}`, the existing local workflow remains available.
+See [team setup and operations](dev/TEAM.md) for server configuration, task dependencies, heartbeats and CI wiring.
+
 ## What it catches
 
 The rules every session works under. When one is broken the session hears about it right away, and the work cannot merge until it is fixed.
@@ -141,7 +178,7 @@ Guesses never block. For example, "this work copy looks finished" is only a warn
 | Can I install before choosing a stack? | Yes. You pick it together before the first line of code. |
 | Which languages are checked? | Python, Go, TypeScript and Java out of the box. Setup ports any other language with one short file. |
 | No screens, but screen checks show `[SKIP]` | Set `ARCH = "backend_only"` or `"headless"` in `harness_profile.py`. |
-| Do I need GitHub? | No. Without a remote, work merges on your computer. |
+| Do I need GitHub? | Optional for solo work; without a remote, work merges on your computer. Team mode uses GitHub PRs and CI. |
 | How do I drop a task? | Ask the AI. Unsaved or unmerged work is never deleted without your OK. |
 | How do I update? | Plugin: `/plugin update agent-harness@agent-harness`. Template: `python -X utf8 harness_install.py --upgrade`. |
 
@@ -193,6 +230,7 @@ For a project that already has code, run `--dry-run` first to see current violat
 
 | Version | Changes |
 |:--|:--|
+| **v1.2.0** | Optional authenticated team coordinator, shared resource reservations and CI verification of PR and merge queue candidates. |
 | **v1.1.0** | Broader language support. |
 | **v1.0.0** | First public release. |
 

@@ -54,13 +54,13 @@ _KNOWN_NAMES = frozenset({
     "HUB_DOMAIN_MD_IMPLICIT", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "LOCAL_HOOKS", "HARNESS_MAP",
     "ROOT_FILES", "LEGACY_PATHS", "LESSONS_DOC", "AGENT_MODEL_POLICY", "MAINTENANCE",
     "VERSIONED_PROMPTS", "UI_COPY", "HARNESS_SELF", "PRESET_SUMMARY",
-    "PRESET_FITS", "PROFILE_SCHEMA", "UI_NPM_DIR", "COMPONENT_GRAPH", "MERGE_FLOW", "NAMING", "OWNED",
+    "PRESET_FITS", "PROFILE_SCHEMA", "UI_NPM_DIR", "COMPONENT_GRAPH", "MERGE_FLOW", "NAMING", "OWNED", "TEAM",
 })
 _STR_NAMES = ("STAGE", "LANG", "ARCH", "SYNTAX", "HARNESS_MAP", "LESSONS_DOC", "UI_NPM_DIR", "COMPONENT_GRAPH",
               "MERGE_FLOW")
 MERGE_FLOWS = ("direct", "pr")
 _DICT_NAMES = ("CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "PATTERNS",
-               "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY", "NAMING", "OWNED")
+               "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY", "NAMING", "OWNED", "TEAM")
 _SEQ_NAMES = ("HUBS", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "LOCAL_HOOKS", "ROOT_FILES",
               "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS", "FRAMEWORK")
 _SUB_KEYS = {
@@ -90,6 +90,13 @@ def _shape_errors(mod: Any) -> list[str]:
     flow = getattr(mod, "MERGE_FLOW", "direct")
     if isinstance(flow, str) and flow not in MERGE_FLOWS:
         found.append(f"{PROFILE_FILE}: MERGE_FLOW must be one of {' '.join(MERGE_FLOWS)} — current value is {flow!r}")
+    team = getattr(mod, "TEAM", {})
+    if isinstance(team, dict) and team:
+        required = {"url", "repository", "token_env"}
+        if set(team) - (required | {"timeout"}) or any(not isinstance(team.get(k), str) or not team[k].strip() for k in required):
+            found.append(f"{PROFILE_FILE}: TEAM requires url, repository and token_env strings; optional timeout only")
+        if flow != "pr":
+            found.append(f"{PROFILE_FILE}: TEAM requires MERGE_FLOW = 'pr'; shared integration owns main")
     schema = getattr(mod, "PROFILE_SCHEMA", None)
     if getattr(mod, "COMPONENT_GRAPH", "docs/architecture/components.json") != "docs/architecture/components.json":
         found.append(f"{PROFILE_FILE}: COMPONENT_GRAPH must be docs/architecture/components.json")
@@ -281,6 +288,7 @@ VERSIONED_PROMPTS: tuple[str, ...] = _seq("VERSIONED_PROMPTS")
 # UI 문구를 LLM 으로 검수하는 훅에 넘길 도메인 정보. "context" 는 업종·제품을 설명하는 한 줄이고,
 # "product_terms" 는 위반으로 보지 않을 도메인 필수 용어다. 판정 기준은 범용이라 커널이 갖고, 여기서는 맥락만 준다.
 UI_COPY: dict[str, Any] = dict(getattr(_MOD, "UI_COPY", {})) if _MOD else {}
+TEAM: dict[str, Any] = dict(getattr(_MOD, "TEAM", {})) if _MOD and isinstance(getattr(_MOD, "TEAM", {}), dict) else {}
 
 
 def layer(name: str) -> str | None:

@@ -16,6 +16,16 @@ from kernel.worktree import worktree_of
 
 
 def abandon(sid8: str, scope: str | None, discard_commits: bool = False) -> int:
+    from kernel.task_lock import task_lock
+
+    found = my_task(board_dir(), sid8, scope)
+    if found is None:
+        return 1
+    with task_lock(board_dir().parent, "scope:" + found[0].stem):
+        return _abandon(sid8, scope, discard_commits)
+
+
+def _abandon(sid8: str, scope: str | None, discard_commits: bool = False) -> int:
     board = board_dir()
     shared = board.parent
     found = my_task(board, sid8, scope)
@@ -35,6 +45,10 @@ def abandon(sid8: str, scope: str | None, discard_commits: bool = False) -> int:
                         + "\n".join(f"  {line}" for line in dirty), 1)
         if Path.cwd().resolve().is_relative_to(tree.resolve()):
             return fail('run abandon from the main checkout — Claude: ExitWorktree(action="keep") first', 1)
+    from kernel.team_tasks import release
+
+    release(shared, task_file.stem)
+    if tree is not None:
         removed = git(shared, "worktree", "remove", str(tree))
         if removed.returncode:
             return fail(f"git worktree remove refused — {removed.stderr.strip()[:300]}", 1)

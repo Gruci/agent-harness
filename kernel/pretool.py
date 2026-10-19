@@ -73,6 +73,10 @@ def _core_gate(root: Path, payload: dict[str, object], sid: str, tool: str, tool
             except ValueError:
                 return 0, ""                  # e.g. a patch that only deletes — nothing to guard
             found = isolation.edit_guard(paths, sid8, isolation.changed_lines(tool, tool_input))
+            if found is None:
+                from kernel.team_tasks import edit_guard
+
+                found = edit_guard(root, paths)
             return emit_finding(root, found, sid8 or "")
     command = tool_input.get("command") if isinstance(tool_input, dict) else None
     if not isinstance(command, str) or not command:

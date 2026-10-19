@@ -86,6 +86,14 @@
 | `kernel/irreversible.py` | 되돌릴 수 없는 셸 명령 판정(`guard`) — 기본 브랜치 강제·삭제 push, 메인 체크아웃의 `reset --hard`·`clean -f`, 남의 과업 브랜치·worktree 강제 삭제, 레포 밖·공유 폴더 재귀 삭제 | `kernel/pretool.py` 가 셸 명령마다 worktree 이름·나올 때 검사보다 먼저 부른다. 플러그인 코어에서도 돈다. 차단 사유와 안내문의 정본이다 |
 | `kernel/workboard.py` | 보드 위치(`board_dir`)와 서식 읽기·쓰기(`field`·`list_field`·`sid_of`·`board_text`·`add_list_item`), 겹침 판정 | 훅과 과업 명령은 보드 파일을 직접 파싱하지 않는다 |
 | `kernel/task.py`·`kernel/task_finish.py` | 과업 시작·인계·끝내기 명령과 공용 git 호출(`git`·`fail`) | 과업의 기계 단계를 산문으로 다시 적지 않는다. 절차 문서는 이 명령을 가리킨다 |
+| `kernel/task_lock.py` | 공유 Git 디렉터리의 프로세스 잠금 | 과업과 관찰 기록은 잠금을 재구현하지 않는다 |
+| `kernel/team_resources.py` | 변경 자원 정규화와 겹침 및 diff 권한 판정 | 조정기와 로컬 편집 가드 및 CI가 같은 판정을 쓴다 |
+| `kernel/team_store.py` | 원자적 과업 선점과 임대 및 세대 검증 | HTTP 처리기는 상태 전이를 재구현하지 않는다 |
+| `kernel/team_client.py` | 저장소에 바인딩된 인증 HTTP 요청 | 과업 명령과 CI는 토큰을 직접 직렬화하지 않는다 |
+| `kernel/team_tasks.py` | 로컬 영수증과 멱등 요청 및 임대 갱신 | 팀 과업의 로컬 실행 상태를 한 곳에서 관리한다 |
+| `kernel/team_git.py` | 실제 Git 후보와 제출 커밋 대조 및 원격 머지 확인 | 작업자 보고를 통합 증거로 사용하지 않는다 |
+| `kernel/team_admission.py`·`kernel/team_ci.py` | 신뢰된 검사기 격리와 workflow 실행 증거 연결 | 후보 코드를 통합 인증정보로 실행하지 않는다 |
+| `kernel/team_withdraw.py` | 원격 PR 종료 확인 후 후보 철회 | 조정기 세대 변경 전에 대기 중인 PR을 차단한다 |
 | `kernel/trace.py` | 관찰 기록 — 공유 `.git` 의 대기 파일에 쓰기, 합쳐 읽기, `flush`·`reclaim` | 훅은 추적 파일을 직접 열지 않는다 |
 | `.claude/hooks/_hookio.py` | 훅 페이로드 읽기, 관찰 기록 위임, 차단(`emit`)·경고(`warn`)·안내(`notify`) 출력 | Claude 전용 훅 래퍼. exit 코드와 `systemMessage` 를 직접 찍지 않는다 |
 | `kernel/worktree.py` | worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정 | Claude 래퍼와 Codex 진입점이 같은 판정을 쓴다. 문구도 여기가 정본이다 |
