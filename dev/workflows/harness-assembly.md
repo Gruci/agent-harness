@@ -41,9 +41,16 @@
 설치는 사용자가 동의한 것만 하고, 하네스 본체 개발에는 아무것도 설치하지 않는다.
 `python -X utf8 -m kernel.pack_check <이름>` 에 `[UNVERIFIED]` 가 없어야 끝난다.
 설치에 동의한 도구는 `.github/workflows/harness.yml` 의 verify step 앞에도 적는다.
+제품 테스트 명령이 정해졌으면 프로파일 `TESTS` 에 JUnit 보고서 자리 `{report}` 와 함께 선언하자고 제안한다. finish 와 CI 가 그 명령을 돌리고, 실행 0건은 실패로 친다(계약은 `dev/TESTING.md` 「하네스가 돌리는 제품 테스트」). 보고서를 만들 수 없는 도구면 선언하지 않고 그 사실을 사용자에게 말한다.
+선택한 스택과 테스트 명령이 승인됐으면 `python -X utf8 -m kernel.preflight --configure`로 완료 설정을 채운다.
+pytest 설정 파일이 있으면 그 실행 명령을 사용하며 다른 도구는 `--test-command` 뒤에 승인된 명령과 `{report}` 자리를 전달한다.
+기존 테스트 명령과 필수 검사 목록은 보존한다.
+설정 보완은 도구를 설치하지 않으며 명령을 확인할 수 없으면 파일을 고치지 않는다.
+`harness_install.py --doctor`로 실행 파일과 모듈 및 누락한 완료 계약을 확인한다.
 컴포넌트 그래프의 `technology` 가 선택한 언어와 다르면 `python -X utf8 -m kernel.graph_workflow bind` 로 이미 받은 스택 답을 결정으로 기록하고 다시 묻지 않는다.
 스택 매니페스트(go.mod 나 package.json 같은 파일)는 프로파일 `ROOT_FILES` 에 사유와 함께 더한다.
 무엇이 1급이고 무엇이 N/A 인지와 그 이유를 사용자에게 사람 말로 보고한다.
+그다음 꼭 돌아야 하는 검사를 프로파일 `REQUIRED_CHECKS` 로 제안한다(예: 린터 slug, `test_pairing`, `tests`). 첫 컴포넌트가 생긴 뒤부터 그 검사가 꺼져 있으면 `--verify` 가 실패한다. 제안이고 강제하지 않는다. 목록을 줄이는 것은 완화라 편집 표면 래칫이 센다.
 
 ## 첫 분류와 승인
 

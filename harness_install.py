@@ -29,7 +29,7 @@ PLUGIN_UPDATE = "[UPDATE] Plugin install — upgrade with `/plugin update agent-
 # 편집 표면 동결본. 설치가 프리셋 선언으로 뜬다 — 하네스 레포의 것을 물려받지 않는다(harness_gates/edit_surface.py).
 SURFACE_FILE = "harness_surface.txt"
 
-BASELINE_HEADER = """# harness_baseline.txt — baseline of violations that already existed when the harness was installed.
+BASELINE_HEADER = """# harness_baseline.txt — known violations a person froze so they are not counted (install only reports them).
 #
 # Format: <gate slug>\\t<file path>
 # Ratchet: this file may only shrink. When you fix a file, delete its row.
@@ -231,7 +231,7 @@ def write_surface(preset: str) -> None:
     from harness_gates import edit_surface
 
     module = _preset_module(preset)
-    rows = edit_surface.declared(module) if module is not None else set()
+    rows = edit_surface.frozen_rows(module) if module is not None else set()
     edit_surface.write(rows, ROOT / SURFACE_FILE)
     print(f"[SURFACE] {SURFACE_FILE} written from preset {preset} — {len(rows)} exemption rows; the list may only shrink")
 

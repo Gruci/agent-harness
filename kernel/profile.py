@@ -7,7 +7,7 @@
 이전 하네스는 레이어 이름이 안 맞아 검사 대상이 0개인데도 [OK] 로 통과시켰고, 그래서 실제로는
 아무것도 검사하지 않는 게이트를 믿게 만들었다.
 
-스키마 정의와 각 항목의 뜻은 `profiles/_template.py` 가 정본이다.
+시작 프로파일은 `profiles/_template.py` 이고 생략한 선택 설정의 기본값은 이 모듈과 선택한 팩이 정한다.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import importlib.util
 import re
 from typing import Any
 
-from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, UPSTREAM, arch, framework, lang
+from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, UPSTREAM, arch, framework, lang, profile_checks
 from kernel.context import KERNEL_HOME, PROFILE_FILE, ROOT, git_output
 
 _CHECK_PATH_KEYS = ("ui", "ui_admin", "ui_tokens", "tests", "routes", "schema")
@@ -55,6 +55,7 @@ _KNOWN_NAMES = frozenset({
     "ROOT_FILES", "LEGACY_PATHS", "LESSONS_DOC", "AGENT_MODEL_POLICY", "MAINTENANCE",
     "VERSIONED_PROMPTS", "UI_COPY", "HARNESS_SELF", "PRESET_SUMMARY",
     "PRESET_FITS", "PROFILE_SCHEMA", "UI_NPM_DIR", "COMPONENT_GRAPH", "MERGE_FLOW", "NAMING", "OWNED", "TEAM",
+    "REQUIRED_CHECKS", "TESTS", "TOUCH_ENFORCE",
 })
 _STR_NAMES = ("STAGE", "LANG", "ARCH", "SYNTAX", "HARNESS_MAP", "LESSONS_DOC", "UI_NPM_DIR", "COMPONENT_GRAPH",
               "MERGE_FLOW")
@@ -62,7 +63,8 @@ MERGE_FLOWS = ("direct", "pr")
 _DICT_NAMES = ("CHECK_PATHS", "FILES", "SYMBOLS", "VOCAB", "ALLOWLIST", "MD", "SCOPE", "PATTERNS",
                "NOT_APPLICABLE", "AGENT_MODEL_POLICY", "MAINTENANCE", "UI_COPY", "NAMING", "OWNED", "TEAM")
 _SEQ_NAMES = ("HUBS", "DOC_SYNC", "BEHAVIOR_TESTED_ROOTS", "LOCAL_GATES", "LOCAL_HOOKS", "ROOT_FILES",
-              "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS", "FRAMEWORK")
+              "SOURCE_EXT", "UI_EXT", "LINTERS", "LEGACY_PATHS", "VERSIONED_PROMPTS", "FRAMEWORK",
+              "REQUIRED_CHECKS", "TESTS")
 _SUB_KEYS = {
     "CHECK_PATHS": _CHECK_PATH_KEYS, "FILES": _FILE_KEYS, "SYMBOLS": _SYMBOL_KEYS, "VOCAB": _VOCAB_KEYS,
     "ALLOWLIST": _ALLOWLIST_KEYS, "MD": _MD_KEYS, "SCOPE": ("exclude_all", "exclude_scratch"),
@@ -125,7 +127,7 @@ def _shape_errors(mod: Any) -> list[str]:
                         ("OWNED", lang.valid_patterns(getattr(mod, "OWNED", {}), None, allow_none=True))):
         if error and isinstance(getattr(mod, name, {}), dict):
             found.append(f"{PROFILE_FILE}: {name} {error}")
-    return found
+    return found + profile_checks.contract_errors(mod)
 
 
 PROFILE_ERRORS: list[str] = _shape_errors(_MOD)
@@ -162,6 +164,10 @@ IS_HARNESS_SELF: bool = bool(getattr(_MOD, "HARNESS_SELF", False)) if _MOD else 
 COMPONENT_GRAPH: str = getattr(_MOD, "COMPONENT_GRAPH", "docs/architecture/components.json")
 # 끝난 과업을 본체에 합치는 방식 — kernel/task_finish.py 가 읽는다. 선언하지 않으면 ff 로 바로 합친다.
 MERGE_FLOW: str = getattr(_MOD, "MERGE_FLOW", "direct") if _MOD else "direct"
+# 완료 계약(kernel/required.py). 졸업 뒤 --verify 에서 이 slug 가 [SKIP]·[N/A]·결과 없음이면 실패다. 비면 지금과 같다.
+REQUIRED_CHECKS: tuple[str, ...] = tuple(s for s in _seq("REQUIRED_CHECKS") if isinstance(s, str))
+# 제품 테스트 선언. 실행기(kernel/tests_run.py)는 이 공개 값이 아니라 대상 트리의 프로파일 원본을 직접 읽는다.
+TESTS: tuple = _seq("TESTS")
 
 CHECK_PATHS = _mapping("CHECK_PATHS", _CHECK_PATH_KEYS, None)
 FILES = _mapping("FILES", _FILE_KEYS, None)
@@ -370,6 +376,9 @@ def setup_notice(remotes: list[str]) -> str:
 
 
 if __name__ == "__main__":
+    from kernel.task_status import status
+
+    print(status(ROOT)[1])
     for notice in (setup_notice(remote_urls()), outdated_notice()):
         if notice:
             print(notice)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kernel import team_tasks
+from kernel import finish_checks, team_tasks
 from kernel.exit_gate import verify_checkout
 from kernel.task import fail
 
@@ -35,9 +35,13 @@ def finish(shared: Path, task_file: Path, text: str, branch: str, tree: Path | N
         if overrun:
             return fail(overrun, 1)
         _archive(shared, tree, task_file.stem, list_field(text, "산출물"))  # ko-ok: local board key
+        verified_head = team_tasks.git_value(tree, "rev-parse", "HEAD")
         code, lines = verify_checkout(tree) or (2, ["team submission requires an installed runner"])
         if code:
             return fail("team worktree verification failed:\n" + "\n".join(lines), code)
+        code, problem = finish_checks.product_tests(tree, verified_head)
+        if code:
+            return fail(problem, code)
         team_tasks.submit(tree, task_file.stem)
     elif current["state"] not in ("submitted", "verified"):
         return fail(f"team task is {current['state']}; renew/reclaim it before submitting", 1)

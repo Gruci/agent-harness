@@ -42,12 +42,13 @@ def session_notice(root: Path | None) -> str:
         return ("[HARNESS] This repo is not connected to agent-harness, so gates are off. "
                 "Connect it with the harness-init skill only when the user asks.")
     from kernel import profile
+    from kernel.task_status import status
     command = f'python -X utf8 "{HOME.as_posix()}/kernel"'
     lines = [f"[HARNESS] Gates are on. Done means exit 0 from `{command} --verify` — [SKIP] is not a pass.",
              f"[HARNESS] Harness commands: `{command} <subcommand>` — install · pack_check · profile."]
     # 템플릿 설치와 같은 함수가 판정한다 — 언어 미선택과 하네스 자신의 프로파일은 어느 설치 방식에서나 안내한다.
     notices = [notice for notice in (profile.setup_notice(profile.remote_urls()), profile.outdated_notice()) if notice]
-    return "\n".join([*lines, *notices])
+    return "\n".join([*lines, status(root)[1], *notices])
 
 
 def main(argv: list[str]) -> int:

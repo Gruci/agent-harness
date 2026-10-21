@@ -15,6 +15,9 @@ This is the Codex-only entry point for this project. Claude Code uses `CLAUDE.md
 
 ## Initial Codex setup
 
+At session entry, run `python -X utf8 -m kernel.task status --sid <sid8>` and read the current task's plan before editing.
+The status reads the shared board and Git; an unchecked archived plan is not an open task, and an archive commit alone does not prove push or tests.
+
 This harness uses autonomous execution after scope and plan approval.
 At initial setup, run `python -X utf8 setup_global_permissions.py --agent codex --check`.
 If the global setup is missing, install it with `python -X utf8 setup_global_permissions.py --agent codex`.
@@ -45,10 +48,11 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 
 - Use `$feature-workflow-cdx` for code changes except an obvious typo or one configuration value.
 - The shared [change procedure](dev/workflows/feature-workflow.md) owns research, scope approval, implementation, verification, and archive requirements.
+- Implementation starts only after the user approves the plan; the exceptions are an obvious typo, one configuration value, and the `--small` path whose real diff finish measures. <!-- inv:plan-before-code -->
 - Existing approval of a concrete proposal remains valid; record it and continue without repeating the same approval request.
 - Runtime filesystem or sandbox approvals are separate from task approval. Request only access actually required by a failed operation; never weaken global permissions as an implementation shortcut.
 - At implementation start, check `workboard/` and start the task with `python -X utf8 -m kernel.task start <scope> --sid <sid8> --branch <type>/<name> --touch <glob> [--plan docs/tasks/plan_<task>.md]`. It writes the task file tagged `#sid:<session id first 8>` and creates `worktrees/<scope>--<sid8>` without an upstream. If the scope already has a file, it stops and tells you to join it (add your items) or stack on its branch.
-- Work inside that worktree directory. The shared PreToolUse hook blocks edits in the main checkout, edits in a worktree owned by another session's task, and any edit before your `#sid` task file exists. The exemptions are `workboard/**`, `docs/tasks/**`, and at most one uncommitted changed line in the whole main checkout.
+- Work inside that worktree directory. The shared PreToolUse hook blocks edits in the main checkout, edits in a worktree owned by another session's task, and any edit before your `#sid` task file exists. The exemptions are `workboard/**`, `docs/tasks/**`, and at most one uncommitted changed line in the whole main checkout; another session's worktree is blocked even for one line. <!-- inv:worktree-only -->
 - A later session takes over an open task with `python -X utf8 -m kernel.task resume <scope> --sid <sid8>`, and only when the previous session has ended. The guard's block message prints the command with your session id filled in.
 - Inside a worktree the save and stop gates only notify through `systemMessage`. Before `git push`, `gh pr create`, `gh pr merge`, or a `git merge` of a task branch in the main checkout, the hook runs `python -X utf8 -m kernel.runner --verify` in the checkout whose work leaves and blocks unless it exits 0. Every such command in one command line is checked, and `cd` or `git -C` decide the checkout.
 - Finish with `python -X utf8 -m kernel.task finish --sid <sid8>`. It archives the task documents into the branch, verifies that worktree, fast-forwards the default branch, pushes, and cleans up in order: originals, worktree, branch, and the task file last. Without a remote it merges locally only. A small fix in existing files can start with `--small` instead of a plan; finish measures the real diff and refuses if it grew. Drop an abandoned task with `python -X utf8 -m kernel.task abandon --sid <sid8>`. When it says the cleanup must run outside the worktree, run it again from the main checkout.
@@ -63,21 +67,22 @@ Search first and read targeted ranges. Do not preload unrelated Markdown.
 - UI uses the selected project stack and approved delivery component. Verify the consuming screen when a feature includes one.
 - Before changing a signature or response shape, trace callers and consumers across DB, API, and screen code.
 - Prefer existing helpers, the standard library, native platform features, and installed dependencies. Make surgical changes. Report unrelated dead code without removing it.
-- Architecture, naming, data model and code conventions each have their canonical doc under `dev/` (see the routing table in `CLAUDE.md`). `kernel/runner.py` enforces the machine-checkable subset.
+- Architecture, naming, data model and code conventions each have their canonical doc under `dev/` (see the table in 「Editing prerequisites」 above and `dev/DEVGUIDE.md`). `kernel/runner.py` enforces the machine-checkable subset.
 
 ## Evidence and debugging
 
-- Verify paths with search, database state with queries, and behavior by reading or running code. Never state an assumption as fact.
+- Verify paths with search, database state with queries, and behavior by reading or running code. Never state an assumption as fact. <!-- inv:evidence-first -->
 - Reproduce and trace the root cause, compare against a working pattern, test one hypothesis with the smallest change, then add a regression test and fix it.
 - After three failed fix attempts, stop editing and report the evidence and the likely architectural issue.
 - Re-read targets that may be stale after compaction or concurrent edits.
 
 ## Verification and completion
 
-- Run `python -X utf8 -m kernel.runner --verify` and the checks proportionate to the change before claiming completion. `[TOOL]` (exit 2) and a pending user decision (exit 3) are not done.
+- Run `python -X utf8 -m kernel.runner --verify` and the checks proportionate to the change before claiming completion. `[TOOL]` (exit 2) and a pending user decision (exit 3) are not done. <!-- inv:verify-before-done -->
 - A bug fix must show its reproduction test passing. UI work also requires a rendered inspection.
 - Do not claim a test or build passed unless that command exited 0 in this checkout.
 - Update the relevant shared Markdown in the same turn as durable contracts, routes, components, schemas, or user rules. Write it to `dev/MD_STANDARD.md`: one meaning per line, one fact in one place, and nothing that Glob, Grep, or git log already answers.
+- Do not get under the 400-line file limit by cutting a file mechanically; split it by feature. Do not paper over a type with `Any` or `any`; when it is unavoidable, leave the reason in an inline comment. <!-- inv:no-gate-bypass -->
 - Enforce checkable rules in `kernel/runner.py` or another deterministic gate. Markdown explains the rule but is not its enforcement. The Markdown style gate validates structure at write time and `md_style_baseline.txt` may only shrink.
 
 ## Codex harness

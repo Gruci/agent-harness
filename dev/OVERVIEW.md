@@ -71,7 +71,7 @@ AI 세션이 바뀌어도 한 사람이 작업한 것처럼 이어지게 한다.
 | 포팅 | 하네스를 새 언어로 옮기는 일. 커널은 그대로 두고 언어팩 하나를 쓴다 | [조립 절차](workflows/harness-assembly.md) |
 | 1급 팩 | 팩의 예제로 검사가 실제로 동작함이 확인된 팩. `kernel.pack_check` 가 판정한다 | `kernel/pack_check.py` |
 | 구문 사실 | 파일에서 뽑은 함수 범위·import·최상위 이름. 여러 검사가 언어와 상관없이 이것만 읽는다 | `kernel/facts.py` |
-| 분석기 | 구문 사실을 만드는 엔진. `python`(표준 ast)·`regex`(정규식, 설치 0개)·`treesitter`·`command`(외부 스크립트가 내는 구문 사실 JSON) | [하네스 지도](HARNESS.md) 「구문 사실」 |
+| 분석기 | 구문 사실을 만드는 엔진. `python`(표준 ast)·`regex`(정규식, 설치 0개)·`treesitter`·`command`(외부 스크립트가 내는 구문 사실 JSON) | [팩과 컴포넌트 그래프](harness/packs.md) 「구문 사실」 |
 | 모듈 규칙 | import 문을 레포 안 파일로 풀어 내는 방식. `go_package`·`relative`·`dotted` | `kernel/analyzers/modules.py` |
 | 컴포넌트·역할·간선 | 제품 코드 덩어리, 그 안의 책임(정책·어댑터 등), 덩어리 사이에 허용된 의존 | [아키텍처](ARCHITECTURE.md) |
 | 첫 분류 | 새 프로젝트의 코드 전체를 컴포넌트 하나(`app`, 역할 `core`)로 시작하는 기록. 영역이 둘 이상 생기면 나눈다 | [컴포넌트 계약](COMPONENTS.md) |
@@ -82,9 +82,9 @@ AI 세션이 바뀌어도 한 사람이 작업한 것처럼 이어지게 한다.
 | 설정 단계(greenfield) | 첫 분류를 기록하기 전. 이 동안은 설정 파일(프로파일·`PROJECT.md`·`profiles/`·`docs/architecture/`·`.github/workflows/`)을 본체에서 바로 고칠 수 있다. 첫 분류를 기록하면 끝난다 | [하네스 지도](HARNESS.md) ⑧-6 |
 | 소규모 경로 | 기존 파일 3개·40줄 이하의 수정을 계획서 없이 하는 길(`start --small`). 넘으면 끝낼 때 거절하고, 그때부터는 보통 과업처럼 계획서를 쓴다 | [기능 변경 절차](workflows/feature-workflow.md) |
 | 합치기 전 검사(나올 때 검사, ⑧-7) | push·merge 직전에 나가는 트리의 `--verify` 를 다시 돌려 exit 0 이 아니면 막는 훅 | [하네스 지도](HARNESS.md) ⑧-7 |
-| 래칫 | 정리한 상태가 되돌아가지 않게 하는 목록. 줄이는 것이 원칙이다. 편집 표면은 늘면 검사가 실패하고, 동결 목록은 늘면 `finish` 가 `[RATCHET]` 으로 알리고 회고가 본다 | [하네스 지도](HARNESS.md) 「게이트」 |
-| 동결 목록(baseline) | 당장 못 고치는 위반을 파일 단위로 적어 둔 래칫(`harness_baseline.txt`·`*_baseline.txt`). 사람만 더하고, 고치면 줄을 지운다 | [하네스 지도](HARNESS.md) 「게이트」 |
-| 편집 표면 | 프로파일이 검사를 봐주게 하는 선언 — `ALLOWLIST`·`SCOPE["exclude_all"]`, 그리고 끄거나 넓히거나 바꿔치기한 `NAMING`·`OWNED`. `harness_surface.txt` 보다 늘면 검사가 실패한다 | [하네스 지도](HARNESS.md) 「게이트」 |
+| 래칫 | 정리한 상태가 되돌아가지 않게 하는 목록. 줄이는 것이 원칙이다. 편집 표면은 늘면 검사가 실패하고, 동결 목록은 늘면 `finish` 가 `[RATCHET]` 으로 알리고 회고가 본다 | [게이트 상세](harness/gates-detail.md) 「로컬 게이트와 래칫」 |
+| 동결 목록(baseline) | 당장 못 고치는 위반을 파일 단위로 적어 둔 래칫(`harness_baseline.txt`·`*_baseline.txt`). 사람만 더하고, 고치면 줄을 지운다 | [게이트 상세](harness/gates-detail.md) 「로컬 게이트와 래칫」 |
+| 편집 표면 | 프로파일이 검사를 봐주게 하는 선언 — `ALLOWLIST`·`SCOPE["exclude_all"]`, 그리고 끄거나 넓히거나 바꿔치기한 `NAMING`·`OWNED`. `harness_surface.txt` 보다 늘면 검사가 실패한다 | [게이트 상세](harness/gates-detail.md) 「로컬 게이트와 래칫」 |
 | 한 주인 기능 | HTTP 클라이언트·DB 연결·날짜 포맷처럼 모듈 하나만 맡아야 하는 기능. 둘째 파일에 생기면 잡는다 | [관례 레지스트리](CONVENTIONS.md) |
 | 이름 일관성 | 함수·매개변수·응답 키의 표기와, 같은 대상을 읽는 함수의 동사를 하나로 맞추는 검사 | [이름 규칙](NAMING.md) |
 | 응답 래퍼 | 모든 라우트가 응답을 돌려줄 때 거치는 공용 함수. 프로파일 `SYMBOLS["error_response"]` 에 적는다 | [하네스 지도](HARNESS.md) 검사 16 |

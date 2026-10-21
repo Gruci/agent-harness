@@ -1,10 +1,10 @@
-"""kernel/baseline.py — 설치 시점에 동결한 위반 목록(래칫: 줄기만 하고 늘지 않는 목록)을 읽어 적용한다.
+"""kernel/baseline.py — 사람이 동결한 위반 목록(래칫: 줄기만 하고 늘지 않는 목록)을 읽어 적용한다.
 
-하네스를 기존 레포에 설치한 첫 실행이 위반을 수백 건 쏟아내면 사람은 게이트를 통째로 끈다.
-하네스가 실제로 버려지는 경로가 이것이다. 그래서 설치할 때 현재 위반을 (slug, 파일) 단위로 동결해
-모든 검사가 통과한 상태에서 출발한다. 줄번호로 동결하지 않는 이유는 코드가 한 줄만 밀려도 동결이 풀리기 때문이다.
+기존 레포의 첫 실행이 위반을 수백 건 쏟아내면 사람은 게이트를 통째로 끈다. 그래서 사람이 이미 있는 위반을
+(slug, 파일) 단위로 이 목록에 적으면 그 쌍은 위반으로 세지 않는다. 설치는 위반을 보고만 하고 목록을 채우지 않는다.
+줄번호로 동결하지 않는 이유는 코드가 한 줄만 밀려도 동결이 풀리기 때문이다.
 
-러너는 동결을 적용하고, 설치 스크립트는 동결 목록을 만들고, trace 는 위반에서 파일 경로를 뽑는다.
+러너는 동결을 적용하고, 설치 스크립트의 `--prune` 은 고친 행을 지우고, trace 는 위반에서 파일 경로를 뽑는다.
 셋이 같은 판정을 쓰므로 러너 밖으로 뺐다. 러너 파일이 400줄 상한을 지키게 하려는 것도 이유다.
 
 `growth` 는 래칫이 실제로 늘었는지를 **관찰**한다. 면제 파일에 행을 더하는 일은 어떤 훅도 걸지 않아 기록에 남지 않았고,
@@ -60,14 +60,20 @@ def _git_out(tree: Path, *args: str) -> str:
     return git_output("-C", str(tree), *args) or ""
 
 
+REQUIRED_ROW = "REQUIRED_CHECKS\t"   # 편집 표면의 필수 검사 행 — 극성이 반대라 더하면 강화, 빼면 완화다
+
+
 def _added_rows(tree: Path, base: str) -> list[str]:
-    """`base...HEAD` 가 래칫 파일에 더한 비주석 행."""
+    """`base...HEAD` 가 래칫 파일에 더한 비주석 행과, 편집 표면에서 지운 필수 검사 행."""
     found: list[str] = []
     current = ""
     for line in _git_out(tree, "diff", "-U0", f"{base}...HEAD", "--", *RATCHET_FILES).splitlines():
-        if line.startswith("+++ "):
-            current = line[4:].removeprefix("b/").strip()
-        elif line.startswith("+") and not line.startswith("+++"):
+        if line.startswith(("+++ ", "--- ")):
+            current = line[4:].removeprefix("b/").strip() if line.startswith("+++ ") else current
+        elif line[:1] in "+-" and line[1:].startswith(REQUIRED_ROW):
+            if line.startswith("-"):
+                found.append(f"{current}: -{line[1:].strip()} (required check dropped)")
+        elif line.startswith("+"):
             body = line[1:].split("#", 1)[0].strip()
             if body:
                 found.append(f"{current}: +{body}")

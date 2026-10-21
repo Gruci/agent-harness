@@ -151,7 +151,15 @@ def overlaps(target: Path, sid8: str, board: Path, root: Path) -> list[str]:
         if sid8 and f"#sid:{sid8}" in text:
             continue                      # 내 과업
         for pattern in touch_globs(text):
-            if fnmatch.fnmatch(rel, pattern) or rel.startswith(pattern.rstrip("*")):
+            if touches(rel, pattern):
                 hits.append(f"{path.stem} ({pattern})")
                 break
     return hits
+
+
+def touches(rel: str, pattern: str) -> bool:
+    """`손대는 곳` 글로브 하나가 그 경로를 덮는가. 편집 겹침 경고와 finish 의 범위 대조가 같은 규칙을 쓴다.
+
+    TEAM 의 자원 예약(`kernel/team_resources.py`)과는 의미가 다르다 — 그쪽은 글로브의 고정 부모 하위 트리 전체를 잡는다.
+    """
+    return fnmatch.fnmatch(rel, pattern) or rel.startswith(pattern.rstrip("*"))

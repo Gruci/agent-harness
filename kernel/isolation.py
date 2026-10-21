@@ -24,8 +24,10 @@ PreToolUse` 로 이 판정을 부른다. 페이로드 해석과 exit 코드와 �
 설정 단계 — 그래프에 컴포넌트가 하나도 없는 동안 — 에는 설정 파일(`SETUP_PREFIXES`)도 예외다. 온보딩이 프로파일과
 `PROJECT.md` 를 고쳐야 하는데, 그것까지 과업과 worktree 를 요구하면 원격이 없는 첫날에 설정이 worktree 에 갇혔다.
 첫 컴포넌트가 승인되면 저절로 끝난다.
-1줄 예외는 `CLAUDE.md` 4단계 워크플로우의 예외("오탈자·설정값 1줄")를 기계로 판정한 것이라 두 판정을 모두 면제한다.
-그런 편집에는 plan 이 없고, plan 이 없으면 보드 행도 없는 것이 정상이다. 줄 수만 보고 파일 종류는
+1줄 예외는 `CLAUDE.md` 4단계 워크플로우의 예외("오탈자·설정값 1줄")를 기계로 판정한 것이라 보드 등록과 메인 체크아웃
+판정을 면제한다. 그런 편집에는 plan 이 없고, plan 이 없으면 보드 행도 없는 것이 정상이다. **worktree 주인 판정은
+면제하지 않는다** — 남의 과업 worktree 는 1줄이어도 막는다. worktree 편집에는 본체 누적이 0이라, 예외를 먼저 돌리면
+남의 worktree 를 1줄씩 고치는 편집이 매번 통과했다. 줄 수만 보고 파일 종류는
 보지 않는다(사용자 지정 기준). **본체에서는 그 1줄이 본체 전체에 한 번이다** — 이번 편집의 줄 수에 본체에
 이미 쌓인 커밋 안 된 구현 변경 줄 수를 더한다. 편집마다 1줄이면 쉰 번 나눠 격리를 통째로 우회할 수 있었다.
 
@@ -253,6 +255,12 @@ def edit_guard(paths: list[Path], sid8: str | None, lines: int,
     targets = _guarded(paths, shared)
     if not targets:
         return None
+    if sid8 is not None:                  # 주인 판정은 1줄 예외보다 먼저다 — 남의 worktree 는 1줄이어도 막는다
+        for path, kind in targets:
+            owner = _worktree_owner(path, shared, board) if kind == "worktree" else None
+            if owner is not None and owner[1] != sid8:
+                return Finding(HOOK_NAME, "edit_guard", True, _resume_message(owner[0], owner[1], sid8),
+                               (f"edit in task {owner[0]} owned by {owner[1]}",))
     on_main = [path for path, kind in targets if kind == "main"]
     pending = main_pending_lines(shared) if on_main else 0
     if lines + pending <= MAX_FREE_LINES:
@@ -265,11 +273,6 @@ def edit_guard(paths: list[Path], sid8: str | None, lines: int,
         return Finding(HOOK_NAME, "edit_guard", False,
                        "[ISOLATION] git query failed, so the checkout is unknown — skipping the isolation guard.",
                        ("git query failed",))
-    for path, kind in targets:
-        owner = _worktree_owner(path, shared, board) if kind == "worktree" else None
-        if owner is not None and owner[1] != sid8:
-            return Finding(HOOK_NAME, "edit_guard", True, _resume_message(owner[0], owner[1], sid8),
-                           (f"edit in task {owner[0]} owned by {owner[1]}",))
     scope = my_scope(sid8, board)
     if scope is None:
         return Finding(HOOK_NAME, "edit_guard", True, _register_message(sid8), (f"not on task board {sid8}",))

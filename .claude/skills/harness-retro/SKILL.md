@@ -54,5 +54,6 @@ description: 하네스 회고 — 훅이 막은 기록(harness_trace.jsonl)과 �
 ## 9. 기록
 
 - 거절·보류한 제안을 `dev/REJECTED.md` 에 적는다. **부정 결과가 사라지면 다음 회고가 같은 제안을 다시 한다.**
+- 사람이 내린 판정마다 `python -X utf8 -m kernel.retro --verdict <게이트> <violation|false_positive|wrong_rule|hold> --evidence <경로>` 로 한 줄을 남긴다. 다음 회고의 「By gate」 가 게이트별 판정 수를 보여 준다. 판정 수로 게이트를 낮추지 않는다(`dev/REJECTED.md` 「게이트 소거 기준」).
 - `python -X utf8 -m kernel.maintenance --stamp harness-retro`
-- `harness_maintenance.json` 과 `harness_trace.jsonl` 을 커밋한다. 스탬프 날짜가 다음 회고의 기준점이라, 안 남기면 같은 기록을 계속 다시 읽는다.
+- `harness_maintenance.json`, `harness_trace.jsonl`, `harness_retro_verdicts.jsonl` 을 커밋한다. 스탬프 날짜가 다음 회고의 기준점이라, 안 남기면 같은 기록을 계속 다시 읽는다.

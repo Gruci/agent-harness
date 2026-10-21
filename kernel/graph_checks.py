@@ -1,9 +1,13 @@
 """Read-only runner integration for component ownership, decisions and maps."""
 
-from pathlib import Path
+import fnmatch
+from pathlib import Path, PurePosixPath
 
-from kernel import component_graph, feature_map, graph_workflow, port_contracts, profile
+from kernel import component_graph, feature_map, graph_workflow, lang, port_contracts, profile
+from kernel.context import candidate_files, is_harness_own
 from kernel.gates import components, context_api
+
+UNBOUND_SHOWN = 5
 
 # Before any product source or implemented component exists there is nothing to classify or trace.
 NO_SOURCE = ("SKIP", "no product source matches technology.sources yet")
@@ -25,6 +29,47 @@ def binding_errors(graph: dict) -> list[str]:
                    for probe in probes):
             errors.append(f"technology.sources do not cover {pattern} — {BIND}; needs_decision")
     return errors
+
+
+def _known_source_patterns() -> set[str]:
+    """Every shipped or project language pack's source patterns plus the profile's UI patterns."""
+    patterns = set(profile.UI_EXT)
+    for name in lang.available():
+        try:
+            patterns |= set(lang.load(name)["EXT"])
+        except (OSError, ValueError, KeyError, TypeError, ImportError):
+            continue
+    return patterns
+
+
+def unbound_report(root: Path) -> list[str]:
+    """Files that look like source to some language pack but no technology.sources pattern binds.
+
+    A report, never a block: that such a file is product code is an inference, and inferences do not block
+    (dev/HARNESS.md 「단계」). Excluded graph paths, harness files and SCOPE exclusions are left out.
+    """
+    try:
+        graph = component_graph.load(root)
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+    patterns = _known_source_patterns()
+    skipped = tuple(profile.SCOPE.get("exclude_all") or ())
+    root = root.resolve()
+    unbound = []
+    for path in candidate_files(root=root):
+        rel = path.relative_to(root).as_posix()
+        name = PurePosixPath(rel).name
+        if (not any(fnmatch.fnmatch(name, pattern) for pattern in patterns) or is_harness_own(rel)
+                or rel.startswith(skipped) or component_graph.excluded(graph, rel)
+                or any(component_graph.matches(rel, source) for source in graph["technology"]["sources"])):
+            continue
+        unbound.append(rel)
+    if not unbound:
+        return []
+    shown = ", ".join(unbound[:UNBOUND_SHOWN]) + (f" and {len(unbound) - UNBOUND_SHOWN} more"
+                                                  if len(unbound) > UNBOUND_SHOWN else "")
+    return [f"{len(unbound)} files look like source but no technology.sources pattern binds them ({shown}) — "
+            f"no gate checks them. Bind the language ({BIND}) or exclude the path in the graph."]
 
 
 def sections(root: Path, verify: bool = False) -> list[tuple]:

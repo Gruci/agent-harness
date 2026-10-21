@@ -64,7 +64,7 @@
   <rect x="708" y="402" width="268" height="96" rx="10" fill="#112119" stroke="#3fb950" stroke-width="1.5"/>
   <text x="726" y="433" class="heading green">main</text>
   <text x="726" y="460" class="body">Confirmed merge releases</text><text x="726" y="482" class="body">the task's reservations</text>
-  <path d="M708 480H680V474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
+  <path d="M708 474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
 
   <rect x="24" y="539" width="952" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
   <text x="500" y="570" text-anchor="middle" class="body muted">Local edits stay isolated. Shared state is transactional. CI verifies the integration candidate.</text>

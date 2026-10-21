@@ -16,6 +16,7 @@ from pathlib import Path
 
 TRACE = "harness_trace.jsonl"
 MAINTENANCE = "harness_maintenance.json"
+VERDICTS = "harness_retro_verdicts.jsonl"
 # 하네스 레포에서만 의미가 있는 파일. 원류 CI 가 이 파일들로 하네스를 검증한다. `harness_gates/edit_surface.py` 는 남는다 —
 # 새 프로젝트도 첫날부터 편집 표면 래칫을 켠다(profiles/_template.py LOCAL_GATES).
 HARNESS_REPO_ONLY = ("tests/", "examples/", "harness_gates/archive_not_shipped.py",
@@ -69,6 +70,9 @@ def reset(root: Path) -> None:
         print(f"[SHIPPED STATE] {TRACE} emptied — it was the harness repo's own trace")
     (root / MAINTENANCE).write_text("{}\n", encoding="utf-8")
     print(f"[SHIPPED STATE] {MAINTENANCE} reset — maintenance reminders count from this project")
+    if (root / VERDICTS).exists():
+        (root / VERDICTS).write_text("", encoding="utf-8")
+        print(f"[SHIPPED STATE] {VERDICTS} emptied — it held the harness repo's own retro verdicts")
     remove, keep = repo_only_files(root)
     for rel in remove:
         (root / rel).unlink()

@@ -6,6 +6,8 @@
 
   강제  ⑬a 코드펜스 트리 덤프 / ⑬b 나열 뭉개기 / ⑬c 괄호 중첩 / ⑬d 머리 역할 계약 누락
   리포트 ⑬e 날짜 태그 밀도 / ⑬f 경로 토큰 밀도 / ⑬g 시그니처 밀도  (MD 에 적지 않기로 한 성분 A·B·D 가 다시 들어온 신호)
+        ⑬h 통읽기 상한 초과 — 라우팅표가 "먼저 읽어라"고 하는 정본이 한 번에 읽히지 않는 크기다. 막지 않는다(dev/REJECTED.md
+            재론 조건: 나눈 정본이 다시 상한을 넘는 일이 두 번 생길 때)
 
 소급 유예: static_check_md_baseline.txt 에 등재된 파일은 강제 위반을 리포트로 낮춘다. 이 목록은
 줄어들기만 해야 한다(래칫).
@@ -33,6 +35,7 @@ CONTRACT_HEAD_LINES = 12   # ⑬d 역할 계약을 찾는 머리 구간 (frontma
 MAX_DATES = 6              # ⑬e
 MAX_PATH_TOKENS = 5        # ⑬f
 MAX_SIGNATURES = 4         # ⑬g
+READ_LIMIT_TOKENS = 16_000 # ⑬h 통읽기 훅의 상한 — 이보다 큰 정본은 한 번에 읽히지 않는다
 
 SEPARATOR = "·"
 TREE_TOKEN = re.compile(r"[├└│]|^\s{2,}[\w.<-]+/")
@@ -45,6 +48,13 @@ INLINE_CODE = re.compile(r"`[^`]*`")
 ROLE_CONTRACT = re.compile(
     r"^>\s*(?:담는 것|문서 범위|Holds):.*(?:담지 않는 것|제외 범위|Excludes):.*(?:읽는 시점|열람 시점|Read when):",  # ko-ok: matches the MD header contract
     re.DOTALL)
+
+
+def estimate_tokens(text: str) -> int:
+    """통읽기 훅(`.claude/hooks/check_context_diet.py`)과 같은 근사 — ASCII 4자당 1토큰, 그 밖의 문자는 1자당 1토큰.
+    커널은 훅 폴더를 import 하지 않는다. 두 식과 상한이 같은지는 tests/test_doc_size.py 가 지킨다."""
+    ascii_count = sum(1 for ch in text if ord(ch) < 128)
+    return ascii_count // 4 + (len(text) - ascii_count)
 
 
 def style_target(rel: str) -> bool:
@@ -141,9 +151,14 @@ def check_md_style(files: list[Path]) -> tuple[list[str], list[str]]:
         rel = _rel(path)
         if not style_target(rel):
             continue
-        lines = path.read_text(encoding=READ_ENC).splitlines()
+        text = path.read_text(encoding=READ_ENC)
+        lines = text.splitlines()
         found: list[str] = []
         _scan_lines(rel, lines, found, soft)
+        tokens = estimate_tokens(text)
+        if tokens > READ_LIMIT_TOKENS:
+            soft.append(f"{rel}: ⑬h about {tokens:,} tokens, over the {READ_LIMIT_TOKENS:,}-token whole-read limit — "
+                        f"a session cannot read it in one pass; split it by topic, not mechanically")
         if not _has_role_contract(lines):
             found.append(f"{rel}:1: ⑬d header role contract missing — "  # ko-ok: cites a Korean doc key
                          f"`> 담는 것: … 담지 않는 것: … 읽는 시점: …` or `> Holds: … Excludes: … Read when: …`")

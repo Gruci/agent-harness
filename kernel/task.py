@@ -248,6 +248,8 @@ def _recreate(shared: Path, scope: str, sid8: str, branch: str) -> Path | None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -X utf8 -m kernel.task", description="Task lifecycle: plan, start, finish, resume, abandon.")
     commands = parser.add_subparsers(dest="command", required=True)
+    reader = commands.add_parser("status", help="read shared tasks and the last landed task; never takes ownership")
+    reader.add_argument("--sid", default="", help="show this session's tasks first")
     planner = commands.add_parser("plan", help="put a planning-stage task on the board (no worktree) when research starts")
     planner.add_argument("scope")
     planner.add_argument("--sid", required=True, help="session id (first 8 characters are used)")
@@ -274,6 +276,13 @@ def main(argv: list[str] | None = None) -> int:
     dropper.add_argument("--scope")
     dropper.add_argument("--discard-commits", action="store_true", help="also drop commits that were never merged")
     args = parser.parse_args(argv)
+    if args.command == "status":
+        from kernel.context import ROOT
+        from kernel.task_status import status
+
+        code, text = status(ROOT, args.sid)
+        print(text)
+        return code
     sid8 = args.sid[:8]
     if args.command == "plan":
         return plan(args.scope, sid8, args.branch)

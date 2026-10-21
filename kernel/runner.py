@@ -15,8 +15,8 @@
 0개인데도 [OK] 로 찍었고, 그래서 실제로는 아무것도 검사하지 않는 게이트를 믿게 만들었다.
 등급을 가르는 판정 헬퍼와 건너뜀 사유는 `kernel/sections.py` 에 있다. 이 파일은 게이트를 나열하고 출력한다.
 
-각 섹션은 slug 를 갖는다. slug 는 `harness_baseline.txt` 의 동결 키로도 쓰인다. 설치 시점에
-이미 있던 위반을 (slug, 파일) 단위로 기록해 예외 처리하고, 모든 게이트가 통과한 상태에서 출발하게 하려는 것이다.
+각 섹션은 slug 를 갖는다. slug 는 `harness_baseline.txt` 의 동결 키로도 쓰인다. 사람이 이미 있는 위반을
+(slug, 파일) 단위로 적어 두면 그 쌍은 위반으로 세지 않는다. 설치는 위반을 보고만 하고 이 파일을 채우지 않는다.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import importlib
 import sys
 from pathlib import Path
 
-from kernel import component_graph, facts, graph_checks, linters, local_hooks, profile
+from kernel import facts, graph_checks, linters, local_hooks, profile, required
 # 러너를 거쳐 쓰도록 다시 내보낸다. trace 는 violation_path 를, 설치 스크립트는 BASELINE_FILE·load_baseline 을 쓴다.
 from kernel.baseline import (BASELINE_FILE, apply_baseline as _apply_baseline,  # noqa: F401
                              load_baseline, violation_path)
@@ -177,9 +177,10 @@ def _doc_sections(full: bool = True) -> list[Section]:
     """문서 게이트. full 이 거짓이면(`--file`) 레포 전체 REPORT 와 문서↔코드 대조를 뺀다. 둘 다 편집한 파일과 무관하다."""
     # 새 프로젝트는 MD 가 코드보다 먼저 나온다 — plan 문서가 아직 없는 경로를 가리키는 게 정상 순서다. 그 시기에
     # 이걸 강제하면 첫 문서부터 막힌다. 첫 컴포넌트가 승인되면 코드가 생긴 것이므로 STAGE 를 손대지 않아도 졸업한다.
-    greenfield = profile.STAGE == "greenfield" and not component_graph.has_components(ROOT)
+    greenfield = not required.graduated(ROOT)
     greenfield_why = "greenfield — report only until the first component is approved"
-    refs = md_graph.check_md_path_refs()
+    md_files = md_graph._doc_md_files()
+    refs = md_graph.check_md_path_refs(md_files)
     if greenfield and full:
         _print_style_reports(refs)
     map_exists = (ROOT / profile.HARNESS_MAP).exists()
@@ -191,7 +192,7 @@ def _doc_sections(full: bool = True) -> list[Section]:
 
     sections: list[Section] = [
         entry("md_path_refs", "MD path references exist", refs, not greenfield, greenfield_why),
-        entry("md_orphans", "Orphan MD (unreachable from hubs)", md_graph.check_md_orphans(),
+        entry("md_orphans", "Orphan MD (unreachable from hubs)", md_graph.check_md_orphans(md_files),
               profile.HUBS and hubs_exist,
               "declared hubs do not exist yet" if profile.HUBS else "no doc entry points set in the profile"),
         entry("md_harness_map", "Harness map match", md_graph.check_harness_map(),
@@ -201,10 +202,12 @@ def _doc_sections(full: bool = True) -> list[Section]:
               profile.AGENT_MODEL_POLICY and agents_exist,
               f"{harness_self.AGENTS_DIR} does not exist" if profile.AGENT_MODEL_POLICY
               else "no agent model table set in the profile"),
+        entry("entry_invariants", "Shared invariants in both entry docs", harness_self.check_entry_invariants(),
+              harness_self.entry_docs_exist(), "CLAUDE.md and AGENTS.md are not both present"),
         entry("lessons_promotion", "Incident promotion status", harness_self.check_lessons_promotion(),
               lessons and (ROOT / lessons).exists(),
               f"declared {lessons} does not exist yet" if lessons else "no lessons doc set in the profile"),
-        entry("md_fn_refs", "MD function references exist", md_graph.check_md_fn_refs(),
+        entry("md_fn_refs", "MD function references exist", md_graph.check_md_fn_refs(md_files),
               not greenfield, greenfield_why),
     ]
     if not full:                        # 문서↔코드 대조는 양쪽 실물을 맞대는 검사라 --file 모드에는 비교 상대가 없다(중복 검사 34·35 와 같다)
@@ -298,10 +301,10 @@ def style_files() -> list[Path]:
 
 
 def collect_all_violations() -> list[tuple[str, str]]:
-    """동결할 대상, 즉 현재 모든 게이트 위반의 (slug, 파일) 쌍. 설치 스크립트가 쓴다.
+    """현재 모든 게이트 위반의 (slug, 파일) 쌍. 설치의 보고와 `--prune` 이 쓴다.
 
-    baseline 을 적용하지 않은 원본이다. 특정 파일에 속하지 않는 레포 전체 위반은 동결할 키가 없어
-    빠지고, 그래서 설치 후에도 남는다. 사람이 직접 봐야 하는 것들이다.
+    baseline 을 적용하지 않은 원본이다. `--prune` 은 이 목록에 없는 baseline 행(고쳐진 위반)을 지운다.
+    특정 파일에 속하지 않는 레포 전체 위반은 키가 없어 빠진다. 사람이 직접 봐야 하는 것들이다.
     """
     files, ui_files = source_files()
     sections = _build_sections(files, ui_files, True, tracked_md_files())
@@ -362,6 +365,10 @@ def main(argv: list[str]) -> int:
         include_md, md_files = True, tracked_md_files()
     sections = _apply_baseline(_build_sections(files, ui_files, include_md, md_files, full, styles))
     sections += graph_checks.sections(ROOT, verify="--verify" in argv)
+    if "--verify" in argv and (contract := required.section(sections, ROOT)):
+        sections.append(contract)
+    if full:
+        _print_style_reports(graph_checks.unbound_report(ROOT))
     total = _print_sections(sections, compact="--compact" in argv)
     violations = [v for _, _, found, _ in sections for v in found]
     decisions = [v for v in violations if "needs_decision" in v]

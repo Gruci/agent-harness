@@ -64,7 +64,7 @@
   <rect x="708" y="402" width="268" height="96" rx="10" fill="#112119" stroke="#3fb950" stroke-width="1.5"/>
   <text x="726" y="433" class="heading green">main</text>
   <text x="726" y="460" class="body">실제 병합을 확인한 뒤</text><text x="726" y="482" class="body">해당 과업의 예약 해제</text>
-  <path d="M708 480H680V474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
+  <path d="M708 474H500V456" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#green)"/>
 
   <rect x="24" y="539" width="952" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
   <text x="500" y="570" text-anchor="middle" class="body muted">로컬 편집은 격리하고, 공유 상태는 트랜잭션으로 다루고, 합쳐질 결과는 CI로 검증합니다.</text>

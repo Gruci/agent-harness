@@ -38,6 +38,8 @@ from kernel.baseline import growth
 from kernel.context import default_branch
 from kernel.exit_gate import verify_checkout
 from kernel.hook import refresh_projection
+from kernel import finish_checks
+from kernel.finish_checks import SMALL_FILES, SMALL_LINES, small_counts, uncommitted
 from kernel.isolation import GENERATED, GENERATED_MAPS
 from kernel.task import PLANNING, SIZE_KEY, SMALL, TASK_DOCS, fail, git
 from kernel.workboard import board_dir, branch_of, field, list_field, sid_of, task_files
@@ -46,9 +48,7 @@ from kernel.worktree import worktree_of
 ARCHIVE = "docs/tasks/archive"
 MOCKUPS = "docs/mockup"
 _PR_NUMBER = re.compile(r"/pull/(\d+)")
-# 소규모 과업의 사후 실측 상한 — 기존 파일만, 바뀐 줄 합계. 사전 추정이 아니라 실제 diff 라서 낙관 추정이 끼지 않는다.
-SMALL_FILES, SMALL_LINES = 3, 40
-SMALL_GUARDED = ("harness_profile.py", "profiles/", "docs/architecture/")   # 그래프·프로파일 변경은 소규모가 아니다
+# 소규모 과업의 사후 실측 상한(SMALL_FILES·SMALL_LINES)은 kernel/finish_checks.py 에 있다 — 저장 시점 조기 알림과 같이 쓴다.
 NO_REMOTE = ("[TASK] No remote — merged locally only. Nothing is backed up until a remote is connected: "
              "`gh repo create <name> --private --source . --push`, or `git remote add origin <url>` and "
              "`git push -u origin HEAD`.")
@@ -145,6 +145,9 @@ def _land(shared: Path, task_file: Path, text: str, branch: str, tree: Path | No
     overrun = _small_overrun(tree, text, _local_base(shared), task_file.stem)
     if overrun:
         return fail(overrun, 1)
+    code, problem = finish_checks.check_touch(shared, tree, _local_base(shared), text)
+    if code:
+        return fail(problem, code)
     _archive(shared, tree, task_file.stem, list_field(text, "산출물"))  # ko-ok: task-board key
     for attempt in range(2):                  # push 사이에 origin 이 움직이면 한 번 더 따라잡는다
         target = _sync_target(shared)
@@ -152,9 +155,13 @@ def _land(shared: Path, task_file: Path, text: str, branch: str, tree: Path | No
             return fail(f"merging {target} into {branch} conflicts — resolve it in the worktree, commit, run again.", 1)
         if attempt == 0:
             _report_growth(tree, target, sid_of(text) or "")
+        verified_head = git(tree, "rev-parse", "HEAD").stdout.strip()
         code, lines = verify_checkout(tree) or (0, [])
         if code:
             return fail(f"--verify exited {code} in {tree.name} — fix there, commit, run again.\n" + "\n".join(lines), code)
+        code, problem = finish_checks.product_tests(tree, verified_head)
+        if code:
+            return fail(problem, code)
         if profile.MERGE_FLOW == "pr":
             return _open_pr(task_file, branch, tree, target)
         if _fast_forward(shared, branch) and (missing is not None or _push(shared)):
@@ -169,12 +176,9 @@ def _small_overrun(tree: Path, text: str, base: str, scope: str) -> str:
     작업 문서·생성 지도·관찰 기록은 세지 않는다 — 과업 결과물이 아니다."""
     if field(text, SIZE_KEY) != SMALL:
         return ""
-    stat = git(tree, "diff", "--numstat", f"{base}...HEAD").stdout.splitlines()
-    rows = [line.split("\t", 2) for line in stat if line.count("\t") >= 2]
-    counted = [(rel, max(int(a) if a.isdigit() else 1, int(d) if d.isdigit() else 1)) for a, d, rel in rows
-               if rel not in GENERATED and not rel.startswith(TASK_DOCS)]
-    added = git(tree, "diff", "--name-only", "--diff-filter=A", f"{base}...HEAD").stdout.split()
-    guarded = [rel for rel, _n in counted if rel.startswith(SMALL_GUARDED)]
+    counted, added, guarded = small_counts(
+        git(tree, "diff", "--numstat", "--no-renames", "-z", f"{base}...HEAD").stdout,
+        git(tree, "diff", "--name-only", "--diff-filter=A", "-z", f"{base}...HEAD").stdout)
     lines = sum(n for _rel, n in counted)
     if len(counted) <= SMALL_FILES and lines <= SMALL_LINES and not added and not guarded:
         return ""
@@ -183,13 +187,6 @@ def _small_overrun(tree: Path, text: str, base: str, scope: str) -> str:
     return (f"{scope} grew past a small change ({len(counted)} files, {lines} lines{extra}; limit {SMALL_FILES} existing "
             f"files and {SMALL_LINES} lines). Write the research and plan in {TASK_DOCS}, get the plan approved, then in "
             f"workboard/{scope}.md delete the `- {SIZE_KEY}: {SMALL}` line, list the plan under its artifacts, and run finish again.")
-
-
-def uncommitted(tree: Path) -> list[str]:
-    """worktree 의 `status --porcelain` 줄. 생성 파일(`GENERATED`)은 빼고 본다 — `_archive` 가 커밋에 싣는다."""
-    status = git(tree, "status", "--porcelain")
-    return [line for line in status.stdout.splitlines()
-            if line.strip() and line[3:].strip().strip('"') not in GENERATED]
 
 
 def _modified(tree: Path, rel: str) -> bool:

@@ -72,11 +72,11 @@ def _ref_exists(token: str, md_dir: Path) -> bool:
     return False
 
 
-def check_md_path_refs() -> list[str]:
+def check_md_path_refs(md_files: list[Path] | None = None) -> list[str]:
     allow = _load_ref_allowlist()
     skip_prefix = tuple(profile.MD["ref_exclude"])
     bad: list[str] = []
-    for md in _doc_md_files():
+    for md in _doc_md_files() if md_files is None else md_files:
         rel_md = _rel(md)
         for i, line in enumerate(md.read_text(encoding=READ_ENC).splitlines(), 1):
             for backtick in _BACKTICK.findall(line):
@@ -210,11 +210,11 @@ def _outlinks(md_path: Path, known: set[str]) -> set[str]:
     return found
 
 
-def check_md_orphans() -> list[str]:
+def check_md_orphans(md_files: list[Path] | None = None) -> list[str]:
     """허브에서 참조 그래프로 도달 불가한 정본 MD — 읽힐 타이밍이 없는 문서."""
     if not profile.HUBS:
         return []
-    files = _doc_md_files()
+    files = _doc_md_files() if md_files is None else md_files
     known = {_rel(f) for f in files}
     by_rel = {_rel(f): f for f in files}
     reachable = {s for s in profile.HUBS if s in known}
@@ -350,12 +350,12 @@ def _module_roots() -> set[str]:
     return roots
 
 
-def _fn_ref_sites() -> list[tuple[str, str]]:
+def _fn_ref_sites(md_files: list[Path] | None = None) -> list[tuple[str, str]]:
     """(검사할 이름, 'MD경로:줄'). 템플릿 표기·외부 라이브러리·등재 예외를 걸러낸 뒤의 후보다."""
     allow = _load_ref_allowlist()
     roots = _module_roots()
     sites: list[tuple[str, str]] = []
-    for md in _doc_md_files():
+    for md in _doc_md_files() if md_files is None else md_files:
         rel_md = _rel(md)
         for number, line in enumerate(
                 md.read_text(encoding=READ_ENC, errors="replace").splitlines(), 1):
@@ -402,13 +402,13 @@ def _defined_names(candidates: list[str]) -> set[str]:
     return found if profile.SYNTAX == "python" else found | facts.function_names(sorted(_tracked_set()), wanted - found)
 
 
-def check_md_fn_refs() -> list[str]:
+def check_md_fn_refs(md_files: list[Path] | None = None) -> list[str]:
     """MD 백틱의 `함수()` 가 코드에 실존하는지 — 개명 누락이 MD 를 거짓말로 만드는 것을 막는다.
 
     다음 세션은 MD 를 사실로 믿고 없는 함수를 부르려 한다. 경로 참조 게이트가 같은 일을
     파일 단위로 하는데, 개명은 파일보다 함수에서 훨씬 자주 일어난다.
     """
-    sites = _fn_ref_sites()
+    sites = _fn_ref_sites(md_files)
     if not sites:
         return []
     defined = _defined_names(sorted({name for name, _ in sites}))

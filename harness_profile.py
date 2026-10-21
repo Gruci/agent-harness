@@ -27,13 +27,14 @@ MERGE_FLOW = "direct"
 # Enabling TEAM requires MERGE_FLOW = "pr" and protected server-side admission (dev/TEAM.md).
 TEAM: dict[str, str] = {}
 
-# LANG 선택 후 언어팩 값을 사용한다. 필요할 때 SOURCE_EXT, SYNTAX, LINTERS를 명시한다.
-# 화면 소스 패턴(UI_EXT)은 화면팩이 준다 — 다를 때만 적는다. npm 폴더도 ui 레이어의 첫 세그먼트와 다를 때만 적는다.
-UI_NPM_DIR: str | None = None
-# 이름 표기와 한 모듈만 맡을 기능은 언어팩·화면팩이 준다. 키별로 덮고, None 이면 그 판정을 끈다.
-# 예: NAMING = {"keys": "camel"} — 응답 키를 camelCase 로 쓰는 프로젝트. OWNED = {"date_format": None} — 날짜 포맷을 여러 곳에서 허용.
-NAMING: dict[str, str | None] = {}
-OWNED: dict[str, str | None] = {}
+# 완료 계약(kernel/required.py). 첫 컴포넌트가 생긴 뒤 --verify 에서 여기 적은 검사 slug 가 [SKIP]·[N/A]·결과 없음이면 실패다.
+# 예약 slug "tests" 는 TESTS 선언을 요구한다. 지우는 것은 완화라 harness_surface.txt 의 동결 행과 대조된다. 비면 지금과 같다.
+REQUIRED_CHECKS: tuple[str, ...] = ()
+# 제품 테스트. finish 와 CI 가 kernel/tests_run.py 로 돌린다 — --verify(120초 상한)와 매 턴 Stop 에는 들어가지 않는다.
+# cmd 에는 JUnit XML 보고서 자리 "{report}" 가 정확히 하나 있어야 한다. 실행 0건·보고서 없음은 실패다.
+# 예: TESTS = ({"slug": "pytest", "cmd": ("python", "-m", "pytest", "-q", "--junitxml={report}"), "timeout": 600},)
+TESTS: tuple[dict, ...] = ()
+# 생략한 선택 설정은 kernel/profile.py 와 선택한 팩의 기본값을 쓴다. 다른 값이 필요할 때만 선언한다.
 
 # 기술 검사 대상일 뿐 아키텍처 분류가 아니다. 업무 컴포넌트/역할은 COMPONENT_GRAPH 정본에 둔다.
 CHECK_PATHS: dict[str, str | None] = {
@@ -44,12 +45,6 @@ CHECK_PATHS: dict[str, str | None] = {
     "routes": None,
     "schema": None,
 }
-FILES: dict[str, str | None] = {"settings": None, "ssl_util": None}
-SYMBOLS: dict[str, str | None] = {
-    "ssl_bypass": None,
-    "error_response": None,
-}
-SCOPE: dict[str, tuple[str, ...]] = {"exclude_all": (), "exclude_scratch": ()}
 
 # 하네스가 함께 싣는 진입 문서. 여기서 링크로 닿지 않는 정본 MD 는 고아다(검사 27).
 HUBS: tuple[str, ...] = ("CLAUDE.md", "README.md", "AGENTS.md", "dev/HARNESS.md", "dev/DEVGUIDE.md",
@@ -66,21 +61,8 @@ MD: dict[str, tuple[str, ...]] = {
                       "docs/mockup/", "README.md", "README.ko.md"),
     "date_exempt": ("dev/LESSONS.md",),
 }
-VOCAB: dict[str, tuple[str, ...]] = {
-    "ui_denylist": (), "abbrev_prefixes": (), "abbrev_names": (),
-}
-ALLOWLIST: dict[str, tuple[str, ...]] = {
-    "py_any": (), "ui_hex": (), "ui_fetch": (), "ui_fetch_wrappers": (),
-    "env_access": (), "ui_platform": (),
-}
-LEGACY_PATHS: tuple[tuple[str, str | None], ...] = ()
 # 루트에 둘 수 있는 파일(검사 45). 하네스 문서만 미리 적는다. 스택 매니페스트는 스택 맞춤에서 사유와 함께 더한다.
 ROOT_FILES: tuple[str, ...] = ("AGENTS.md", "CLAUDE.md", "PROJECT.md", "README.md", "README.ko.md")
-DOC_SYNC: list[dict[str, object]] = []
-BEHAVIOR_TESTED_ROOTS: tuple[str, ...] = ()
-VERSIONED_PROMPTS: tuple[str, ...] = ()
-# 화면 문구 감수(⑱). language 는 화면 문구의 언어 코드(ko·en·ja)다. 화면 레이어를 정할 때 함께 적는다.
-UI_COPY: dict[str, object] = {"language": None}
 LESSONS_DOC: str | None = "dev/LESSONS.md"
 # .claude/agents/ 각 파일의 frontmatter 와 대조한다(검사 29). 라우팅을 바꾸면 양쪽을 같은 커밋에서 고친다.
 AGENT_MODEL_POLICY: dict[str, tuple[str, str]] = {
@@ -89,5 +71,3 @@ AGENT_MODEL_POLICY: dict[str, tuple[str, str]] = {
 }
 # 면제·제외 목록은 줄어들기만 한다(harness_gates/edit_surface.py). 동결본은 설치가 이 선언으로 다시 뜬다.
 LOCAL_GATES: tuple[str, ...] = ("edit_surface",)
-# 이 프로젝트만의 실행 전(PreToolUse) 규칙. harness_hooks/<이름>.py 가 check·CASES 를 두고, 전체 검사가 CASES 로 자가 시험한다(kernel/local_hooks.py).
-LOCAL_HOOKS: tuple[str, ...] = ()

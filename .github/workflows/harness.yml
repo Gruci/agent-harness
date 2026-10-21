@@ -23,6 +23,10 @@ jobs:
       # Stack setup adds the tools the user agreed to install here (for example: pip install ruff).
       - name: Gates
         run: python -X utf8 -m kernel.runner --verify
+      # Product tests declared in the profile's TESTS (kernel/tests_run.py). Without TESTS it prints [SKIP] and passes —
+      # a recorded candidate then means "gates passed", not "product tests passed".
+      - name: Product tests
+        run: python -X utf8 -m kernel.tests_run
       - name: Record tested candidate identity
         env:
           TEAM_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}

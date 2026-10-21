@@ -81,11 +81,16 @@
 | `kernel/channel.py` | 판정을 런타임 채널(exit 코드·stderr·`additionalContext`·`systemMessage`)로 옮기기, worktree 종료 알림의 보관과 다음 저장 전달, Codex 작업공간 판정 접기 | 훅은 exit 코드와 JSON 필드를 직접 고르지 않는다. 누가 무엇을 읽는지의 정본이다 |
 | `kernel/pretool.py` | PreToolUse 처리. 판정 결과를 (exit, `systemMessage`)로 옮긴다 | Claude 래퍼 `check_pretool.py` 와 Codex 진입점이 같이 쓴다 |
 | `kernel/shell.py` | 셸 명령줄을 단순 명령·실행 위치·쓰기 대상·git 하위 명령으로 읽기 (`commands`·`git_args`·`write_targets`·`native`·`join`) | 셸 명령을 판정하는 검사는 토큰을 직접 쪼개지 않는다. 표준 라이브러리만 쓰므로 훅 폴더도 쓴다. 판정은 각 소비자가 한다 |
-| `kernel/isolation.py` | 편집 전 격리 가드(worktree 주인·메인 체크아웃·보드 등록·본체 전체에 한 번인 1줄 예외)와 생성 파일 목록 `GENERATED` | 〃. 격리 예외 경로 목록과 안내문의 정본이다 |
+| `kernel/isolation.py` | 편집 전 격리 가드(worktree 주인 — 1줄 예외보다 먼저·메인 체크아웃·보드 등록·본체 전체에 한 번인 1줄 예외)와 생성 파일 목록 `GENERATED` | 〃. 격리 예외 경로 목록과 안내문의 정본이다 |
 | `kernel/exit_gate.py` | 합치는 명령 읽기(`exit_commands`), 나가는 트리 고르기(`outgoing_checkout`), 한 체크아웃의 `--verify` 실행(`verify_checkout`), 러너 출력에서 판정 줄만 거르는 `verdict_lines` | 나올 때 검사와 `task finish` 가 같이 쓴다. 합치기 명령 목록과 판정 줄 거르기의 정본이다 |
 | `kernel/irreversible.py` | 되돌릴 수 없는 셸 명령 판정(`guard`) — 기본 브랜치 강제·삭제 push, 메인 체크아웃의 `reset --hard`·`clean -f`, 남의 과업 브랜치·worktree 강제 삭제, 레포 밖·공유 폴더 재귀 삭제 | `kernel/pretool.py` 가 셸 명령마다 worktree 이름·나올 때 검사보다 먼저 부른다. 플러그인 코어에서도 돈다. 차단 사유와 안내문의 정본이다 |
 | `kernel/workboard.py` | 보드 위치(`board_dir`)와 서식 읽기·쓰기(`field`·`list_field`·`sid_of`·`board_text`·`add_list_item`), 겹침 판정 | 훅과 과업 명령은 보드 파일을 직접 파싱하지 않는다 |
+| `kernel/task_status.py` | 공유 보드와 실제 Git 작업 사본 및 최근 로컬 반영을 읽는 세션 요약 | 상태 명령과 세션 시작 알림은 완료 체크박스를 다시 해석하지 않는다 |
+| `kernel/preflight.py` | 환경 진단과 이미 선택한 스택의 완료 설정 보완 | 기본 설정을 중복 선언하지 않고 기존 테스트 명령과 필수 목록을 보존한다 |
 | `kernel/task.py`·`kernel/task_finish.py` | 과업 시작·인계·끝내기 명령과 공용 git 호출(`git`·`fail`) | 과업의 기계 단계를 산문으로 다시 적지 않는다. 절차 문서는 이 명령을 가리킨다 |
+| `kernel/finish_checks.py` | finish 의 합치기 전 판정 — 범위 대조(`check_touch`), 제품 테스트와 후보 고정(`product_tests`), 커밋 안 된 변경(`uncommitted`), 소규모 실측과 조기 알림(`small_counts`·`small_warning`), 공유 프로파일 값 읽기(`shared_setting`) | git 경로는 `-z` 로 읽는다. `task_finish` 를 import 하지 않는다 |
+| `kernel/tests_run.py` | 제품 테스트 실행과 JUnit 건수 판정, `TESTS` 선언 형식의 정본(`declaration_errors`) | finish·CI·프로파일 형식 검사가 같이 쓴다. `kernel.profile` 을 import 하지 않는다 |
+| `kernel/required.py` | 졸업 판정(`graduated`)과 필수 검사 섹션 | 러너와 문서 게이트가 같은 졸업 규칙을 쓴다 |
 | `kernel/task_lock.py` | 공유 Git 디렉터리의 프로세스 잠금 | 과업과 관찰 기록은 잠금을 재구현하지 않는다 |
 | `kernel/team_resources.py` | 변경 자원 정규화와 겹침 및 diff 권한 판정 | 조정기와 로컬 편집 가드 및 CI가 같은 판정을 쓴다 |
 | `kernel/team_store.py` | 원자적 과업 선점과 임대 및 세대 검증 | HTTP 처리기는 상태 전이를 재구현하지 않는다 |
@@ -94,7 +99,7 @@
 | `kernel/team_git.py` | 실제 Git 후보와 제출 커밋 대조 및 원격 머지 확인 | 작업자 보고를 통합 증거로 사용하지 않는다 |
 | `kernel/team_admission.py`·`kernel/team_ci.py` | 신뢰된 검사기 격리와 workflow 실행 증거 연결 | 후보 코드를 통합 인증정보로 실행하지 않는다 |
 | `kernel/team_withdraw.py` | 원격 PR 종료 확인 후 후보 철회 | 조정기 세대 변경 전에 대기 중인 PR을 차단한다 |
-| `kernel/trace.py` | 관찰 기록 — 공유 `.git` 의 대기 파일에 쓰기, 합쳐 읽기, `flush`·`reclaim` | 훅은 추적 파일을 직접 열지 않는다 |
+| `kernel/trace.py` | 관찰 기록 — 공유 `.git` 의 대기 파일에 쓰기, 논리 사건으로 합쳐 읽기(`records`·`merged`), `flush`·`reclaim` | 훅은 추적 파일을 직접 열지 않는다. 반복 수를 직접 세지 않는다 |
 | `.claude/hooks/_hookio.py` | 훅 페이로드 읽기, 관찰 기록 위임, 차단(`emit`)·경고(`warn`)·안내(`notify`) 출력 | Claude 전용 훅 래퍼. exit 코드와 `systemMessage` 를 직접 찍지 않는다 |
 | `kernel/worktree.py` | worktree 이름·자리·범위 판정과 머지 끝난 worktree 판정 | Claude 래퍼와 Codex 진입점이 같은 판정을 쓴다. 문구도 여기가 정본이다 |
 | `kernel/workspace.py` | `Finding` 과 종료 시점 작업공간 판정(보드·git 원격·목업·과업 산출물) | 〃. 새 Stop 판정은 `Finding` 을 돌려주고, 출력 채널은 어댑터가 맡는다 |

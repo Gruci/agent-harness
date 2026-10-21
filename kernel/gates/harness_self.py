@@ -33,6 +33,28 @@ _LOCAL_REF = re.compile(r"(?<!원류 )(?<!원류 `)harness_(gates|hooks)/([a-z][
 _LOCAL_SETTING = {"gates": "LOCAL_GATES", "hooks": "LOCAL_HOOKS"}
 
 
+ENTRY_DOCS = ("CLAUDE.md", "AGENTS.md")
+# 두 런타임 진입 문서가 함께 담아야 하는 공통 불변식. 표지는 그 규칙 줄 끝의 `<!-- inv:<ID> -->` 다.
+ENTRY_INVARIANTS = ("plan-before-code", "worktree-only", "verify-before-done", "no-gate-bypass", "evidence-first")
+
+
+def entry_docs_exist() -> bool:
+    return all((ROOT / name).is_file() for name in ENTRY_DOCS)
+
+
+def check_entry_invariants() -> list[str]:
+    """검사 50 — 두 진입 문서가 같은 공통 불변식을 담는가. 표지의 존재만 본다.
+
+    문구와 의미가 같은지, 런타임이 그 규칙을 어떤 도구로 강제하는지는 증명하지 않는다 — 그건 월간 감사 몫이다.
+    런타임 전용 지시(도구 이름)는 복제하지 않는다. 진입 문서가 하나라도 없는 설치는 러너가 [SKIP] 으로 표시한다.
+    """
+    if not entry_docs_exist():
+        return []
+    texts = {name: (ROOT / name).read_text(encoding=READ_ENC, errors="replace") for name in ENTRY_DOCS}
+    return [f"{name}: invariant marker <!-- inv:{inv} --> missing — the other entry doc carries this shared rule"
+            for name, text in texts.items() for inv in ENTRY_INVARIANTS if f"<!-- inv:{inv} -->" not in text]
+
+
 def check_agent_model_policy() -> list[str]:
     """등재된 에이전트의 frontmatter 가 정책 표와 어긋나면 위반.
 

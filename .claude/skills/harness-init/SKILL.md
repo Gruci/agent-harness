@@ -206,6 +206,8 @@ python -X utf8 -m kernel.runner --verify
 
 건너뛰면 하네스를 깔았다는 사실만 남고 무엇이 지켜지는지는 아무도 모른다.
 
+그다음 7-1 로 넘어가기 전에 꼭 돌아야 하는 검사를 `REQUIRED_CHECKS` 로 제안한다(제품 테스트를 선언했으면 `"tests"` 포함). 7-1 뒤에는 본체에서 프로파일을 고칠 수 없다. 기준과 문구는 `dev/workflows/harness-assembly.md` 「스택 맞춤」 끝 문단이 정본이다.
+
 ## 7. PROJECT.md 의 첫 문단을 채운다
 
 2단계에서 들은 답을 `PROJECT.md` 의 "무엇을 만드나"에 옮긴다. 한 문단이면 된다.

@@ -15,13 +15,27 @@
 여기는 **적기만 한다.** 무엇이 패턴인지는 `kernel/retro.py` 가 보고, 그게 규칙 위반인지
 게이트 오탐인지는 사람이 판정한다. 이 하네스에는 "더 좋아졌다"를 재는 기준이 없어서, 그 판정까지
 기계에 맡기면 결국 가장 쉬운 통과 방법인 면제 목록 늘리기로 흘러간다.
+
+## 반복 횟수 — 논리 사건 하나, 관측 여러 번
+
+같은 키(`DEDUP_KEYS`)는 논리 사건 하나다. 다시 관측되면 새 사건을 만들지 않고 `emission_count` 를 더한다.
+이 수는 **같은 상태를 몇 번 관측했는가**이고 수정 시도 횟수나 복구 시간이 아니다.
+
+| 단계 | 동작 |
+|---|---|
+| record | 대기 파일에 batch 없는 같은 키 줄이 있으면 그 줄의 `emission_count`·`last_ts` 를 고친다(대기 파일은 커밋되지 않는다). 없으면 같은 키로 새 대기 줄을 쓴다. reclaim 이 되돌린 batch 붙은 줄은 고치지 않는다 |
+| flush | 대기 파일을 배치 파일로 이름을 바꾸고, 줄마다 `batch` 를 넣어 붙인 뒤 지운다. 대상에 이미 같은 (batch, 키)가 있으면 건너뛴다 — 붙인 뒤 지우기 전에 멈춰도 다음 flush 가 두 번 세지 않는다. 커밋된 줄은 고치지 않는다 |
+| 읽기 | `records()` 가 키로 묶어 사건 하나로 돌려준다. 같은 (batch, 키) 중복을 먼저 지우고 `emission_count` 를 더한다(없으면 1). union 병합으로 두 브랜치의 줄이 같이 와도 합이 맞다 |
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import subprocess
+import uuid
 from contextlib import AbstractContextManager, nullcontext
 from datetime import datetime
 from pathlib import Path
@@ -44,6 +58,7 @@ LEVELS = ("block", "wip", "warn")
 # 세션이 다르면 따로 센다 — 다른 세션의 같은 차단은 실제로 다른 사건이다.
 # 단계(level)도 키다 — worktree 안 알림과 합칠 때의 차단은 같은 위반이어도 다른 사건이다.
 DEDUP_KEYS = ("sid", "kind", "gate", "file", "msg", "level")
+COUNT, LAST, BATCH = "emission_count", "last_ts", "batch"
 
 # 형식 계약의 정본은 `kernel/runner.py` 의 `_print_sections` 다.
 _FAIL_HEAD = re.compile(r"^\[FAIL\]\s+.+?\s+\(([\w:.\-]+)\)\s+—")
@@ -81,35 +96,89 @@ def _write_lock() -> AbstractContextManager[None]:
     return nullcontext() if git_common_dir(TRACE.parent) is None else task_lock(TRACE.parent, "trace")
 
 
-def _records_unlocked() -> list[dict[str, str]]:
-    """Read both files under the caller's lock, without reacquiring a non-reentrant lock."""
+def _count(item: dict[str, str]) -> int:
+    try:
+        return max(1, int(item.get(COUNT) or 1))
+    except ValueError:
+        return 1
+
+
+def merged(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """물리 줄을 논리 사건으로 묶는다. 같은 (batch, 키)는 한 번만 세고, emission_count 는 더하고, ts 는 최초·last_ts 는 최근이다."""
+    seen: set[tuple[str, tuple[str, ...]]] = set()
+    events: dict[tuple[str, ...], dict[str, str]] = {}
+    for row in rows:
+        key, batch = _key(row), row.get(BATCH, "")
+        if batch:
+            if (batch, key) in seen:
+                continue
+            seen.add((batch, key))
+        last = row.get(LAST) or row.get("ts", "")
+        event = events.get(key)
+        if event is None:
+            events[key] = {**{k: v for k, v in row.items() if k != BATCH}, COUNT: str(_count(row)), LAST: last}
+            continue
+        event[COUNT] = str(int(event[COUNT]) + _count(row))
+        event["ts"] = min(event.get("ts", ""), row.get("ts", "")) or event.get("ts", "")
+        event[LAST] = max(event[LAST], last)
+    return list(events.values())
+
+
+def _batch_files() -> list[Path]:
+    """flush 가 이름을 바꿔 두고 아직 지우지 못한 배치 파일 — 붙이다 멈춘 flush 의 흔적이다."""
     pending = pending_path()
-    return _read(TRACE) + (_read(pending) if pending != TRACE else [])
+    return [] if pending == TRACE else sorted(pending.parent.glob(f"{PENDING_NAME}.*"))
+
+
+def _batched_rows() -> list[dict[str, str]]:
+    """배치 파일의 줄. 아직 batch 필드가 없으면 파일 이름의 배치 ID 를 붙인다 — flush 가 붙일 값과 같다."""
+    return [{**row, BATCH: row.get(BATCH) or path.name.rsplit(".", 1)[1]}
+            for path in _batch_files() for row in _read(path)]
+
+
+def _records_unlocked() -> list[dict[str, str]]:
+    """Read every file under the caller's lock, without reacquiring a non-reentrant lock."""
+    pending = pending_path()
+    return merged(_read(TRACE) + _batched_rows() + (_read(pending) if pending != TRACE else []))
 
 
 def records() -> list[dict[str, str]]:
-    """기록 전체 — 추적 파일과 대기 파일을 합쳐 읽는다. 회고와 정비 알림의 건수가 그대로 맞는다."""
+    """논리 사건 전체 — 추적 파일과 대기 파일을 합쳐 키로 묶는다. 회고와 정비 알림은 사건 수를 센다."""
     with _write_lock():
         return _records_unlocked()
 
 
 def flush(target: Path) -> int:
-    """대기 기록을 그 체크아웃의 추적 파일 끝으로 옮기고 대기 파일을 비운다. 옮긴 줄 수를 돌려준다."""
+    """대기 기록을 그 체크아웃의 추적 파일 끝으로 옮긴다. 옮긴 줄 수를 돌려준다."""
     with _write_lock():
         return _flush_unlocked(target)
 
 
 def _flush_unlocked(target: Path) -> int:
-    """Keep the entire read, append and truncate operation in one critical section."""
+    """대기 파일을 배치로 떼어 내고, 남은 배치까지 (batch, 키) 기준으로 한 번씩만 붙인다."""
     pending = pending_path()
-    if pending == target or not pending.exists():
+    if pending == target:
         return 0
-    lines = [line for line in pending.read_text(encoding=READ_ENC).splitlines() if line.strip()]
-    if lines:
-        with target.open("a", encoding="utf-8") as out:
-            out.write("\n".join(lines) + "\n")
-    pending.write_text("", encoding="utf-8")
-    return len(lines)
+    if pending.exists() and pending.read_text(encoding=READ_ENC).strip():
+        os.replace(pending, pending.with_name(f"{PENDING_NAME}.{uuid.uuid4().hex[:12]}"))
+    present = {(row.get(BATCH, ""), _key(row)) for row in _read(target) if row.get(BATCH)}
+    moved = 0
+    for path in _batch_files():
+        batch = path.name.rsplit(".", 1)[1]
+        rows = [{**row, BATCH: row.get(BATCH) or batch} for row in _read(path)]
+        fresh = [row for row in rows if (row[BATCH], _key(row)) not in present]
+        if fresh:
+            with target.open("a", encoding="utf-8") as out:
+                out.write("".join(_dump(row) + "\n" for row in fresh))
+            present |= {(row[BATCH], _key(row)) for row in fresh}
+        path.unlink()
+        moved += len(fresh)
+    return moved
+
+
+def _dump(row: dict[str, str]) -> str:
+    """읽을 때 문자열이 된 반복 수를 정수로 되돌려 쓴다."""
+    return json.dumps({**row, COUNT: _count(row)} if COUNT in row else row, ensure_ascii=False)
 
 
 def reclaim(checkout: Path) -> int:
@@ -135,11 +204,21 @@ def _reclaim_unlocked(checkout: Path) -> int:
     pending = pending_path()
     if pending == TRACE:
         return 0
-    known = {_key(old) for old in _read(pending)}
-    kept = [line for line in added if line.strip() and _key(_load(line)) not in known]
+    # 논리 키만으로 버리면 같은 키의 반복 수가 사라진다. 줄마다 (batch, 키)로 구분하고, batch 가 없는 옛 줄은 내용으로
+    # batch 를 정해 같은 줄을 두 번 되돌려도(체크아웃 전에 멈춘 reclaim) 두 번 세지 않게 한다.
+    known = {(row.get(BATCH, ""), _key(row)) for row in _read(pending) + _batched_rows() if row.get(BATCH)}
+    kept: list[dict[str, str]] = []
+    for line in added:
+        if not line.strip():
+            continue
+        row = _load(line)
+        row[BATCH] = row.get(BATCH) or "r" + hashlib.sha1(line.encode("utf-8")).hexdigest()[:11]
+        if (row[BATCH], _key(row)) not in known:
+            known.add((row[BATCH], _key(row)))
+            kept.append(row)
     if kept:
         with pending.open("a", encoding="utf-8") as out:
-            out.write("\n".join(kept) + "\n")
+            out.write("".join(_dump(row) + "\n" for row in kept))
     subprocess.run(["git", "-C", str(checkout), "checkout", "--", name], capture_output=True, timeout=10)
     return len(kept)
 
@@ -193,12 +272,20 @@ def record(hook: str, kind: str, sid: str = "", gate: str = "",
             "msg": portable(msg)[:MAX_MSG_CHARS],
             "level": level,
         }
-        # debt:append 할 때마다 파일 전체를 읽어 중복을 확인한다. 관찰은 드물고 파일은 작아서 지금은
-        # 이게 제일 싸다. 수천 줄이 되면 마지막 N줄만 읽는 것으로 바꾼다.
+        # debt:append 할 때마다 대기 파일 전체를 읽고 고쳐 쓴다. 대기 파일은 flush 마다 비워져 작아서 지금은
+        # 이게 제일 싸다. 과업 하나가 수천 건을 쌓으면 키 색인을 둔다.
         with _write_lock():
-            if _key(item) in {_key(old) for old in _records_unlocked()}:
-                return
-            with pending_path().open("a", encoding="utf-8") as out:
+            pending = pending_path()
+            rows = _read(pending)
+            for row in rows:
+                # batch 가 붙은 줄(reclaim 이 되돌린 줄)은 불변이다 — 같은 줄이 다른 곳에도 있을 수 있어
+                # 고치면 (batch, 키) 중복 제거가 새 관측을 지운다. 누적은 batch 없는 대기 줄에만 한다.
+                if _key(row) == _key(item) and not row.get(BATCH):
+                    row[COUNT] = str(_count(row) + 1)
+                    row[LAST] = item["ts"]
+                    pending.write_text("".join(_dump(old) + "\n" for old in rows), encoding="utf-8")
+                    return
+            with pending.open("a", encoding="utf-8") as out:
                 out.write(json.dumps(item, ensure_ascii=False) + "\n")
     except Exception:
         return

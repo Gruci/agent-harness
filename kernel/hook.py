@@ -295,16 +295,29 @@ def save_or_stop(root: Path, payload: dict[str, object], cwd: Path, event: str, 
     refresh_projection(root)
     wip = isolation.in_worktree(root) or bool(paths and all(isolation.in_worktree(p) for p in paths))
     verdict = run_checks(root, paths, event, sid, "wip" if wip else "block")
+    small = _small_warning(paths, sid) if event == "PostToolUse" and wip else ""
     if agent == "codex":
         if event == "Stop":
             return channel.for_codex(verdict, wip, codex_hook.workspace_findings(root, sid))
-        return channel.for_codex(verdict, wip, overlap=codex_hook.board_overlaps(root, paths, sid))
+        overlap = "\n".join(part for part in (codex_hook.board_overlaps(root, paths, sid), small) if part)
+        return channel.for_codex(verdict, wip, overlap=overlap)
     if event == "Stop":
         channel.hold(root, sid[:8], channel.held_text(verdict, wip))
         return channel.for_claude(verdict, event, wip)
     main_conversation = "agent_id" not in payload
     held = channel.take(root, sid[:8]) if main_conversation and verdict.code != 1 else ""
-    return channel.for_claude(verdict, event, wip, held)
+    return channel.for_claude(verdict, event, wip, held, small)
+
+
+def _small_warning(paths: list[Path], sid: str) -> str:
+    """소규모 과업의 조기 알림(`kernel/finish_checks.py`). 저장한 파일의 worktree 를 잰다. 알림이 실패해도 저장 판정은 그대로다."""
+    from kernel import finish_checks, isolation
+
+    try:
+        tree = isolation.checkout_of(paths[0]) if paths else None
+        return finish_checks.small_warning(tree, sid) if tree is not None else ""
+    except Exception:                 # 관찰보다 덜 중요한 안내다 — 실패를 저장 결과에 섞지 않는다
+        return ""
 
 
 def _crash_code(event: str, root: Path | None) -> int:

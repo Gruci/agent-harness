@@ -10,7 +10,7 @@ SELF_FILES = ("harness_profile.py", "harness_install.py")
 
 ROOT_INFRA = frozenset({
     ".gitignore", ".gitattributes", "setup_global_permissions.py",
-    "harness_baseline.txt", "harness_surface.txt", "harness_trace.jsonl",
+    "harness_baseline.txt", "harness_surface.txt", "harness_trace.jsonl", "harness_retro_verdicts.jsonl",
     "harness_maintenance.json", "test_pairing_baseline.txt",
     "md_style_baseline.txt", "md_ref_allowlist.txt",
     "dup_decl_baseline.txt", "dup_block_baseline.txt", "api_array_baseline.txt",

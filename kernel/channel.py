@@ -90,16 +90,19 @@ def held_text(verdict: Verdict, wip: bool) -> str | None:
     return model_text(verdict, wip)
 
 
-def for_claude(verdict: Verdict, event: str, wip: bool, held: str = "") -> Delivery:
-    """Claude routing (table above). `held` is the text a Stop kept for this save."""
+def for_claude(verdict: Verdict, event: str, wip: bool, held: str = "", extra: str = "") -> Delivery:
+    """Claude routing (table above). `held` is the text a Stop kept for this save.
+    `extra` is a save-time notice that is not a gate verdict (the small-task early warning) — both the user and the model see it."""
     if verdict.code == 1:
         return Delivery(1, "\n".join(verdict.lines))      # could not run — the "hook error" label is true
-    text = "\n".join(part for part in (model_text(verdict, wip), f"{HELD_HEAD}\n{held}" if held else "") if part)
+    gated = "\n".join(part for part in (model_text(verdict, wip), f"{HELD_HEAD}\n{held}" if held else "") if part)
+    text = "\n".join(part for part in (gated, extra) if part)
     if verdict.code == 2 and not wip:
         return Delivery(2, text)
     if not text:
         return Delivery(0)
-    shown: dict[str, object] = {"systemMessage": user_line(verdict, event, wip)}
+    shown: dict[str, object] = {"systemMessage": "\n".join(
+        part for part in (user_line(verdict, event, wip) if gated else "", extra) if part)}
     if event == "Stop":
         return Delivery(0, "", shown)                   # a Stop channel to the model would keep the turn going
     return Delivery(0, "", {**shown, "hookSpecificOutput": {"hookEventName": "PostToolUse",

@@ -8,6 +8,9 @@
 커널이 아니라 여기에 두지만, 새 프로젝트에도 첫날부터 켠다(`profiles/_template.py` LOCAL_GATES). 동결본(현재 허용
 목록을 고정해 둔 파일)은 `harness_surface.txt` 이고, 설치가 프리셋 선언으로 다시 뜬다(`write`). 형식은 기존
 래칫 baseline 파일(항목이 줄어들기만 허용되는 목록)들과 같다.
+
+필수 검사 목록(`REQUIRED_CHECKS`, `kernel/required.py`)은 극성이 반대다 — 빼는 것이 완화다. 같은 동결본에
+`REQUIRED_CHECKS` 키로 적고, 그 행은 프로파일 선언에서 **빠지면** 위반이다. 면제 쪽 판정(`declared`)과 섞지 않는다.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from kernel.context import ROOT, read_pairs
 SURFACE_FILE = ROOT / "harness_surface.txt"
 TITLE = "Edit surface ratchet (exemption and exclusion lists)"
 SCOPE_KEY = 'SCOPE["exclude_all"]'
+REQUIRED_KEY = "REQUIRED_CHECKS"
 # 정본 래퍼 하나를 지정하는 키 — 관례(`dev/CONVENTIONS.md` F1·F9)가 등록하라고 요구한다. 하나뿐이면 면제가 아니라 지정이고
 # 검사를 켜거나 좁힌다. 둘째부터는 우회로가 될 수 있어 다른 면제와 같이 센다.
 DESIGNATIONS = ("ui_fetch_wrappers", "ui_platform")
@@ -32,6 +36,7 @@ HEADER = """# harness_surface.txt — 편집 표면 동결 목록. 게이트가 
 # 래칫: 이 파일은 줄어들기만 해야 한다. 면제를 없앴으면 해당 행을 지운다.
 #       늘려야 한다면 그건 게이트를 무르게 만드는 변경이다. 코드를 고치는 쪽이 먼저이고,
 #       그래도 필요하면 사유를 dev/REJECTED.md 에 남긴 뒤 같은 커밋에서 여기에 더한다.
+# 예외: REQUIRED_CHECKS 행은 반대다 — 늘리기만 한다. 프로파일에서 필수 검사를 빼면 위반이다.
 #
 # 새 프로젝트에 하네스를 깔면 설치가 프리셋 선언으로 이 파일을 다시 뜬다(harness_install.py write_surface).
 """
@@ -52,6 +57,16 @@ def declared(source: object) -> set[tuple[str, str]]:
     found |= {(f"NAMING[{key}]", value or "off") for key, value in naming.items() if value is None or "|" in value}
     found |= {(f"OWNED[{key}]", value or "off") for key, value in owned.items() if value is None or key in families}
     return found | {(SCOPE_KEY, value) for value in (scope.get("exclude_all") or ())}
+
+
+def required(source: object) -> set[tuple[str, str]]:
+    """필수 검사 목록. 면제와 극성이 반대라 declared() 에 섞지 않는다 — 여기서는 빠지는 것이 완화다."""
+    return {(REQUIRED_KEY, slug) for slug in getattr(source, "REQUIRED_CHECKS", None) or () if isinstance(slug, str)}
+
+
+def frozen_rows(source: object) -> set[tuple[str, str]]:
+    """동결본에 적을 행 전체 — 면제·제외와 필수 검사. 설치와 내보내기가 쓴다."""
+    return declared(source) | required(source)
 
 
 def current() -> set[tuple[str, str]]:
@@ -75,8 +90,15 @@ def run(py_files: list[Path], ui_files: list[Path]) -> list[tuple[str, list[str]
     if not SURFACE_FILE.exists():
         return [(TITLE, [f"{SURFACE_FILE.name} missing — without a baseline file for the exemption and exclusion lists, "
                          f"nobody notices when exemptions grow. Create it by copying the profile's current declarations"])]
-    added = sorted(current() - frozen())
+    rows = frozen()
+    frozen_required = {row for row in rows if row[0] == REQUIRED_KEY}
+    added = sorted(current() - (rows - frozen_required))
+    removed = sorted(frozen_required - required(profile))
     return [(TITLE, [f"{SURFACE_FILE.name}: '{value}' was added to {key} — this loosens a gate. "
                      f"First see whether the code can be fixed instead of exempted; if it is still needed, "
                      f"record the reason in dev/REJECTED.md, then add a row to this file"
-                     for key, value in added])]
+                     for key, value in added] +
+                    [f"{SURFACE_FILE.name}: '{value}' was removed from {REQUIRED_KEY} in the profile — dropping a required check "
+                     f"loosens the completion contract. If it is still needed, record the reason in dev/REJECTED.md, "
+                     f"then delete the row from this file"
+                     for _key, value in removed])]
