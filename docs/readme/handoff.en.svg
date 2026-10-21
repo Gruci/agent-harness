@@ -21,7 +21,7 @@
 <rect x="24" y="140" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="164" r="5" fill="#2f81f7"/><text x="56" y="169" class="name">Agent 2</text><text x="38" y="194" class="sub">task: payments</text>
 <rect x="24" y="224" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="248" r="5" fill="#2f81f7"/><text x="56" y="253" class="name">Agent 3</text><text x="38" y="278" class="sub">task: alerts</text>
 <rect x="278" y="52" width="344" height="248" rx="12" fill="#161b22" stroke="#2f81f7" stroke-width="1.5"/>
-<text x="298" y="84" class="name">agent-harness</text><text x="298" y="104" class="how">one harness under every session</text>
+<text x="298" y="84" class="name">dev-harness</text><text x="298" y="104" class="how">one harness under every session</text>
 <path d="M298,122 L602,122 M450,134 L450,286 M298,210 L602,210" stroke="#30363d" stroke-width="1"/>
 <text x="298" y="156" class="row">Task board</text><text x="298" y="176" class="how">who works on what</text>
 <text x="466" y="156" class="row">Plans &amp; decisions</text><text x="466" y="176" class="how">written before code</text>

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from kernel import UPSTREAM, profile
 
-COMMIT_MESSAGE = "init: agent-harness"
+COMMIT_MESSAGE = "init: dev-harness"
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess:

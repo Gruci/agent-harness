@@ -1,13 +1,13 @@
 <div align="center">
 
-# agent-harness
+# dev-harness
 
-**어느 세션이 이어받아도, 한 사람이 일한 것처럼.**
+**Claude Code와 Codex를 위한 개발용 하네스.**
 
 설계서(plan)·결정·관례·교훈이 레포에 남고 훅이 모든 세션을 그 위에서 일하게 합니다.
 어느 에이전트든, 오늘 세션이든 다음 달 세션이든.
 
-AI 개발 하네스 v1.3.0 · 코딩 에이전트용
+dev-harness v1.3.1 · 프로젝트 맥락 공유, 작업 격리, 규칙 검사
 
 [English](README.md) · [한국어](README.ko.md)
 
@@ -17,7 +17,7 @@ AI 개발 하네스 v1.3.0 · 코딩 에이전트용
 
 ## 세션이 바뀌어도 이어지는 것 (템플릿)
 
-| | 없을 때 | agent-harness 와 함께 |
+| | 없을 때 | dev-harness 와 함께 |
 |:--|:--|:--|
 | 새 세션이 시작되면 | 프로젝트를 다시 설명합니다 | 열린 과업을 받고 그 설계서를 읽어 다음 단계부터 이어갑니다 |
 | 어제 내린 결정 | 대화와 함께 사라집니다 | 설계서에 남습니다. 거절한 제안도 기록돼 다시 나오지 않습니다 |
@@ -39,12 +39,12 @@ AI 개발 하네스 v1.3.0 · 코딩 에이전트용
 | 과업마다 작업 사본, 공유 작업 보드, 합치기 전 제품 테스트 | ✓ | — |
 | 인증된 서비스로 여러 컴퓨터의 작업 조정 | 선택 | — |
 | Codex 지원 | ✓ | — |
-| 업데이트 | `python -X utf8 harness_install.py --upgrade` | `/plugin update agent-harness@agent-harness` |
+| 업데이트 | `python -X utf8 harness_install.py --upgrade` | `/plugin update dev-harness@dev-harness` |
 
 **템플릿.** Python 3.10 이상과 git 이 필요하고, GitHub 은 선택입니다. PowerShell·cmd·bash 어디서나 같습니다(macOS·Linux 는 `python3`).
 
 ```bash
-git clone https://github.com/Gruci/agent-harness.git my-project
+git clone https://github.com/Gruci/dev-harness.git my-project
 cd my-project
 python -X utf8 harness_install.py --new
 ```
@@ -52,9 +52,11 @@ python -X utf8 harness_install.py --new
 **플러그인.** 설정 파일과 검사 기록 몇 개만 생기고, 다른 레포는 건드리지 않습니다.
 
 ```
-/plugin marketplace add Gruci/agent-harness
-/plugin install agent-harness@agent-harness
+/plugin marketplace add Gruci/dev-harness
+/plugin install dev-harness@dev-harness
 ```
+
+이전 이름으로 설치했다면 [플러그인 이름 변경 절차](dev/harness/operations.md#플러그인-이름-변경)를 따릅니다.
 
 그다음 그 폴더에서 Claude Code 를 켜고 `하네스 깔아줘` 라고 말합니다. 무엇을 만들지 묻고, 스택 고르는 것을 도운 뒤, 그 스택에 맞는 검사를 켭니다.
 
@@ -175,7 +177,7 @@ python -X utf8 -m kernel.team serve --database /srv/harness/team.sqlite --config
 | 하네스가 제 테스트를 돌리게 하려면요? | `TESTS` 에 JUnit 보고서 자리와 함께 선언합니다. 예: `{"slug": "pytest", "cmd": ("python", "-m", "pytest", "-q", "--junitxml={report}")}`. 선언이 없을 때 합치기를 막으려면 `REQUIRED_CHECKS` 에 `"tests"` 를 넣습니다. |
 | GitHub 이 꼭 있어야 하나요? | 혼자 쓸 때는 선택이며, 원격이 없으면 내 컴퓨터에만 합칩니다. 팀 모드는 GitHub PR과 CI를 사용합니다. |
 | 하던 작업을 그만두려면요? | AI 에게 말하면 됩니다. 저장 안 한 변경이나 합치지 않은 커밋은 동의 없이 지우지 않습니다. |
-| 새 버전으로 올리려면요? | 플러그인은 `/plugin update agent-harness@agent-harness`, 템플릿은 `python -X utf8 harness_install.py --upgrade` 입니다. |
+| 새 버전으로 올리려면요? | 플러그인은 `/plugin update dev-harness@dev-harness`, 템플릿은 `python -X utf8 harness_install.py --upgrade` 입니다. |
 
 ## 자세히
 
@@ -223,6 +225,7 @@ python -X utf8 setup_global_permissions.py            # 선택: 이 컴퓨터의
 
 | 버전 | 변경 내용 |
 |:--|:--|
+| **v1.3.1** | 개발용 하네스 dev-harness로 이름을 바꾸고 이전 원류 주소 인식을 유지합니다. |
 | **v1.3.0** | 합치기 전 제품 테스트 실행, 건너뛸 수 없는 검사 지정, 작업 사본 격리 강화. |
 | **v1.2.0** | 선택형 인증 조정 서버, 공유 리소스 예약, PR·머지 큐 후보의 CI 검증. |
 | **v1.1.0** | 범용성 확장. |

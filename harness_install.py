@@ -25,7 +25,7 @@ PRESET_DIR = KERNEL_HOME / "profiles"
 DEFAULT_PRESET = "_template"
 # 플러그인 설치 — 커널이 프로젝트 밖(플러그인 폴더)에 있다. 업데이트와 배선 검사는 플러그인 런타임의 몫이다.
 PLUGIN = KERNEL_HOME != ROOT
-PLUGIN_UPDATE = "[UPDATE] Plugin install — upgrade with `/plugin update agent-harness@agent-harness`. --upgrade is for template installs only."
+PLUGIN_UPDATE = "[UPDATE] Plugin install — upgrade with `/plugin update dev-harness@dev-harness`. --upgrade is for template installs only."
 # 편집 표면 동결본. 설치가 프리셋 선언으로 뜬다 — 하네스 레포의 것을 물려받지 않는다(harness_gates/edit_surface.py).
 SURFACE_FILE = "harness_surface.txt"
 

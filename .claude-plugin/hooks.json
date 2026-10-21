@@ -1,5 +1,5 @@
 {
-  "description": "agent-harness core gates. They act only in repos that have harness_profile.py and no template kernel.",
+  "description": "dev-harness core gates. They act only in repos that have harness_profile.py and no template kernel.",
   "hooks": {
     "SessionStart": [{"matcher": "startup|resume|clear|compact", "hooks": [
       {"type": "command", "timeout": 15,

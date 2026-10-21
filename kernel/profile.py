@@ -16,7 +16,7 @@ import importlib.util
 import re
 from typing import Any
 
-from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, UPSTREAM, arch, framework, lang, profile_checks
+from kernel import PROFILE_SCHEMA as _REQUIRED_SCHEMA, UPSTREAM, UPSTREAM_ALIASES, arch, framework, lang, profile_checks
 from kernel.context import KERNEL_HOME, PROFILE_FILE, ROOT, git_output
 
 _CHECK_PATH_KEYS = ("ui", "ui_admin", "ui_tokens", "tests", "routes", "schema")
@@ -350,7 +350,8 @@ _GITHUB_REPO = re.compile(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/*$", re
 def repo_key(url: str) -> str:
     """GitHub 주소를 `소유자/레포` 로 줄여 https·ssh 표기 차이를 지운다. GitHub 가 아니면 원문 그대로다."""
     found = _GITHUB_REPO.search(url.strip())
-    return found.group(1).lower() if found else url.strip().lower()
+    key = found.group(1).lower() if found else url.strip().lower()
+    return UPSTREAM.removeprefix("https://github.com/").lower() if key in UPSTREAM_ALIASES else key
 
 
 def remote_urls() -> list[str]:

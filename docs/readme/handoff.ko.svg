@@ -21,7 +21,7 @@
 <rect x="24" y="140" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="164" r="5" fill="#2f81f7"/><text x="56" y="169" class="name">에이전트 2</text><text x="38" y="194" class="sub">과업: 결제</text>
 <rect x="24" y="224" width="200" height="72" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1.5"/><circle cx="44" cy="248" r="5" fill="#2f81f7"/><text x="56" y="253" class="name">에이전트 3</text><text x="38" y="278" class="sub">과업: 알림</text>
 <rect x="278" y="52" width="344" height="248" rx="12" fill="#161b22" stroke="#2f81f7" stroke-width="1.5"/>
-<text x="298" y="84" class="name">agent-harness</text><text x="298" y="104" class="how">모든 세션 아래 하네스 하나</text>
+<text x="298" y="84" class="name">dev-harness</text><text x="298" y="104" class="how">모든 세션 아래 하네스 하나</text>
 <path d="M298,122 L602,122 M450,134 L450,286 M298,210 L602,210" stroke="#30363d" stroke-width="1"/>
 <text x="298" y="156" class="row">작업 보드</text><text x="298" y="176" class="how">누가 무엇을 하는지</text>
 <text x="466" y="156" class="row">설계서와 결정</text><text x="466" y="176" class="how">코드보다 먼저 파일로</text>

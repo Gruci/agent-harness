@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="544" viewBox="0 0 900 544" role="img" aria-label="A recorded Claude Code session: agent-harness blocks a shell write and a 520-line file, and the agent stops instead of working around the gate.">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="544" viewBox="0 0 900 544" role="img" aria-label="A recorded Claude Code session: dev-harness blocks a shell write and a 520-line file, and the agent stops instead of working around the gate.">
 <style>
 text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding","Malgun Gothic",monospace;font-size:14px;white-space:pre}
 .l{opacity:0}
@@ -9,7 +9,7 @@ text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding","Malgun G
 <rect width="900" height="34" rx="10" fill="#161b22"/>
 <rect y="24" width="900" height="10" fill="#161b22"/>
 <circle cx="20" cy="17" r="6" fill="#ff5f57"/><circle cx="40" cy="17" r="6" fill="#febc2e"/><circle cx="60" cy="17" r="6" fill="#28c840"/>
-<text x="450" y="22" text-anchor="middle" style="fill:#8b949e;font-size:13px">claude · recorded session with the agent-harness plugin</text>
+<text x="450" y="22" text-anchor="middle" style="fill:#8b949e;font-size:13px">claude · recorded session with the dev-harness plugin</text>
 <text class="l l0" x="24" y="58" style="fill:#e6edf3;font-weight:600">&gt; Add a module constants.py that defines 520 integer constants named</text>
 <text class="l l1" x="24" y="80" style="fill:#e6edf3;font-weight:600">  C0 through C519, each set to its index. Write it in one go.</text>
 <text class="l l2" x="24" y="124" style="fill:#79c0ff">● Bash(python -c &quot;print(…)&quot; &gt; constants.py &amp;&amp; wc -l constants.py …)</text>

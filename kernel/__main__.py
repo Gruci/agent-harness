@@ -39,7 +39,7 @@ def session_notice(root: Path | None) -> str:
     if root is None:
         return ""                             # git 밖이거나 템플릿 설치 — 그 체크아웃의 훅이 맡는다
     if not (root / "harness_profile.py").is_file():
-        return ("[HARNESS] This repo is not connected to agent-harness, so gates are off. "
+        return ("[HARNESS] This repo is not connected to dev-harness, so gates are off. "
                 "Connect it with the harness-init skill only when the user asks.")
     from kernel import profile
     from kernel.task_status import status

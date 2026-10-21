@@ -1,13 +1,13 @@
 {
-  "name": "agent-harness",
-  "description": "Mechanical guardrails for AI coding agents.",
+  "name": "dev-harness",
+  "description": "Development harness with project-rule checks for Claude Code.",
   "owner": {"name": "Daehyun Kim", "url": "https://github.com/Gruci"},
   "plugins": [
     {
-      "name": "agent-harness",
+      "name": "dev-harness",
       "source": "./",
       "description": "Save-time, session-end and pre-push gates for repos connected with harness-init.",
-      "version": "1.3.0"
+      "version": "1.3.1"
     }
   ]
 }

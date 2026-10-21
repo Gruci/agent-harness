@@ -1,13 +1,13 @@
 <div align="center">
 
-# agent-harness
+# dev-harness
 
-**Every AI session picks up where the last one left off — as if one engineer did all the work.**
+**A development harness for Claude Code and Codex.**
 
 Plans, decisions, conventions and lessons stay in the repo, and hooks keep every session working from them —
 whichever agent, today's session or next month's.
 
-agent-harness v1.3.0 · for coding agents
+dev-harness v1.3.1 · shared project context, isolated tasks, enforced checks
 
 [English](README.md) · [한국어](README.ko.md)
 
@@ -17,7 +17,7 @@ agent-harness v1.3.0 · for coding agents
 
 ## What carries over between sessions (template)
 
-| | Without | With agent-harness |
+| | Without | With dev-harness |
 |:--|:--|:--|
 | A new session starts | You explain the project again | It gets the open tasks, reads their plans and continues from the next step |
 | Yesterday's decisions | Gone with the chat | Kept in the plan. Rejected ideas are recorded so they are not proposed again |
@@ -39,12 +39,12 @@ agent-harness v1.3.0 · for coding agents
 | One worktree per task, a shared task board, product tests before merge | ✓ | — |
 | Coordination across computers through an authenticated service | optional | — |
 | Codex support | ✓ | — |
-| Update | `python -X utf8 harness_install.py --upgrade` | `/plugin update agent-harness@agent-harness` |
+| Update | `python -X utf8 harness_install.py --upgrade` | `/plugin update dev-harness@dev-harness` |
 
 **Template.** Needs Python 3.10+ and git; GitHub is optional. Same in PowerShell, cmd and bash (`python3` on macOS and Linux).
 
 ```bash
-git clone https://github.com/Gruci/agent-harness.git my-project
+git clone https://github.com/Gruci/dev-harness.git my-project
 cd my-project
 python -X utf8 harness_install.py --new
 ```
@@ -52,9 +52,11 @@ python -X utf8 harness_install.py --new
 **Plugin.** Only a settings file and a few check records are added; other repos are left alone.
 
 ```
-/plugin marketplace add Gruci/agent-harness
-/plugin install agent-harness@agent-harness
+/plugin marketplace add Gruci/dev-harness
+/plugin install dev-harness@dev-harness
 ```
+
+Already installed under the previous name? Follow the [plugin migration steps](dev/harness/operations.md#플러그인-이름-변경).
 
 Then open Claude Code in the folder and say `set up the harness`. It asks what you want to build, helps you pick a stack, and turns on the checks that fit it.
 
@@ -102,7 +104,7 @@ Just ask for work — `add a login feature`. The change then goes through:
 
 The rules every session works under. When one is broken the session hears about it right away, and the work cannot merge until it is fixed.
 
-<p align="center"><img src="docs/readme/gate-demo.svg" width="900" alt="A recorded Claude Code session: agent-harness refuses a shell write, blocks a 520-line file, and the agent stops instead of working around the gate."></p>
+<p align="center"><img src="docs/readme/gate-demo.svg" width="900" alt="A recorded Claude Code session: dev-harness refuses a shell write, blocks a 520-line file, and the agent stops instead of working around the gate."></p>
 <p align="center"><sub>A recorded session with the plugin. The agent tries to write a file through the shell and is refused, writes a 520-line file and hits the 400-line limit, then stops instead of working around the gate. The grey lines are notes added for this README.</sub></p>
 
 A few examples. How the pieces fit together and what the terms mean is in the [overview](dev/OVERVIEW.md) (Korean); the full list of checks is in the [harness map](dev/HARNESS.md).
@@ -175,7 +177,7 @@ With `TEAM = {}`, the local workflow is unchanged. See [team setup and operation
 | How do I make the harness run my tests? | Declare them in `TESTS` with a JUnit report slot, e.g. `{"slug": "pytest", "cmd": ("python", "-m", "pytest", "-q", "--junitxml={report}")}`. Add `"tests"` to `REQUIRED_CHECKS` so a missing declaration blocks the merge. |
 | Do I need GitHub? | Optional for solo work; without a remote, work merges on your computer. Team mode uses GitHub PRs and CI. |
 | How do I drop a task? | Ask the AI. Unsaved or unmerged work is never deleted without your OK. |
-| How do I update? | Plugin: `/plugin update agent-harness@agent-harness`. Template: `python -X utf8 harness_install.py --upgrade`. |
+| How do I update? | Plugin: `/plugin update dev-harness@dev-harness`. Template: `python -X utf8 harness_install.py --upgrade`. |
 
 ## Details
 
@@ -223,6 +225,7 @@ You need a Git repository and Python 3.10+ (as `python` or `python3`). Screen ch
 
 | Version | Changes |
 |:--|:--|
+| **v1.3.1** | Renamed to dev-harness, with the previous upstream address still recognized. |
 | **v1.3.0** | Product tests before every merge, checks that cannot be skipped, and stricter worktree isolation. |
 | **v1.2.0** | Optional authenticated team coordinator, shared resource reservations and CI verification of PR and merge queue candidates. |
 | **v1.1.0** | Broader language support. |

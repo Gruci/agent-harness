@@ -49,12 +49,26 @@ Git 조회가 실패하면 완료 여부를 모른다고 표시한다.
 | 도는 곳 | `harness_profile.py` 가 있고 템플릿 커널(`kernel/hook.py`)이 없는 체크아웃. 다른 레포에서는 훅이 exit 0 으로 비킨다 |
 | 루트 | 플러그인 진입점이 `HARNESS_ROOT` 로 프로젝트를 커널에 알린다. 정본은 `kernel/context.py` 다 |
 | 명령 | `python -X utf8 "<플러그인>/kernel" <하위 명령>`. 정본은 `kernel/__main__.py` 헤더이고 경로는 세션 시작 알림이 준다 |
-| 업데이트 | `/plugin update agent-harness@agent-harness`. `--upgrade` 는 템플릿 전용이다 |
+| 업데이트 | `/plugin update dev-harness@dev-harness`. `--upgrade` 는 템플릿 전용이다 |
 
 Codex에서는 프로젝트와 새 훅 정의를 런타임에서 신뢰해야 실행된다.
 공식 CLI의 `/hooks`에서 확인하며 호스트 앱은 해당 앱의 훅 지원과 신뢰 설정을 확인한다.
 파일 진단 통과는 실제 훅 활성화의 증거가 아니다.
 근거는 [공식 Codex 훅 문서](https://learn.chatgpt.com/docs/hooks)다.
+
+### 플러그인 이름 변경
+
+이전 agent-harness 플러그인을 설치했다면 Claude Code 세션에서 아래 순서로 새 이름으로 옮긴다.
+이전 마켓플레이스를 제거하면 그곳에서 설치한 플러그인과 연결 설정도 제거된다.
+
+```text
+/plugin marketplace remove agent-harness
+/plugin marketplace add Gruci/dev-harness
+/plugin install dev-harness@dev-harness
+```
+
+프로젝트의 하네스 프로파일과 검사 기록은 유지한다.
+명령의 설치와 제거 동작은 [공식 플러그인 관리 문서](https://code.claude.com/docs/en/discover-plugins)가 정본이다.
 
 ## 전역 자율 실행 초기화
 
